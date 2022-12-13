@@ -2,7 +2,7 @@
 #include<stdlib.h>
 #include<algorithm>
 #include<cstring>
-#include<CL/cl.h>
+#include"CL/cl.h"
 #include"cl_execution_environment.h"
 
 
