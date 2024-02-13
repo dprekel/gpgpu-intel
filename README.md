@@ -1,7 +1,5 @@
-<<<<<<< HEAD
-# GPGPU_Intel
-Accessing the Linux i915 driver from user space
-=======
-# ioctl-i915
-Accessing the Linux i915 driver from user space. Finally this will become a minimal userspace driver.
->>>>>>> origin
+# GPGPU-Intel
+A minimal userspace driver for general purpose computation on Intel Integrated Graphics GPUs. Intels NEO compute runtime for OpenCL is a large project. To learn about the inner workings of these drivers, we can extract the core functionality and write our own driver.
+
+## Reimplementing clCreateBuffer
+
