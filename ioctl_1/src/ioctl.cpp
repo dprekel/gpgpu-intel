@@ -15,24 +15,46 @@
 
 void appendHwDeviceId(std::vector<std::unique_ptr<HwDeviceId>> &hwDeviceIds, int fileDescriptor, const char* pciPath);
 bool isi915Version(int fileDescriptor);
+std::vector<std::unique_ptr<HwDeviceId>> discoverDevices();
 
 
 int main() {
+	using HwDeviceIds = std::vector<std::unique_ptr<HwDeviceId>>;
+	
+	HwDeviceIds hwDeviceIds = discoverDevices();
+	
+	uint32_t rootDeviceIndex = 0u;
+	
+	//for (auto &hwDeviceId : hwDeviceIds) {
+	//	if (initHwDeviceIdResources(std::move(hwDeviceId), rootDeviceIndex) == false) {
+	//		return -1;
+	//	}
+	//}
+	
+	return 0;
+}
+
+
+std::vector<std::unique_ptr<HwDeviceId>> discoverDevices() {
+	
 	std::vector<std::unique_ptr<HwDeviceId>> hwDeviceIds;
+	
+	//std::vector<std::string> files = Directory::getFiles(Os::pciDevicesDirectory);
 	//TODO: Write a function that reads out the path from the system
 	const char* string = "/dev/dri/by-path/pci-0000:00:02.0-render";
 	const char* pciPath = "0000:00:02.0";
-	//printf("%s\n", string);
+	
 	std::cout << string << std::endl;
 	
-	int fileDescriptor = open(string, O_RDWR);	
+	int fileDescriptor = open(string, O_RDWR);
 	
 	std::cout << fileDescriptor << std::endl;
-
+	
 	appendHwDeviceId(hwDeviceIds, fileDescriptor, pciPath);
-
-	return 0;
+	
+	return hwDeviceIds;
 }
+
 
 
 
