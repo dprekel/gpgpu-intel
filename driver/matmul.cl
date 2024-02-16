@@ -1,5 +1,5 @@
 __attribute__((reqd_work_group_size(TILE_GROUP_M, TILE_GROUP_N, 1)))
-kernel void gemm_nt(global const float* restrict A,
+kernel void matmul(global const float* restrict A,
                     int lda,
                     global const float* restrict B,
                     int ldb,
@@ -29,3 +29,4 @@ kernel void gemm_nt(global const float* restrict A,
             C[Ccur] = c[i*TILE_SIZE_N + j];
         }
     }
+}

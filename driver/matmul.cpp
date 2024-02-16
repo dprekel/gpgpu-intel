@@ -1,15 +1,21 @@
 #include <stdio.h>
 #include <string.h>
+#include <string>
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
 #include <CL/cl.h>
 
+#define TILE_SIZE_M     1
+#define TILE_GROUP_M    16
+#define TILE_SIZE_N     128
+#define TILE_GROUP_N    1
+
 const char* loadProgramSource(const char* filename, uint64_t* size);
 uint64_t nanos();
-void gemm();
+void matmul();
 
-void gemm() {
+void matmul() {
 
     cl_uint num_platforms = 0;
     cl_int err = clGetPlatformIDs(0, 0, &num_platforms);
@@ -27,7 +33,7 @@ void gemm() {
     err = clGetDeviceInfo(*deviceStruct, CL_DEVICE_MAX_CLOCK_FREQUENCY, 0, 0, &size_device_clock);
     cl_uint device_clock = 0;
     err = clGetDeviceInfo(*deviceStruct, CL_DEVICE_MAX_CLOCK_FREQUENCY, size_device_clock, &device_clock, 0);
-    printf("Device clock frequency: %u\n", device_clock);
+    printf("Device clock frequency: %u MHz\n", device_clock);
  
 
     cl_context context = clCreateContext(NULL, num_devices, deviceStruct, 0, 0, &err);
@@ -35,17 +41,26 @@ void gemm() {
     cl_command_queue queue = clCreateCommandQueue(context, *deviceStruct, 0, &err);
 
 
-    const char* build_options = "-DTILE_SIZE_M=1 -DTILE_GROUP_M=1 -DTILE_SIZE_N=1 -DTILE_GROUP_N=1 -DTILE_SIZE_K=1";
     uint64_t sizeSource;
-    const char* raw_text = loadProgramSource("gemm.cl", &sizeSource);
-    printf("%s\n", raw_text);
+    const char* raw_text = loadProgramSource("matmul.cl", &sizeSource);
     cl_program program = clCreateProgramWithSource(context, 1, &raw_text, 0, &err);
     printf("err: %d\n", err);
 
-    err = clBuildProgram(program, num_devices, deviceStruct, build_options, 0, 0);
+    std::string build_options = "-DTILE_SIZE_M=" + std::to_string(TILE_SIZE_M)
+                              + " -DTILE_GROUP_M=" + std::to_string(TILE_GROUP_M)
+                              + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
+                              + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
+    err = clBuildProgram(program, num_devices, deviceStruct, build_options.c_str(), 0, 0);
     printf("err: %d\n", err);
+    if (err == CL_BUILD_PROGRAM_FAILURE) {
+        size_t log_size;
+        clGetProgramBuildInfo(program, *deviceStruct, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+        char* log = (char*)malloc(log_size);
+        clGetProgramBuildInfo(program, *deviceStruct, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
+        printf("%s\n", log);
+    }
 
-    const char* kernel_name = "GEMM";
+    const char* kernel_name = "matmul";
     cl_kernel kernel = clCreateKernel(program, kernel_name, &err);
     printf("err: %d\n", err);
 
@@ -64,20 +79,22 @@ void gemm() {
         matrix_B[i] = 1.0;
     }
     
-    cl_mem bufferA = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR, matrix_memory_size, matrix_A, &err);
+    cl_mem bufferA = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_USE_HOST_PTR, matrix_memory_size, matrix_A, &err);
     printf("err: %d\n", err);
-    cl_mem bufferB = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR, matrix_memory_size, matrix_B, &err);
+    cl_mem bufferB = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_USE_HOST_PTR, matrix_memory_size, matrix_B, &err);
     printf("err: %d\n", err);
-    cl_mem bufferC = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, matrix_memory_size, matrix_C, &err);
+    cl_mem bufferC = clCreateBuffer(context, CL_MEM_READ_WRITE|CL_MEM_USE_HOST_PTR, matrix_memory_size, matrix_C, &err);
     printf("err: %d\n", err);
     
 
-    err = clSetKernelArg(kernel, 0, sizeof(int), (void*)&size);
-    err = clSetKernelArg(kernel, 1, sizeof(int), (void*)&size);
-    err = clSetKernelArg(kernel, 2, sizeof(int), (void*)&size);
-    err = clSetKernelArg(kernel, 3, sizeof(cl_mem), (void*)&bufferA);
-    err = clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&bufferB);
-    err = clSetKernelArg(kernel, 5, sizeof(cl_mem), (void*)&bufferC);
+    cl_int ldabc = static_cast<int>(size);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&bufferA);
+    err = clSetKernelArg(kernel, 1, sizeof(cl_int), (void*)&ldabc);
+    err = clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&bufferB);
+    err = clSetKernelArg(kernel, 3, sizeof(cl_int), (void*)&ldabc);
+    err = clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&bufferC);
+    err = clSetKernelArg(kernel, 5, sizeof(cl_int), (void*)&ldabc);
+    err = clSetKernelArg(kernel, 6, sizeof(cl_int), (void*)&ldabc);
     printf("err: %d\n", err);
 
     // Maximum number of work items that make up a work group
@@ -85,14 +102,13 @@ void gemm() {
     err = clGetDeviceInfo(*deviceStruct, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(max_work_group_size), &max_work_group_size, 0);
     printf("CL_DEVICE_MAX_WORK_GROUP_SIZE: %lu\n", max_work_group_size);
 
-    const size_t TS = 16;
     // number of work items per work group dimension
-    const size_t local[2] = {TS, TS};
+    const size_t local[2] = {TILE_GROUP_M, TILE_GROUP_N};
     // total number of work items in each dimension
-    const size_t global[2] = {64, 64};
+    const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
 
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 3; i++) {
         uint64_t start = nanos();
         err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, 0, 0);
         printf("err: %d\n", err);
@@ -100,11 +116,13 @@ void gemm() {
         uint64_t end = nanos();
         double time = (end - start)/1e6;
         printf("Runtime: %f ms\n", time);
+        // we need to use clEnqueueReadBuffer because the memory was remapped by clCreateBuffer
         float* result_C = (float*)malloc(matrix_memory_size);
         err = clEnqueueReadBuffer(queue, bufferC, CL_TRUE, 0, matrix_memory_size, result_C, 0, NULL, NULL);
         printf("result_C[0] = %f\n", result_C[0]);
         printf("result_C[size*100] = %f\n", result_C[size *100]);
-        printf("result_C[matrix_size+1] = %f\n", result_C[matrix_size + 1]);
+        printf("result_C[matrix_size-1] = %f\n", result_C[matrix_size - 1]);
+        printf("result_C[matrix_size] = %f\n", result_C[matrix_size]);
         free(result_C);
     }
 
@@ -150,7 +168,7 @@ uint64_t nanos() {
 
 
 int main() {
-    gemm();
+    matmul();
     return 0;
 }
 
