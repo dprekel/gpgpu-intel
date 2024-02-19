@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <CL/cl.h>
+#include "../driver/driver.h"
 
 #define TILE_SIZE_M     1
 #define TILE_GROUP_M    16
@@ -113,6 +114,12 @@ void continueWithOpenCL(cl_context context, cl_command_queue queue, cl_kernel ke
 
 
 void directAccess() {
+    // Allocating memory for matrices
+    size_t size = 3968;
+    size_t matrix_memory_size = size*size*sizeof(float);
+
+    // call the driver for aligned memory allocation
+    void* matrixA = allocateAndPinBuffer(matrix_memory_size);
     return;
 }
 
@@ -124,6 +131,7 @@ int main(int argc, char** argv) {
         printf("This program only takes one argument! Aborting...\n");
         return -1;
     }
+    // command line arguments should be checked here
 
     cl_uint num_platforms = 0;
     cl_int err = clGetPlatformIDs(0, 0, &num_platforms);
