@@ -1,0 +1,4 @@
+
+struct gpuInfo {
+    int fileDescriptor;
+};

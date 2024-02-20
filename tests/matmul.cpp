@@ -6,6 +6,7 @@
 #include <time.h>
 #include <CL/cl.h>
 #include "../driver/driver.h"
+#include "../driver/gpuinfo.h"
 
 #define TILE_SIZE_M     1
 #define TILE_GROUP_M    16
@@ -127,11 +128,22 @@ void directAccess() {
 
 int main(int argc, char** argv) {
 
-    if (argc > 2) {
-        printf("This program only takes one argument! Aborting...\n");
+    if (argc != 2) {
+        printf("This program takes one argument! Aborting...\n");
         return -1;
     }
+    if (!(0 == strcmp(argv[1], "no")) && !(0 == strcmp(argv[1], "yes"))) {
+        printf("Invalid argument! Aborting...\n");
+        return -1;
+    }
+    gpuInfo* gpuInfo;
+    if (0 == strcmp(argv[1], "yes")) {
+        gpuInfo = initGPU(); 
+    }
+
+
     // command line arguments should be checked here
+    // what happens if I don't have a command line argument?
 
     cl_uint num_platforms = 0;
     cl_int err = clGetPlatformIDs(0, 0, &num_platforms);
