@@ -33,6 +33,20 @@ struct drm_i915_gem_execbuffer2 {
     uint64_t rsvd2;
 };
 
+struct drm_i915_gem_exec_object2 {
+    uint32_t handle;
+    uint32_t relocation_count;
+    uint64_t relocs_ptr;
+    uint64_t alignment;
+    uint64_t offset;
+    uint64_t flags;
+    union {
+        uint64_t rsvd1;
+        uint64_t pad_to_size;
+    };
+    uint64_t rsvd2;
+};
+
 struct drm_i915_gem_context_create_ext {
     uint32_t ctx_id;
     uint32_t flags;
