@@ -4,8 +4,14 @@
 void initGPU(struct gpuInfo* gpuInfo) {
 
     gpuInfo->fileDescriptor = openDeviceFile();
-    //TODO: Add checks to validate driver version
-    checkDriverVersion();
+    //TODO: Add checks for all ioctls
+    if (checkDriverVersion(gpuInfo)) {
+        continue;
+    }
+    // query chipset ID
+    getParamIoctl(gpuInfo, I915_PARAM_CHIPSET_ID, &gpuInfo->chipset_id);
+    getParamIoctl(gpuInfo, I915_PARAM_REVISION, &gpuInfo->revision_id);
+    
 }
 
 
@@ -20,20 +26,31 @@ int openDeviceFile() {
     return fileDescriptor;
 }
 
-bool checkDriverVersion(int fd, struct gpuInfo* gpuInfo) {
+bool checkDriverVersion(struct gpuInfo* gpuInfo) {
     int ret;
     struct drm_version version = {};
 
     char name[5] = {};
     version.name = name;
     version.name_len = 5;
-    ret = ioctl(fd, DRM_IOCTL_VERSION, &version);
+    ret = ioctl(gpuInfo->fileDescriptor, DRM_IOCTL_VERSION, &version);
     if (ret) {
         return false;
     }
     name[4] = '\0';
     //TODO: add driver info to gpuInfo struct
+    gpuInfo->driver_name = name;
     return strcmp(name, "i915") == 0;
+}
+
+int getParamIoctl(struct gpuInfo* gpuInfo, int param, int* paramValue) {
+    int ret;
+    struct drm_i915_getparam_t getParam = {};
+    getParam.param = param;
+    getParam.value = paramValue;
+
+    ret = ioctl(gpuInfo->fileDescriptor, DRM_IOCTL_I915_GETPARAM, &getParam);
+    return ret;
 }
 
 
@@ -41,7 +58,7 @@ void* allocateAndPinBuffer(size_t size) {
     void* alloc;
     int ret;
 
-    alloc = alignedMalloc(size);    
+    alloc = alignedMalloc(size);
     if (!alloc) {
         return NULL;
     }
