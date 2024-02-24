@@ -5,8 +5,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <CL/cl.h>
-#include "../driver/driver.h"
-#include "../driver/gpuinfo.h"
+#include <gpgpu.h>
 
 #define TILE_SIZE_M     1
 #define TILE_GROUP_M    16
@@ -120,7 +119,7 @@ void directAccess() {
     size_t matrix_memory_size = size*size*sizeof(float);
 
     // call the driver for aligned memory allocation
-    void* matrixA = allocateAndPinBuffer(matrix_memory_size);
+    //void* matrixA = allocateAndPinBuffer(matrix_memory_size);
     return;
 }
 
@@ -136,9 +135,11 @@ int main(int argc, char** argv) {
         printf("Invalid argument! Aborting...\n");
         return -1;
     }
-    gpuInfo* gpuInfo;
+    struct gpuInfo* gpuInfo = (struct gpuInfo*)malloc(sizeof(struct gpuInfo));
     if (0 == strcmp(argv[1], "yes")) {
-        gpuInfo = initGPU(); 
+        int ret = gpInitGPU(gpuInfo); 
+        printf("ret: %d\n", ret);
+        return 0;
     }
 
 

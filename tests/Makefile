@@ -1,7 +1,7 @@
 TARGET = gpgpu
 CC = g++
 CFLAGS = -g -Wall
-LDFLAGS = -lOpenCL
+LDFLAGS = -lOpenCL -ligpgpu
 
 .PHONY: default all clean
 
