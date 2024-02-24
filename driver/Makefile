@@ -1,6 +1,7 @@
 CC = g++
 CFLAGS = -g -Wall -fPIC
 LDFLAGS = -shared
+#PREFIX = /lib/x86_64-linux-gnu/
 PREFIX = /usr/local
 
 .PHONY: default all clean install
@@ -16,7 +17,7 @@ $(OBJECTS): $(SOURCES) $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@ 
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+	$(CC) $(LDFLAGS) -L $(PREFIX) $(OBJECTS) -o $@
 
 install:
 	install -m 557 $(TARGET) $(PREFIX)/lib/

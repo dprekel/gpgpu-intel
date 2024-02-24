@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include <asm/ioctl.h>
 
 #define __user
@@ -14,11 +13,6 @@ struct drm_version {
     char __user* desc;
 };
 
-struct drm_i915_getparam {
-    int32_t param;
-    int* value;
-}; 
-
 struct drm_i915_gem_execbuffer2 {
     uint64_t buffers_ptr;
     uint32_t buffer_count;
@@ -32,7 +26,6 @@ struct drm_i915_gem_execbuffer2 {
     uint64_t rsvd1;
     uint64_t rsvd2;
 };
-
 struct drm_i915_gem_exec_object2 {
     uint32_t handle;
     uint32_t relocation_count;
@@ -72,10 +65,64 @@ struct drm_i915_gem_context_param {
     uint64_t value;
 };
 
+#define I915_PARAM_CHIPSET_ID           4
+#define I915_PARAM_REVISION             32
+
+struct drm_i915_getparam {
+    int32_t param;
+    int* value;
+}; 
+
+
+/**
+ * struct drm_i915_query - Supply an array of struct drm_i915_query_item for the
+ * kernel to fill out.
+ *
+ * Note that this is generally a two step process for each struct
+ * drm_i915_query_item in the array:
+ *
+ * 1. Call the DRM_IOCTL_I915_QUERY, giving it our array of struct
+ *    drm_i915_query_item, with &drm_i915_query_item.length set to zero. The
+ *    kernel will then fill in the size, in bytes, which tells userspace how
+ *    memory it needs to allocate for the blob(say for an array of properties).
+ *
+ * 2. Next we call DRM_IOCTL_I915_QUERY again, this time with the
+ *    &drm_i915_query_item.data_ptr equal to our newly allocated blob. Note that
+ *    the &drm_i915_query_item.length should still be the same as what the
+ *    kernel previously set. At this point the kernel can fill in the blob.
+ *
+ * Note that for some query items it can make sense for userspace to just pass
+ * in a buffer/blob equal to or larger than the required size. In this case only
+ * a single ioctl call is needed. For some smaller query items this can work
+ * quite well.
+ *
+ */
 struct drm_i915_query {
     uint32_t num_items;
     uint32_t flags;
     uint64_t items_ptr;
+};
+struct drm_i915_query_item {
+    uint64_t query_id;
+#define DRM_I915_QUERY_TOPOLOGY_INFO        1
+#define DRM_I915_QUERY_ENGINE_INFO          2
+#define DRM_I915_QUERY_PERF_CONFIG          3
+#define DRM_I915_QUERY_MEMORY_REGIONS       4
+#define DRM_I915_QUERY_HWCONFIG_TABLE       5
+    uint32_t length;
+    uint32_t flags;
+    uint64_t data_ptr;
+};
+struct drm_i915_query_topology_info {
+    uint16_t flags;
+    uint16_t max_slices;
+    uint16_t max_subslices;
+    uint16_t max_eus_per_subslice;
+    uint16_t subslice_offset;
+    uint16_t subslice_stride;
+    uint16_t eu_offset;
+    uint16_t eu_stride;
+    uint8_t data[];
 };
 
 struct drm_i915_gem_vm_control {
@@ -104,10 +151,11 @@ struct drm_i915_gem_vm_control {
 #define DRM_IOCTL_I915_GEM_VM_DESTROY           DRM_IOW(DRM_COMMAND_BASE + 0x3b, struct drm_i915_gem_vm_control)
 
 
-void initGPU(struct gpuInfo* gpuInfo);
+
 int openDeviceFile();
-bool checkDriverVersion(int fd, struct gpuInfo* gpuInfo);
-void* allocateAndPinBuffer(size_t size);
+bool checkDriverVersion(struct gpuInfo* gpuInfo);
+int getParamIoctl(struct gpuInfo* gpuInfo, int param, int* paramValue);
+void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFlags);
 int allocUserptr(uintptr_t alloc, size_t size, uint64_t flags);
 
 
