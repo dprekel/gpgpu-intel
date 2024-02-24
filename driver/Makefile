@@ -25,6 +25,8 @@ install:
 clean:
 	-rm -f *.o
 	-rm -f $(TARGET)
+	-rm -f $(PREFIX)/lib/$(TARGET)
+	-rm -f $(PREFIX)/include/gpgpu.h
 
 # $@ denotes the name of the target
 # $< denotes the first prerequisit
