@@ -1,11 +1,11 @@
-
 CC = g++
 CFLAGS = -g -Wall -fPIC
 LDFLAGS = -shared
+PREFIX = /usr/local
 
-.PHONY: default all clean
+.PHONY: default all clean install
 
-TARGET = gpgpu-intel.so
+TARGET = libigpgpu.so
 SOURCES = $(wildcard *.cpp)
 HEADERS = $(wildcard *.h)
 OBJECTS = $(SOURCES:.cpp=.o)
@@ -17,6 +17,10 @@ $(OBJECTS): $(SOURCES) $(HEADERS)
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+
+install:
+	install -m 557 $(TARGET) $(PREFIX)/lib/
+	install -m 644 gpgpu.h $(PREFIX)/include/
 
 clean:
 	-rm -f *.o
