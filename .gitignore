@@ -1,6 +1,5 @@
-# C++ Compiled Object Files
 *.o
+*.so
 *.txt
 *.pdf
-GEMM
 gpgpu
