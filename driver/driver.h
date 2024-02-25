@@ -59,6 +59,7 @@ struct drm_i915_gem_userptr {
 };
 
 struct drm_i915_gem_context_param {
+#define I915_CONTEXT_PRIVATE_PARAM_BOOST    0x80000000
     uint32_t ctx_id;
     uint32_t size;
     uint64_t param;
@@ -67,7 +68,7 @@ struct drm_i915_gem_context_param {
 
 #define I915_PARAM_CHIPSET_ID           4
 #define I915_PARAM_REVISION             32
-
+#define I915_PARAM_HAS_EXEC_SOFTPIN     37
 struct drm_i915_getparam {
     int32_t param;
     int* value;
@@ -156,6 +157,7 @@ int openDeviceFile();
 bool checkDriverVersion(struct gpuInfo* gpuInfo);
 int getParamIoctl(struct gpuInfo* gpuInfo, int param, int* paramValue);
 void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFlags);
+int enableTurboBoost(struct gpuInfo* gpuInfo);
 int allocUserptr(uintptr_t alloc, size_t size, uint64_t flags);
 
 

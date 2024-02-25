@@ -10,8 +10,11 @@
 
 
 int gpInitGPU(struct gpuInfo* gpuInfo) {
+    int ret;
 
+    //TODO: Discover all devices
     gpuInfo->fd = openDeviceFile();
+
     //TODO: Add checks for all ioctls
     if (!checkDriverVersion(gpuInfo)) {
         return WRONG_DRIVER_VERSION;
@@ -24,18 +27,42 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     void* topology = queryIoctl(gpuInfo, DRM_I915_QUERY_TOPOLOGY_INFO, 0u);
     auto data = reinterpret_cast<struct drm_i915_query_topology_info*>(topology);
     if (!data) {
-        return FAILED_TOPOLOGY_QUERY;
+        return QUERY_FAILED;
     }
+    //TODO: Add checks for topology info
     gpuInfo->maxSliceCount = data->max_slices;
     gpuInfo->maxSubSliceCount = data->max_subslices;
     gpuInfo->maxEUCount = data->max_eus_per_subslice;
-    printf("maxEUCount: %u\n", gpuInfo->maxEUCount);
-    // how do I free topology and data?
     free(data);
 
+    // query hardware configuration
+    void* deviceBlob = queryIoctl(gpuInfo, DRM_I915_QUERY_HWCONFIG_TABLE, 0u);
+    uint32_t* deviceBlobData = reinterpret_cast<uint32_t*>(deviceBlob);
+    if (!deviceBlobData) {
+        return QUERY_FAILED;
+    }
 
+    // Soft-Pinning supported?
+    getParamIoctl(gpuInfo, I915_PARAM_HAS_EXEC_SOFTPIN, &gpuInfo->supportsSoftPin);
+    if (!gpuInfo->supportsSoftPin) {
+        return NO_SOFTPIN_SUPPORT;
+    }
 
+    // Enable Turbo Boost
+    ret = enableTurboBoost(gpuInfo);
+    if (ret) {
+        return NO_TURBO_BOOST;
+    }
 
+    // query memory info here
+
+    // query engine info
+    void* engines = queryIoctl(gpuInfo, DRM_I915_QUERY_ENGINE_INFO, 0u);
+    auto enginesData = reinterpret_cast<struct drm_i915_query_engine_info*>(engines);
+    if (!enginesData) {
+        return QUERY_FAILED;
+    }
+    
 
 
     return SUCCESS;
@@ -104,7 +131,18 @@ void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFl
         return nullptr;
     }
     return data;
-} 
+}
+
+int enableTurboBoost(struct gpuInfo* gpuInfo) {
+    // this is not working yet. Do we need to specify a context id?
+    // use ftrace to see why we get EINVAL error
+    int ret;
+    struct drm_i915_gem_context_param contextParam = {};
+    contextParam.param = I915_CONTEXT_PRIVATE_PARAM_BOOST;
+    contextParam.value = 1;
+    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &contextParam);
+    return ret;
+}
 
 
 

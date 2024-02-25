@@ -7,11 +7,15 @@ struct gpuInfo {
     uint16_t maxSliceCount;
     uint16_t maxSubSliceCount;
     uint16_t maxEUCount;
+
+    int supportsSoftPin;
 };
 
 #define SUCCESS                              0
 #define WRONG_DRIVER_VERSION                -1
-#define FAILED_TOPOLOGY_QUERY               -2
+#define QUERY_FAILED                        -2
+#define NO_SOFTPIN_SUPPORT                  -3
+#define NO_TURBO_BOOST                      -4
 
 extern int gpInitGPU(struct gpuInfo* gpuInfo);
 //extern void* gpAllocateAndPinBuffer(size_t size);
