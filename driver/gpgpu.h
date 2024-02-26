@@ -8,6 +8,9 @@ struct gpuInfo {
     uint16_t maxSubSliceCount;
     uint16_t maxEUCount;
 
+    // if this is nullptr, it is not supported
+    void* HWConfigTable;
+
     int supportsSoftPin;
 };
 

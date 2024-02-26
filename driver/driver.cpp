@@ -58,7 +58,7 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     // because I cannot test it.
     int32_t length = 0;
     void* deviceBlob = queryIoctl(gpuInfo, DRM_I915_QUERY_HWCONFIG_TABLE, 0u, length);
-    uint32_t* deviceBlobData = reinterpret_cast<uint32_t*>(deviceBlob);
+    gpuInfo->HWConfigTable = deviceBlob;
     if (!deviceBlobData) {
         printf("Hardware configuration table could not be retrieved\n");
     }
