@@ -110,7 +110,7 @@ struct drm_i915_query_item {
 #define DRM_I915_QUERY_PERF_CONFIG          3
 #define DRM_I915_QUERY_MEMORY_REGIONS       4
 #define DRM_I915_QUERY_HWCONFIG_TABLE       5
-    uint32_t length;
+    int32_t length;
     uint32_t flags;
     uint64_t data_ptr;
 };
@@ -156,7 +156,7 @@ struct drm_i915_gem_vm_control {
 int openDeviceFile();
 bool checkDriverVersion(struct gpuInfo* gpuInfo);
 int getParamIoctl(struct gpuInfo* gpuInfo, int param, int* paramValue);
-void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFlags);
+void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFlags, int32_t length);
 int enableTurboBoost(struct gpuInfo* gpuInfo);
 int allocUserptr(uintptr_t alloc, size_t size, uint64_t flags);
 

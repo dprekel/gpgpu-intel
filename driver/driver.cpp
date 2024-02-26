@@ -24,7 +24,7 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     getParamIoctl(gpuInfo, I915_PARAM_REVISION, &gpuInfo->revision_id);
     
     // query topology info
-    void* topology = queryIoctl(gpuInfo, DRM_I915_QUERY_TOPOLOGY_INFO, 0u);
+    void* topology = queryIoctl(gpuInfo, DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
     auto data = reinterpret_cast<struct drm_i915_query_topology_info*>(topology);
     if (!data) {
         return QUERY_FAILED;
@@ -35,11 +35,32 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     gpuInfo->maxEUCount = data->max_eus_per_subslice;
     free(data);
 
-    // query hardware configuration
-    void* deviceBlob = queryIoctl(gpuInfo, DRM_I915_QUERY_HWCONFIG_TABLE, 0u);
+    // Query hardware configuration
+    // On newer architectures, the GuC controller has an internal data structure containing
+    // hardware information (hardware configuration table, HWConfig). My test machine
+    // (Gen9, Skylake) has GuC support, but it is not enabled by default. I did load the GuC
+    // firmware with the following steps (it might differ on other architectures and kernels):
+    // 1. Edit "/etc/default/grub" and extend GRUB_CMDLINE_LINUX_DEFAULT with the parameter
+    //    "i915.enable_guc=2"
+    // 2. Run "sudo grub-mkconfig -o /boot/grub/grub.cfg"
+    // 3. Run "sudo update-initramfs -u"
+    // 4. sudo reboot
+    // 5. Check with "sudo cat /sys/kernel/debug/dri/0/gt/uc/guc_info" if GuC firmware is
+    //    running
+    // During the boot process the driver initialisation code will call the function
+    // intel_gt_init_hwconfig(struct intel_gt *gt). Before retrieving the HWConfig table
+    // (using a dedicated Host/GuC MMIO interface) it checks if GuC is enabled. Then it makes
+    // another check in "bool has_table(struct drm_i915_private *i915)". It only returns true
+    // if we have Alder Lake or newer.
+    // I added "if (IS_SKYLAKE(i915)) {return true;}" and recompiled the i915 module. But this
+    // didn't help. Even though I have GuC enabled, it won't work. It seems that Skylake
+    // doesn't dupport HWConfig tables. So I am not including parsing code for HwConfig tables
+    // because I cannot test it.
+    int32_t length = 0;
+    void* deviceBlob = queryIoctl(gpuInfo, DRM_I915_QUERY_HWCONFIG_TABLE, 0u, length);
     uint32_t* deviceBlobData = reinterpret_cast<uint32_t*>(deviceBlob);
     if (!deviceBlobData) {
-        return QUERY_FAILED;
+        printf("Hardware configuration table could not be retrieved\n");
     }
 
     // Soft-Pinning supported?
@@ -57,12 +78,11 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     // query memory info here
 
     // query engine info
-    void* engines = queryIoctl(gpuInfo, DRM_I915_QUERY_ENGINE_INFO, 0u);
+    void* engines = queryIoctl(gpuInfo, DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
     auto enginesData = reinterpret_cast<struct drm_i915_query_engine_info*>(engines);
     if (!enginesData) {
         return QUERY_FAILED;
     }
-    
 
 
     return SUCCESS;
@@ -107,7 +127,7 @@ int getParamIoctl(struct gpuInfo* gpuInfo, int param, int* paramValue) {
     return ret;
 }
 
-void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFlags) {
+void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFlags, int32_t length) {
     int ret;
     struct drm_i915_query query = {};
     struct drm_i915_query_item queryItem = {};
@@ -130,11 +150,14 @@ void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFl
     if (ret != 0 || queryItem.length <= 0) {
         return nullptr;
     }
+    printf("length: %d\n", queryItem.length);
+    length = queryItem.length;
     return data;
 }
 
 int enableTurboBoost(struct gpuInfo* gpuInfo) {
-    // this is not working yet. Do we need to specify a context id?
+    // Even though my test machine (Skylake) has Turbo Boost 2.0, this does not work. 
+    // Do we need to specify a context id first?
     // use ftrace to see why we get EINVAL error
     int ret;
     struct drm_i915_gem_context_param contextParam = {};
