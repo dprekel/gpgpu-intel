@@ -84,6 +84,12 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
         return QUERY_FAILED;
     }
 
+    // query GTT (Graphics Translation Table) size
+    ret = queryGttSize(gpuInfo);
+    if (ret) {
+        return QUERY_FAILED;
+    }
+    
 
     return SUCCESS;
 }
@@ -164,6 +170,19 @@ int enableTurboBoost(struct gpuInfo* gpuInfo) {
     contextParam.param = I915_CONTEXT_PRIVATE_PARAM_BOOST;
     contextParam.value = 1;
     ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &contextParam);
+    return ret;
+}
+
+int queryGttSize(struct gpuInfo* gpuInfo) {
+    int ret;
+    struct drm_i915_gem_context_param contextParam = {};
+    contextParam.ctx_id = 0;
+    contextParam.param = I915_CONTEXT_PARAM_GTT_SIZE;
+    contextParam.value = 0;
+    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &contextParam);
+    if (ret == 0) {
+        gpuInfo->gttSize = contextParam.value;
+    }
     return ret;
 }
 

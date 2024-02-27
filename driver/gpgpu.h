@@ -12,6 +12,7 @@ struct gpuInfo {
     void* HWConfigTable;
 
     int supportsSoftPin;
+    uint64_t gttSize;
 };
 
 #define SUCCESS                              0

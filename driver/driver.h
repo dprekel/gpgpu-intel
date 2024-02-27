@@ -60,6 +60,7 @@ struct drm_i915_gem_userptr {
 
 struct drm_i915_gem_context_param {
 #define I915_CONTEXT_PRIVATE_PARAM_BOOST    0x80000000
+#define I915_CONTEXT_PARAM_GTT_SIZE         0x3
     uint32_t ctx_id;
     uint32_t size;
     uint64_t param;
