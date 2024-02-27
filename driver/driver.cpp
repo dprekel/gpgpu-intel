@@ -89,6 +89,10 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     if (ret) {
         return QUERY_FAILED;
     }
+
+    getQueueSliceCount(gpuInfo);
+    checkNonPersistentContextsSupport(gpuInfo);
+    checkPreemptionSupport(gpuInfo);
     
 
     return SUCCESS;
@@ -184,6 +188,12 @@ int queryGttSize(struct gpuInfo* gpuInfo) {
         gpuInfo->gttSize = contextParam.value;
     }
     return ret;
+}
+
+int getMaxGpuFrequency(struct gpuInfo* gpuInfo) {
+    int ret;
+    std::string path = "/sys/bus/pci/devices/" + pciPath + "/drm" + "/card";
+
 }
 
 
