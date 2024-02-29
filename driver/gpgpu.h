@@ -8,10 +8,13 @@ struct gpuInfo {
     uint16_t maxSubSliceCount;
     uint16_t maxEUCount;
 
-    // if this is nullptr, it is not supported
-    void* HWConfigTable;
+    void* HWConfigTable;            // if this is nullptr, it is not supported
 
     int supportsSoftPin;
+
+    void* engines;                  // list of GPU engines (command streamers)
+
+    int drmVmId;                    // unique identifier for ppGTT
     uint64_t gttSize;
 };
 
@@ -20,6 +23,7 @@ struct gpuInfo {
 #define QUERY_FAILED                        -2
 #define NO_SOFTPIN_SUPPORT                  -3
 #define NO_TURBO_BOOST                      -4
+#define VM_CREATION_FAILED                  -5
 
 extern int gpInitGPU(struct gpuInfo* gpuInfo);
 //extern void* gpAllocateAndPinBuffer(size_t size);

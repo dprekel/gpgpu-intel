@@ -127,6 +127,36 @@ struct drm_i915_query_topology_info {
     uint8_t data[];
 };
 
+struct drm_i915_query_engine_info {
+    uint32_t num_engines;
+    uint32_t rsvd[3];
+    struct drm_i915_engine_info engines[];
+};
+
+struct drm_i915_engine_info {
+    struct i915_engine_class_instance engine;
+    uint32_t rsvd0;
+    uint64_t flags;
+    uint64_t capabilities;
+#define I915_VIDEO_CLASS_CAPABILITY_HEVC                (1 << 0)
+#define I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC     (1 << 1)
+    uint64_t rsvd1[4];
+};
+
+struct i915_engine_class_instance {
+    uint16_t engine_class; // see enum drm_i915_gem_engine_class
+    uint16_t engine_instance;
+};
+
+enum drm_i915_gem_engine_class {
+    I915_ENGINE_CLASS_RENDER        = 0,
+    I915_ENGINE_CLASS_COPY          = 1,
+    I915_ENGINE_CLASS_VIDEO         = 2,
+    I915_ENGINE_CLASS_VIDEO_ENHANCE = 3,
+    
+    I915_ENGINE_CLASS_INVALID       = -1
+};
+
 struct drm_i915_gem_vm_control {
     uint64_t extensions;
     uint64_t flags;

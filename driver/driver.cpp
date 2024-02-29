@@ -78,10 +78,16 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     // query memory info here
 
     // query engine info
-    void* engines = queryIoctl(gpuInfo, DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
-    auto enginesData = reinterpret_cast<struct drm_i915_query_engine_info*>(engines);
-    if (!enginesData) {
+    gpuInfo->engines = queryIoctl(gpuInfo, DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
+    if (!engines) {
         return QUERY_FAILED;
+    }
+    
+
+    // create virtual memory address space
+    ret = createDrmVirtualMemory(gpuInfo);
+    if (ret) {
+        return VM_CREATION_FAILED;
     }
 
     // query GTT (Graphics Translation Table) size
@@ -94,6 +100,19 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     checkNonPersistentContextsSupport(gpuInfo);
     checkPreemptionSupport(gpuInfo);
     
+    // Initialize memory manager here
+
+    // Setup command stream receivers
+    std::vector<struct engineInfo> engines = {0, 0, 0};
+    engines[0] = {EngineType::ENGINE_RCS, EngineUsage::Regular};
+    engines[1] = {EngineType::ENGINE_RCS, EngineUsage::LowPriority};
+    engines[2] = {defaultEngine, EngineUsage::Internal};
+    if (defaultEngine == EngineType::ENGINE_CCS) {
+        engines.push_back({EngineType::ENGINE_CCS, EngineUsage::Regular});
+    }
+    for (auto &engine : engines) {
+        
+    }
 
     return SUCCESS;
 }
@@ -165,12 +184,27 @@ void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFl
     return data;
 }
 
+int createDrmVirtualMemory(struct gpuInfo* gpuInfo) {
+    int ret;
+    struct drm_i915_gem_vm_control ctl = {0};
+    
+    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_VM_CREATE, &ctl);
+    if (ret == 0) {
+        if (ctl.vm_id == 0) {
+            return -1;          // 0 is reserved for invalid/unassigned ppGTT
+        }
+        gpuInfo->drmVmId = ctl.vm_id;
+    }
+    return ret;
+}
+
 int enableTurboBoost(struct gpuInfo* gpuInfo) {
     // Even though my test machine (Skylake) has Turbo Boost 2.0, this does not work. 
     // Do we need to specify a context id first?
     // use ftrace to see why we get EINVAL error
     int ret;
     struct drm_i915_gem_context_param contextParam = {};
+
     contextParam.param = I915_CONTEXT_PRIVATE_PARAM_BOOST;
     contextParam.value = 1;
     ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &contextParam);
@@ -196,33 +230,25 @@ int getMaxGpuFrequency(struct gpuInfo* gpuInfo) {
 
 }
 
-
-
-
-/*
-void* gpAllocateAndPinBuffer(size_t size) {
-    void* alloc;
-    int ret;
-
-    alloc = alignedMalloc(size);
-    if (!alloc) {
-        return NULL;
+uint32_t createDrmContext(struct gpuInfo* gpuInfo, uint32_t drmVmId, bool isSpecialContextRequested) {
+    struct drm_i915_gem_context_create_ext gcc = {};
+    int ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT, &gcc);
+    if (ret) {
+        return ret;
     }
-
-    ret = allocUserptr(reinterpret_cast<uintptr_t>(alloc), size, 0);
-
+    if (drmVmId > 0) {
+        struct drm_i915_gem_context_param param = {};
+        param.ctx_id = gcc.ctx_id;
+        param.value = drmVmId;
+        param.param = I915_CONTEXT_PARAM_VM;
+        ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &param);
+        if (ret) {
+            return ret;
+        }
+    }
+    return gcc.ctx_id;
 }
-*/
 
 
-int allocUserptr(uintptr_t alloc, size_t size, uint32_t flags) {
-    int ret;
-    struct drm_i915_gem_userptr userptr = {};  
 
-    userptr.user_ptr = alloc;
-    userptr.user_size = size;
-    userptr.flags = flags;
 
-    // can't continue here because I don't have a valid file descriptor. I could read it out from the deviceStruct, but this is too much work. It's better to replace clGetPlatformIDs first.
-    //ret = ioctl(
-}
