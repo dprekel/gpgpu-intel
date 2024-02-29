@@ -59,7 +59,7 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     int32_t length = 0;
     void* deviceBlob = queryIoctl(gpuInfo, DRM_I915_QUERY_HWCONFIG_TABLE, 0u, length);
     gpuInfo->HWConfigTable = deviceBlob;
-    if (!deviceBlobData) {
+    if (!deviceBlob) {
         printf("Hardware configuration table could not be retrieved\n");
     }
 
@@ -79,7 +79,7 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
 
     // query engine info
     gpuInfo->engines = queryIoctl(gpuInfo, DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
-    if (!engines) {
+    if (!gpuInfo->engines) {
         return QUERY_FAILED;
     }
     
@@ -96,13 +96,14 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
         return QUERY_FAILED;
     }
 
-    getQueueSliceCount(gpuInfo);
-    checkNonPersistentContextsSupport(gpuInfo);
-    checkPreemptionSupport(gpuInfo);
+    //getQueueSliceCount(gpuInfo);
+    //checkNonPersistentContextsSupport(gpuInfo);
+    //checkPreemptionSupport(gpuInfo);
     
     // Initialize memory manager here
 
     // Setup command stream receivers
+    /*
     std::vector<struct engineInfo> engines = {0, 0, 0};
     engines[0] = {EngineType::ENGINE_RCS, EngineUsage::Regular};
     engines[1] = {EngineType::ENGINE_RCS, EngineUsage::LowPriority};
@@ -113,6 +114,7 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     for (auto &engine : engines) {
         
     }
+    */
 
     return SUCCESS;
 }
@@ -224,6 +226,7 @@ int queryGttSize(struct gpuInfo* gpuInfo) {
     return ret;
 }
 
+/*
 int getMaxGpuFrequency(struct gpuInfo* gpuInfo) {
     int ret;
     std::string path = "/sys/bus/pci/devices/" + pciPath + "/drm" + "/card";
@@ -248,6 +251,7 @@ uint32_t createDrmContext(struct gpuInfo* gpuInfo, uint32_t drmVmId, bool isSpec
     }
     return gcc.ctx_id;
 }
+*/
 
 
 

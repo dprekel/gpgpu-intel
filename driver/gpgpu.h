@@ -26,5 +26,6 @@ struct gpuInfo {
 #define VM_CREATION_FAILED                  -5
 
 extern int gpInitGPU(struct gpuInfo* gpuInfo);
+extern void logGPUInfo(struct gpuInfo* gpuInfo);
 //extern void* gpAllocateAndPinBuffer(size_t size);
 

@@ -138,6 +138,7 @@ int main(int argc, char** argv) {
     struct gpuInfo* gpuInfo = (struct gpuInfo*)malloc(sizeof(struct gpuInfo));
     if (0 == strcmp(argv[1], "yes")) {
         int ret = gpInitGPU(gpuInfo); 
+        logGPUInfo(gpuInfo);
         printf("ret: %d\n", ret);
         return 0;
     }

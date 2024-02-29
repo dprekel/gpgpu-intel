@@ -127,10 +127,18 @@ struct drm_i915_query_topology_info {
     uint8_t data[];
 };
 
-struct drm_i915_query_engine_info {
-    uint32_t num_engines;
-    uint32_t rsvd[3];
-    struct drm_i915_engine_info engines[];
+enum drm_i915_gem_engine_class {
+    I915_ENGINE_CLASS_RENDER        = 0,
+    I915_ENGINE_CLASS_COPY          = 1,
+    I915_ENGINE_CLASS_VIDEO         = 2,
+    I915_ENGINE_CLASS_VIDEO_ENHANCE = 3,
+    
+    I915_ENGINE_CLASS_INVALID       = -1
+};
+
+struct i915_engine_class_instance {
+    uint16_t engine_class; // see enum drm_i915_gem_engine_class
+    uint16_t engine_instance;
 };
 
 struct drm_i915_engine_info {
@@ -143,18 +151,10 @@ struct drm_i915_engine_info {
     uint64_t rsvd1[4];
 };
 
-struct i915_engine_class_instance {
-    uint16_t engine_class; // see enum drm_i915_gem_engine_class
-    uint16_t engine_instance;
-};
-
-enum drm_i915_gem_engine_class {
-    I915_ENGINE_CLASS_RENDER        = 0,
-    I915_ENGINE_CLASS_COPY          = 1,
-    I915_ENGINE_CLASS_VIDEO         = 2,
-    I915_ENGINE_CLASS_VIDEO_ENHANCE = 3,
-    
-    I915_ENGINE_CLASS_INVALID       = -1
+struct drm_i915_query_engine_info {
+    uint32_t num_engines;
+    uint32_t rsvd[3];
+    struct drm_i915_engine_info engines[];
 };
 
 struct drm_i915_gem_vm_control {
@@ -188,6 +188,8 @@ int openDeviceFile();
 bool checkDriverVersion(struct gpuInfo* gpuInfo);
 int getParamIoctl(struct gpuInfo* gpuInfo, int param, int* paramValue);
 void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFlags, int32_t length);
+int createDrmVirtualMemory(struct gpuInfo* gpuInfo);
+int queryGttSize(struct gpuInfo* gpuInfo);
 int enableTurboBoost(struct gpuInfo* gpuInfo);
 int allocUserptr(uintptr_t alloc, size_t size, uint64_t flags);
 
