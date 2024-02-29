@@ -1,23 +1,22 @@
 CC = g++
 CFLAGS = -g -Wall -fPIC
 LDFLAGS = -shared
-#PREFIX = /lib/x86_64-linux-gnu/
 PREFIX = /usr/local
 
 .PHONY: default all clean install
 
 TARGET = libigpgpu.so
 SOURCES = $(wildcard *.cpp)
-HEADERS = $(wildcard *.h)
 OBJECTS = $(SOURCES:.cpp=.o)
 
 default: $(TARGET)
 
-$(OBJECTS): $(SOURCES) $(HEADERS)
-	$(CC) $(CFLAGS) -c $< -o $@ 
+%.o: %.cpp
+	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -L $(PREFIX) $(OBJECTS) -o $@
+	@echo $(OBJECTS)
+	$(CC) $(LDFLAGS) -o $@ $^
 
 install:
 	install -m 557 $(TARGET) $(PREFIX)/lib/
