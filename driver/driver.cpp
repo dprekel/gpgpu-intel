@@ -71,9 +71,11 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
 
     // Enable Turbo Boost
     ret = enableTurboBoost(gpuInfo);
+    /*
     if (ret) {
         return NO_TURBO_BOOST;
     }
+    */
 
     // query memory info here
 

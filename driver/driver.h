@@ -146,8 +146,9 @@ struct drm_i915_engine_info {
     uint32_t rsvd0;
     uint64_t flags;
     uint64_t capabilities;
-#define I915_VIDEO_CLASS_CAPABILITY_HEVC                (1 << 0)
-#define I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC     (1 << 1)
+#define I915_CAPABILITY_NOT_SPECIFIED                   0
+#define I915_VIDEO_CLASS_CAPABILITY_HEVC                (1 << 0)        // expands to 1
+#define I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC     (1 << 1)        // expands to 2
     uint64_t rsvd1[4];
 };
 
