@@ -160,7 +160,7 @@ struct drm_i915_query_engine_info {
 
 struct drm_i915_gem_vm_control {
     uint64_t extensions;
-    uint64_t flags;
+    uint32_t flags;
     uint32_t vm_id;
 };
 
@@ -189,6 +189,7 @@ int openDeviceFile();
 bool checkDriverVersion(struct gpuInfo* gpuInfo);
 int getParamIoctl(struct gpuInfo* gpuInfo, int param, int* paramValue);
 void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFlags, int32_t length);
+bool translateTopologyInfo(struct gpuInfo* gpuInfo, struct drm_i915_query_topology_info* topologyInfo);
 int createDrmVirtualMemory(struct gpuInfo* gpuInfo);
 int queryGttSize(struct gpuInfo* gpuInfo);
 int enableTurboBoost(struct gpuInfo* gpuInfo);

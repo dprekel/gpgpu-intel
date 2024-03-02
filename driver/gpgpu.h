@@ -4,9 +4,11 @@ struct gpuInfo {
     int chipset_id;
     int revision_id;
 
-    uint16_t maxSliceCount;
-    uint16_t maxSubSliceCount;
-    uint16_t maxEUCount;
+    uint16_t sliceCount;
+    uint16_t subSliceCount;
+    uint16_t euCount;
+    uint16_t subSliceCountPerSlice;
+    uint16_t euCountPerSubSlice;
 
     void* HWConfigTable;            // if this is nullptr, it is not supported
 

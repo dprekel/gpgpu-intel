@@ -30,9 +30,7 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
         return QUERY_FAILED;
     }
     //TODO: Add checks for topology info
-    gpuInfo->maxSliceCount = data->max_slices;
-    gpuInfo->maxSubSliceCount = data->max_subslices;
-    gpuInfo->maxEUCount = data->max_eus_per_subslice;
+    translateTopologyInfo(gpuInfo, data);
     free(data);
 
     // Query hardware configuration
@@ -186,6 +184,48 @@ void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFl
     printf("length: %d\n", queryItem.length);
     length = queryItem.length;
     return data;
+}
+
+bool translateTopologyInfo(struct gpuInfo* gpuInfo, struct drm_i915_query_topology_info* topologyInfo) {
+    uint16_t sliceCount = 0;
+    uint16_t subSliceCount = 0;
+    uint16_t euCount = 0;
+    uint16_t subSliceCountPerSlice = 0;
+    uint16_t euCountPerSubSlice = 0;
+    for (int x = 0; x < topologyInfo->max_slices; x++) {
+        bool isSliceEnabled = (topologyInfo->data[x / 8] >> (x % 8)) & 1;
+        if (!isSliceEnabled) {
+            continue;
+        }
+        sliceCount++;
+        for (int y = 0; y < topologyInfo->max_subslices; y++) {
+            size_t yOffset = (topologyInfo->subslice_offset + x * topologyInfo->subslice_stride + y / 8);
+            bool isSubSliceEnabled = (topologyInfo->data[yOffset] >> (y % 8)) & 1;
+            if (!isSubSliceEnabled) {
+                continue;
+            }
+            subSliceCount++;
+            if ((x == 0) && (subSliceCount > y)) {
+                subSliceCountPerSlice = subSliceCount;
+            }
+            for (int z = 0; z < topologyInfo->max_eus_per_subslice; z++) {
+                size_t zOffset = (topologyInfo->eu_offset + (x * topologyInfo->max_subslices + y) * topologyInfo->eu_stride + z / 8);
+                bool isEUEnabled = (topologyInfo->data[zOffset] >> (z % 8)) & 1;
+                if (!isEUEnabled) {
+                    continue;
+                }
+                euCount++;
+                if ((x == 0) && (y == 0) && (euCount > z)) {
+                    euCountPerSubSlice = euCount;
+                }
+            }
+        }
+    }
+    gpuInfo->sliceCount = sliceCount;
+    gpuInfo->subSliceCount = subSliceCount;
+    gpuInfo->euCount = euCount;
+    gpuInfo->subSliceCountPerSlice = subSliceCountPerSlice;
+    gpuInfo->euCountPerSubSlice = euCountPerSubSlice;
 }
 
 int createDrmVirtualMemory(struct gpuInfo* gpuInfo) {

@@ -10,9 +10,7 @@ void logGPUInfo(struct gpuInfo* gpuInfo) {
     printf("Driver version: %s\n", gpuInfo->driver_name);
     printf("Chipset ID: %d\n", gpuInfo->chipset_id);
     printf("Revision ID: %d\n", gpuInfo->revision_id);
-    printf("MaxSliceCount: %hu\n", gpuInfo->maxSliceCount);
-    printf("MaxSubSliceCount: %hu\n", gpuInfo->maxSubSliceCount);
-    printf("MaxEUCount: %hu\n", gpuInfo->maxEUCount);
+    showTopology(gpuInfo);
     printf("\n");
     printf("Available Engines                         Capabilities\n");
     printf("---------------------------------------------------------------------\n");
@@ -36,10 +34,72 @@ void logGPUInfo(struct gpuInfo* gpuInfo) {
         }
     }
     printf("\n");
+    printf("Context Information\n");
+    printf("---------------------------------------------------------------------\n");
+    printf("Selected Engine:\n");
     printf("DrmVmId: %d\n", gpuInfo->drmVmId);
     printf("GTT size: %lu\n", gpuInfo->gttSize);
 }
 
+void showTopology(struct gpuInfo* gpuInfo) {
+    uint16_t sliceCount = gpuInfo->sliceCount;
+    uint16_t subSliceCount = gpuInfo->subSliceCount;
+    uint16_t euCount = gpuInfo->euCount;
+    uint16_t subSliceCountPerSlice = gpuInfo->subSliceCountPerSlice;
+    uint16_t euCountPerSubSlice = gpuInfo->euCountPerSubSlice;
+
+    printf("\n");
+    printf("Execution Units\n");
+    printf("---------------------------------------------------------------------\n");
+    printf("Slices: %hu     Subslices: %hu      EUs: %hu\n", sliceCount, subSliceCount, euCount);
+    printf("Subslices per Slice: %hu\n", subSliceCountPerSlice);
+    printf("EUs per Subclice: %hu\n", euCountPerSubSlice);
+    for (uint16_t i = 0; i < sliceCount; i++) {
+        printf(" ");
+        for (uint16_t j = 0; j < subSliceCountPerSlice; j++) {
+            if (j == subSliceCountPerSlice - 1) {
+                printf("___________\n");
+            }
+            else {
+                printf("_______________");
+            }
+        }
+        for (uint16_t j = 0; j < subSliceCountPerSlice; j++) {
+            if (j == subSliceCountPerSlice -1) {
+                printf("|EU EU EU EU|\n");
+            }
+            else {
+                printf("|EU EU EU EU|  ");
+            }
+        }
+        for (uint16_t j = 0; j < subSliceCountPerSlice; j++) {
+            if (j == subSliceCountPerSlice - 1) {
+                printf("|           |\n");
+            }
+            else {
+                printf("|           |  ");
+            }
+        }
+        for (uint16_t j = 0; j < subSliceCountPerSlice; j++) {
+            if (j == subSliceCountPerSlice -1) {
+                printf("|EU EU EU EU|\n");
+            }
+            else {
+                printf("|EU EU EU EU|  ");
+            }
+        }
+        printf(" ");
+        for (uint16_t j = 0; j < subSliceCountPerSlice; j++) {
+            if (j == subSliceCountPerSlice - 1) {
+                for (int k = 0; k < 11; k++) {printf("\u203E"); }
+                printf("\n");
+            }
+            else {
+                for (int k = 0; k < 15; k++) {printf("\u203E"); }
+            }
+        }
+    }
+}
 
 const char* decodeCapabilities(uint64_t capability) {
     const char* cap;
