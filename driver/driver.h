@@ -61,6 +61,9 @@ struct drm_i915_gem_userptr {
 struct drm_i915_gem_context_param {
 #define I915_CONTEXT_PRIVATE_PARAM_BOOST    0x80000000
 #define I915_CONTEXT_PARAM_GTT_SIZE         0x3
+#define I915_CONTEXT_PARAM_VM               0x9
+#define I915_CONTEXT_PARAM_ENGINES          0xa
+#define I915_CONTEXT_PARAM_PERSISTENCE      0xb
     uint32_t ctx_id;
     uint32_t size;
     uint64_t param;
@@ -70,6 +73,8 @@ struct drm_i915_gem_context_param {
 #define I915_PARAM_CHIPSET_ID           4
 #define I915_PARAM_REVISION             32
 #define I915_PARAM_HAS_EXEC_SOFTPIN     37
+#define I915_PARAM_HAS_SCHEDULER        41
+#define  I915_SCHEDULER_CAP_PREEMPTION  (1ul << 2)
 struct drm_i915_getparam {
     int32_t param;
     int* value;
@@ -192,6 +197,8 @@ void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFl
 bool translateTopologyInfo(struct gpuInfo* gpuInfo, struct drm_i915_query_topology_info* topologyInfo);
 int createDrmVirtualMemory(struct gpuInfo* gpuInfo);
 int queryGttSize(struct gpuInfo* gpuInfo);
+void checkNonPersistentContextsSupport(struct gpuInfo* gpuInfo);
+void checkPreemptionSupport(struct gpuInfo* gpuInfo);
 int enableTurboBoost(struct gpuInfo* gpuInfo);
 int allocUserptr(uintptr_t alloc, size_t size, uint64_t flags);
 

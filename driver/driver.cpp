@@ -83,7 +83,6 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
         return QUERY_FAILED;
     }
     
-
     // create virtual memory address space
     ret = createDrmVirtualMemory(gpuInfo);
     if (ret) {
@@ -96,13 +95,19 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
         return QUERY_FAILED;
     }
 
+    // ask all engines if slice count change is supported
     //getQueueSliceCount(gpuInfo);
-    //checkNonPersistentContextsSupport(gpuInfo);
-    //checkPreemptionSupport(gpuInfo);
+
+    // check if non-persistent contexts are supported. A non-persistent context gets
+    // destroyed immediately upon closure (through DRM_I915_GEM_CONTEXT_CLOSE, fd destruction 
+    // or process termination). A persistent context can finish the batch before closing.
+    checkNonPersistentContextsSupport(gpuInfo);
+
+    checkPreemptionSupport(gpuInfo);
     
     // Initialize memory manager here
 
-    // Setup command stream receivers
+    // Set up command stream receivers
     /*
     std::vector<struct engineInfo> engines = {0, 0, 0};
     engines[0] = {EngineType::ENGINE_RCS, EngineUsage::Regular};
@@ -266,6 +271,28 @@ int queryGttSize(struct gpuInfo* gpuInfo) {
         gpuInfo->gttSize = contextParam.value;
     }
     return ret;
+}
+
+void checkNonPersistentContextsSupport(struct gpuInfo* gpuInfo) {
+    int ret;
+    struct drm_i915_gem_context_param contextParam = {};
+    contextParam.param = I915_CONTEXT_PARAM_PERSISTENCE;
+
+    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &contextParam);
+    if (ret == 0 && contextParam.value == 1) {
+        gpuInfo->nonPersistentContextsSupported = true;
+    }
+    else {
+        gpuInfo->nonPersistentContextsSupported = false;
+    }
+}
+
+void checkPreemptionSupport(struct gpuInfo* gpuInfo) {
+    int ret;
+    int value = 0;
+    ret = getParamIoctl(gpuInfo, I915_PARAM_HAS_SCHEDULER, &value);
+    gpuInfo->schedulerValue = value;
+    gpuInfo->preemptionSupported = ((0 == ret) && (value & I915_SCHEDULER_CAP_PREEMPTION));
 }
 
 /*

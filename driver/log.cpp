@@ -39,6 +39,18 @@ void logGPUInfo(struct gpuInfo* gpuInfo) {
     printf("Selected Engine:\n");
     printf("DrmVmId: %d\n", gpuInfo->drmVmId);
     printf("GTT size: %lu\n", gpuInfo->gttSize);
+    if (gpuInfo->nonPersistentContextsSupported) {
+        printf("Persistence Support: No\n");
+    }
+    else if (!gpuInfo->nonPersistentContextsSupported) {
+        printf("Persistence Support: Yes\n");
+    }
+    if (gpuInfo->preemptionSupported) {
+        printf("Preemption Support: Yes\n");
+    }
+    else if (!gpuInfo->preemptionSupported) {
+        printf("Preemption Support: No\n");
+    }
 }
 
 void showTopology(struct gpuInfo* gpuInfo) {

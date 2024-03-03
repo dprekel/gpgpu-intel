@@ -10,14 +10,17 @@ struct gpuInfo {
     uint16_t subSliceCountPerSlice;
     uint16_t euCountPerSubSlice;
 
-    void* HWConfigTable;            // if this is nullptr, it is not supported
+    void* HWConfigTable;                    // if this is nullptr, it is not supported
 
     int supportsSoftPin;
 
-    void* engines;                  // list of GPU engines (command streamers)
+    void* engines;                          // list of GPU engines (command streamers)
 
-    int drmVmId;                    // unique identifier for ppGTT
+    int drmVmId;                            // unique identifier for ppGTT
     uint64_t gttSize;
+    bool nonPersistentContextsSupported;
+    bool preemptionSupported;
+    int schedulerValue;
 };
 
 #define SUCCESS                              0
