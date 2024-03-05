@@ -34,7 +34,7 @@ const char* loadProgramSource(const char* filename, uint64_t* _size) {
     return (const char*)source;
 }
 
-void createReabableSource(struct Kernel* kernel, const char* string, uint64_t* length) {
+void createReadableSource(struct Kernel* kernel, const char* string, uint64_t* length) {
     kernel->sizeInBytes = strlen(string);
     kernel->combinedString = string;
 }
@@ -73,6 +73,7 @@ int loadCompiler(const char* libName, void* outLib, CIF::RAII::UPtr_t<CIF::CIFMa
     auto dlopenFlag = RTLD_LAZY | RTLD_DEEPBIND;
 
     ptr.handle = dlopen(libName, dlopenFlag);
+    printf("handle: %p\n", ptr.handle);
     if (!ptr.handle) {
         printf("Loading IGC library not successful\n");
         return COMPILER_LOAD_FAILED;
@@ -96,7 +97,7 @@ int main() {
     uint64_t sizeSource;
     auto kernel = (Kernel*)malloc(sizeof(Kernel));
     const char* raw_text = loadProgramSource("matmul.cl", &sizeSource);
-    const char* program = createReadableSource(kernel, raw_text, &sizeSource);
+    createReadableSource(kernel, raw_text, &sizeSource);
     //cl_program program = clCreateProgramWithSource(context, 1, &raw_text, 0, &err);
     //printf("err: %d\n", err);
 
@@ -105,7 +106,7 @@ int main() {
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
     kernel->options = build_options;
-    kernel->optionsSize = strlen(options);
+    kernel->optionsSize = strlen(build_options.c_str());
     build(kernel);
     return 0;
 }
