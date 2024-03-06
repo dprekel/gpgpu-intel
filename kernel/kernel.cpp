@@ -133,18 +133,29 @@ int loadCompiler(struct CompilerInfo* compilerInfo) {
     return 0;
 }
 
-int main() {
-    uint64_t sizeSource;
-    auto kernel = (Kernel*)malloc(sizeof(Kernel));
-    const char* raw_text = loadProgramSource("matmul.cl", &sizeSource);
-    createReadableSource(kernel, raw_text, &sizeSource);
-    //cl_program program = clCreateProgramWithSource(context, 1, &raw_text, 0, &err);
-    //printf("err: %d\n", err);
+int gpBuildKernel(struct gpuInfo* gpuInfo, const char* source, const char* options) {
+    int err;
+    Kernel* kernel;
+        
+    kernel = (Kernel*)malloc(sizeof(Kernel));
+    gpuInfo->kernel = kernel;
+    loadProgramSource(kernel, source);
+}
 
+int main() {
+    const char* source = "matmul.cl";
     std::string build_options = "-DTILE_SIZE_M=" + std::to_string(TILE_SIZE_M)
                               + " -DTILE_GROUP_M=" + std::to_string(TILE_GROUP_M)
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
+    const char* options = build_options.c_str();
+    int err = gpBuildKernel(gpuInfo, source, options);
+
+    uint64_t sizeSource;
+    auto kernel = (Kernel*)malloc(sizeof(Kernel));
+    const char* raw_text = loadProgramSource("matmul.cl", &sizeSource);
+    createReadableSource(kernel, raw_text, &sizeSource);
+
     kernel->options = build_options;
     kernel->optionsSize = strlen(build_options.c_str());
     build(kernel);
