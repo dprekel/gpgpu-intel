@@ -20,24 +20,33 @@ struct TranslationInput {
 };
 
 struct CompilerInfo {
+    static std::mutex spinlock;
+
     const char* libName = "libigc.so.1";
     void* igcLib;
     CIF::RAII::UPtr_t<CIF::CIFMain> igcMain;
+
+    void* fclLib;
+    CIF::RAII::UPtr_t<CIF::CIFMain> fclMain;
 };
 
 struct Kernel {
     int fd;
     const char* filename;
+    void* compilerInfo;
+
     std::string combinedString;
     size_t sizeInBytes;
+
     std::string options;
     size_t optionsSize;
 
-    void* compilerInfo;
+    std::string internalOptions;
+    size_t internalOptionsSize;
 };
 
 const char* loadProgramSource(const char* filename, uint64_t* size);
 void createReabableSource(struct Kernel* kernel, const char* string, uint64_t* length);
 int build(struct Kernel* kernel);
-void* getProcAddress(void* handle, const std::string& procName);
-int loadCompiler(const char* libName, void* outLib, CIF::RAII::UPtr_t<CIF::CIFMain>& outlibMain);
+int loadCompiler(struct CompilerInfo* compilerInfo);
+void initInternalOptions(struct Kernel* kernel);
