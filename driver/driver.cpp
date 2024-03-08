@@ -191,7 +191,7 @@ void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFl
     return data;
 }
 
-bool translateTopologyInfo(struct gpuInfo* gpuInfo, struct drm_i915_query_topology_info* topologyInfo) {
+void translateTopologyInfo(struct gpuInfo* gpuInfo, struct drm_i915_query_topology_info* topologyInfo) {
     uint16_t sliceCount = 0;
     uint16_t subSliceCount = 0;
     uint16_t euCount = 0;

@@ -21,6 +21,8 @@ struct gpuInfo {
     bool nonPersistentContextsSupported;
     bool preemptionSupported;
     int schedulerValue;
+
+    void* kernel;
 };
 
 #define SUCCESS                              0
@@ -33,4 +35,5 @@ struct gpuInfo {
 extern int gpInitGPU(struct gpuInfo* gpuInfo);
 extern void logGPUInfo(struct gpuInfo* gpuInfo);
 //extern void* gpAllocateAndPinBuffer(size_t size);
+extern int gpBuildKernel(struct gpuInfo* gpuInfo, const char* filename, const char* options);
 
