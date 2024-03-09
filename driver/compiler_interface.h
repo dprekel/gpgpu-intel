@@ -7,3 +7,6 @@
 #include "ocl_igc_interface/code_type.h"
 #include "ocl_igc_interface/fcl_ocl_translation_ctx.h"
 #include "ocl_igc_interface/fcl_ocl_device_ctx.h"
+#include "ocl_igc_interface/gt_system_info.h"
+#include "ocl_igc_interface/igc_features_and_workarounds.h"
+#include "ocl_igc_interface/platform_helper.h"

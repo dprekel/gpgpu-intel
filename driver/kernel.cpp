@@ -68,7 +68,14 @@ int build(struct Kernel* kernel) {
 
     auto fclTranslationCtx = createFclTranslationCtx(interf, &inputArgs);
     // Add checks
+    printf("fclTranslationCtx: %p\n", fclTranslationCtx.get());
     auto fclOutput = fclTranslationCtx.get()->Translate(inSrc.get(), fclOptions.get(), fclInternalOptions.get(), nullptr, 0);
+    if (fclOutput == nullptr) {
+        printf("Unknown error\n");
+    }
+    if (fclOutput->Successful() == true) {
+        printf("Build success\n");
+    }
 
     return ret;
 }
@@ -85,16 +92,29 @@ CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(Compi
     uint32_t openCLVersion = 30;
     newDeviceCtx->SetOclApiVersion(openCLVersion * 10);
     // maybe handle unsupported OpenCL version
+    Platform* platform = (Platform*)malloc(sizeof(Platform));
     if (newDeviceCtx->GetUnderlyingVersion() > 4U) {
         auto igcPlatform = newDeviceCtx->GetPlatformHandle();
         if (nullptr == igcPlatform.get()) {
             return nullptr;
         }
-        IGC::PlatformHelper::PopulateInterfaceWith(*igcPlatform, platform);
+        platform->eProductFamily = 18;
+        platform->ePCHProductFamily = 0;
+        platform->eDisplayCoreFamily = 12;
+        platform->eRenderCoreFamily = 12;
+        platform->ePlatformType = 0;
+        platform->usDeviceID = 6439;
+        platform->usRevId = 10;
+        platform->usDeviceID_PCH = 0;
+        platform->usRevId_PCH = 0;
+        platform->eGTType = 9;
+        IGC::PlatformHelper::PopulateInterfaceWith(*igcPlatform, *platform);
     }
+    inputArgs->preferredIntermediateType = 2305843009202725362;
     if (interf->fclBaseTranslationCtx == nullptr) {
         interf->fclBaseTranslationCtx = newDeviceCtx->CreateTranslationCtx(inputArgs->srcType, inputArgs->preferredIntermediateType);
     }
+    printf("fclBaseTranslationCtx: %p\n", interf->fclBaseTranslationCtx.get());
     return newDeviceCtx->CreateTranslationCtx(inputArgs->srcType, inputArgs->preferredIntermediateType);
 }
 
