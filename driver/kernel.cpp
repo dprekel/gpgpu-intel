@@ -35,7 +35,8 @@ void loadProgramSource(Kernel* kernel, const char* filename) {
 
 int build(struct Kernel* kernel) {
     int ret;
-    struct TranslationInput inputArgs;
+    TranslationInput inputArgs;
+    TranslationOutput output;
 
     initInternalOptions(kernel);
     inputArgs.srcType = IGC::CodeType::oclC;

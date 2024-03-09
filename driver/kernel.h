@@ -32,6 +32,22 @@ struct TranslationInput {
     IGC::CodeType::CodeType_t outType;
 };
 
+struct TranslationOutput {
+    IGC::CodeType::CodeType_t intermediateCodeType;
+
+    const char* intermediate;
+    size_t intermediateSize;
+
+    const char* binary;
+    size_t binarySize;
+
+    const char* debugData;
+    size_t debugDataSize;
+
+    std::string frontendCompilerLog;
+    std::string backendCompilerLog;
+};
+
 struct CompilerInterface {
     //static std::mutex spinlock;
 
