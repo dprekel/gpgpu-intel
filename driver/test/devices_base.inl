@@ -6,11 +6,11 @@
  */
 
 // clang-format off
-//#ifdef SUPPORT_XE_HP_CORE
-//#ifdef SUPPORT_XE_HP_SDV
+#ifdef SUPPORT_XE_HP_CORE
+#ifdef SUPPORT_XE_HP_SDV
 DEVICE(0x0201, XE_HP_SDV_CONFIG, GTTYPE_GT4)
-//#endif
-//#endif
+#endif
+#endif
 
 
 #ifdef SUPPORT_GEN12LP
@@ -82,8 +82,8 @@ NAMEDDEVICE( 0x4E55, EHL_HW_CONFIG, GTTYPE_GT1, "Intel(R) UHD Graphics" )
 #endif
 #endif
 
-#ifdef SUPPORT_GEN9
-#ifdef SUPPORT_SKL
+//#ifdef SUPPORT_GEN9
+//#ifdef SUPPORT_SKL
 // GT1
 NAMEDDEVICE( 0x1902, SKL_1x2x6, GTTYPE_GT1, "Intel(R) HD Graphics 510" )
 NAMEDDEVICE( 0x190B, SKL_1x2x6, GTTYPE_GT1, "Intel(R) HD Graphics 510" )
@@ -115,7 +115,7 @@ DEVICE( 0x1932, SKL_3x3x8,  GTTYPE_GT4 )
 NAMEDDEVICE( 0x193B, SKL_3x3x8, GTTYPE_GT4, "Intel(R) Iris(R) Pro Graphics 580" )
 NAMEDDEVICE( 0x193A, SKL_3x3x8, GTTYPE_GT4, "Intel(R) Iris(R) Pro Graphics P580" )
 NAMEDDEVICE( 0x193D, SKL_3x3x8, GTTYPE_GT4, "Intel(R) Iris(R) Pro Graphics P580" )
-#endif
+//#endif
 
 #ifdef SUPPORT_KBL
 // GT1
@@ -218,7 +218,7 @@ DEVICE( 0x1A85, BXT_1x2x6,  GTTYPE_GTA)   //12EU APL
 DEVICE( 0x1A84, BXT_1x3x6,  GTTYPE_GTA)
 DEVICE( 0x9908, BXT_1x3x6,  GTTYPE_GTA)
 #endif
-#endif
+//#endif
 
 #ifdef SUPPORT_GEN8
 // GT1
