@@ -1,17 +1,6 @@
-#define COMPILER_LOAD_FAILED    -1
+#pragma once
 
-struct Platform {
-    uint32_t eProductFamily;
-    uint32_t ePCHProductFamily;
-    uint32_t eDisplayCoreFamily;
-    uint32_t eRenderCoreFamily;
-    uint32_t ePlatformType;
-    unsigned short usDeviceID;
-    unsigned short usRevId;
-    unsigned short usDeviceID_PCH;
-    unsigned short usRevId_PCH;
-    uint32_t eGTType;
-};
+#define COMPILER_LOAD_FAILED    -1
 
 struct TranslationInput {
     bool allowCaching;

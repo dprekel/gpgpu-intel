@@ -5,9 +5,19 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-#include "driver.h"
+#include "gpuinit.h"
+#include "hwinfo/hwinfo.h"
 #include "gpgpu.h"
+#include "drm_structs.h"
 
+const DeviceDescriptor deviceDescriptorTable[] = {
+#define NAMEDDEVICE(devId, gt, gtType, devName) {devId, &gt::hwInfo, &gt::setupHardwareInfo, gtType, devName},
+#define DEVICE(devId, gt, gtType) {devId, &gt::hwInfo, &gt::setupHardwareInfo, gtType, ""},
+#include "hwinfo/devices_base.h"
+#undef DEVICE
+#undef NAMEDDEVICE
+    {0, nullptr, nullptr, GTTYPE::GTTYPE_UNDEFINED}
+};
 
 int gpInitGPU(struct gpuInfo* gpuInfo) {
     int ret;
@@ -23,16 +33,6 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     getParamIoctl(gpuInfo, I915_PARAM_CHIPSET_ID, &gpuInfo->chipset_id);
     getParamIoctl(gpuInfo, I915_PARAM_REVISION, &gpuInfo->revision_id);
     
-    // query topology info
-    void* topology = queryIoctl(gpuInfo, DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
-    auto data = reinterpret_cast<struct drm_i915_query_topology_info*>(topology);
-    if (!data) {
-        return QUERY_FAILED;
-    }
-    //TODO: Add checks for topology info
-    translateTopologyInfo(gpuInfo, data);
-    free(data);
-
     // Query hardware configuration
     // On newer architectures, the GuC controller has an internal data structure containing
     // hardware information (hardware configuration table, HWConfig). My test machine
@@ -60,6 +60,30 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
     if (!deviceBlob) {
         printf("Hardware configuration table could not be retrieved\n");
     }
+    // setup System info from device blob
+    for (auto &d : deviceDescriptorTable) {
+        if (gpuInfo->chipset_id == d.deviceId) {
+            gpuInfo->hwInfo = d.pHwInfo;
+            gpuInfo->setupHwInfo = d.setupHardwareInfo;
+            gpuInfo->eGtType = d.eGtType;
+            gpuInfo->devName = d.devName;
+            break;
+        }
+    }
+    if (gpuInfo->hwInfo) {
+        gpuInfo->setupHwInfo(gpuInfo->hwInfo);
+    }
+
+    // query topology info
+    void* topology = queryIoctl(gpuInfo, DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
+    auto data = reinterpret_cast<struct drm_i915_query_topology_info*>(topology);
+    if (!data) {
+        return QUERY_FAILED;
+    }
+
+    //TODO: Add checks for topology info
+    translateTopologyInfo(gpuInfo, data);
+    free(data);
 
     // Soft-Pinning supported?
     getParamIoctl(gpuInfo, I915_PARAM_HAS_EXEC_SOFTPIN, &gpuInfo->supportsSoftPin);

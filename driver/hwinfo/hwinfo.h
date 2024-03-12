@@ -1,3 +1,149 @@
+#pragma once
+
+#include <stdint.h>
+
+struct Platform {
+    uint32_t eProductFamily;
+    uint32_t ePCHProductFamily;
+    uint32_t eDisplayCoreFamily;
+    uint32_t eRenderCoreFamily;
+    uint32_t ePlatformType;
+    uint16_t usDeviceID;
+    uint16_t usRevId;
+    uint16_t usDeviceID_PCH;
+    uint16_t usRevId_PCH;
+};
+
+struct SystemInfo {
+    uint32_t EUCount;
+    uint32_t ThreadCount;
+    uint32_t SliceCount;
+    uint32_t SubSliceCount;
+    uint32_t DualSubSliceCount;
+    uint64_t L3CacheSizeInKb;
+    uint64_t LLCCacheSizeInKb;
+    uint64_t EdramSizeInKb;
+    uint32_t L3BankCount;
+    uint32_t MaxFillRate;
+    uint32_t EuCountPerPoolMax;
+    uint32_t EuCountPerPoolMin;
+    uint32_t TotalVsThreads;
+    uint32_t TotalHsThreads;
+    uint32_t TotalDsThreads;
+    uint32_t TotalGsThreads;
+    uint32_t TotalPsThreadsWindowerRange;
+    uint32_t TotalVsThreads_Pocs;
+    uint32_t CsrSizeInMb;
+    uint32_t MaxEuPerSubSlice;
+    uint32_t MaxSlicesSupported;
+    uint32_t MaxDualSubSlicesSupported;
+    bool IsL3HashModeEnabled;
+    //GT_VDBOX_INFO VDBoxInfo;
+    //GT_VEBOX_INFO VEBoxInfo;
+    //GT_SLICE_INFO SliceInfo[4];
+    bool IsDynamicallyPopulated;
+    //GT_SQIDI_INFO SquidiInfo;
+    uint32_t ReservedCCSWays;
+    //GT_CCS_INFO CCSInfo;
+    //GT_MULTI_TILE_ARCH_INFO MultiTileArchInfo;
+    uint32_t NumThreadsPerEu;
+    //GT_CACHE_TYPES CacheTypes;
+    uint32_t MaxVECS;
+    uint32_t MemoryTypes;
+};
+
+struct FeatureTable {
+    struct Flags {
+        // DW0
+        uint32_t ftrDesktop : 1;
+        uint32_t ftrChannelSwizzlingXOREnabled : 1;
+        uint32_t ftrGtBigDie : 1;
+        uint32_t ftrGtMediumDie : 1;
+        uint32_t ftrGtSmallDie : 1;
+        uint32_t ftrGT1 : 1;
+        uint32_t ftrGT1_5 : 1;
+        uint32_t ftrGT2 : 1;
+        uint32_t ftrGT2_5 : 1;
+        uint32_t ftrGT3 : 1;
+        uint32_t ftrGT4 : 1;
+        uint32_t ftrIVBM0M1Platform : 1;
+        uint32_t ftrSGTPVSKUStrapPresent : 1;
+        uint32_t ftrGTA : 1;
+        uint32_t ftrGTC : 1;
+        uint32_t ftrGTX : 1;
+        uint32_t ftr5Slice : 1;
+        uint32_t ftrGpGpuMidBatchPreempt : 1;
+        uint32_t ftrGpGpuThreadGroupLevelPreempt : 1;
+        uint32_t ftrGpGpuMidThreadLevelPreempt : 1;
+        uint32_t ftrIoMmuPageFaulting : 1;
+        uint32_t ftrWddm2Svm : 1;
+        uint32_t ftrPooledEuEnabled : 1;
+        uint32_t ftrResourceStreamer : 1;
+        uint32_t ftrPPGTT : 1;
+        uint32_t ftrSVM : 1;
+        uint32_t ftrEDram : 1;
+        uint32_t ftrL3IACoherency : 1;
+        uint32_t ftrIA32eGfxPTEs : 1;
+        uint32_t ftr3dMidBatchPreempt : 1;
+        uint32_t ftr3dObjectLevelPreempt : 1;
+        uint32_t ftrPerCtxtPreemptionGranularityControl : 1;
+        // DW1
+        uint32_t ftrTileY : 1;
+        uint32_t ftrDisplayYTiling : 1;
+        uint32_t ftrTranslationTable : 1;
+        uint32_t ftrUserModeTranslationTable : 1;
+        uint32_t ftrEnableGuC : 1;
+        uint32_t ftrFbc : 1;
+        uint32_t ftrFbc2AddressTranslation : 1;
+        uint32_t ftrFbcBlitterTracking : 1;
+        uint32_t ftrFbcCpuTracking : 1;
+        uint32_t ftrVcs2 : 1;
+        uint32_t ftrVEBOX : 1;
+        uint32_t ftrSingleVeboxSlice : 1;
+        uint32_t ftrULT : 1;
+        uint32_t ftrLCIA : 1;
+        uint32_t ftrGttCacheInvalidation : 1;
+        uint32_t ftrTileMappedResource : 1;
+        uint32_t ftrAstcHdr2D : 1;
+        uint32_t ftrAstcLdr2D : 1;
+        uint32_t ftrStandardMipTailFormat : 1;
+        uint32_t ftrFrameBufferLLC : 1;
+        uint32_t ftrCrystalwell : 1;
+        uint32_t ftrLLCBypass : 1;
+        uint32_t ftrDisplayEngineS3d : 1;
+        uint32_t ftrVERing : 1;
+        uint32_t ftrWddm2GpuMmu : 1;
+        uint32_t ftrWddm2_1_64kbPages : 1;
+        uint32_t ftrWddmHwQueues : 1;
+        uint32_t ftrMemTypeMocsDeferPAT : 1;
+        uint32_t ftrKmdDaf : 1;
+        uint32_t ftrSimulationMode : 1;
+        uint32_t ftrE2ECompression : 1;
+        uint32_t ftrLinearCCS : 1;
+        //DW2
+        uint32_t ftrCCSRing : 1;
+        uint32_t ftrCCSNode : 1;
+        uint32_t ftrRcsNode : 1;
+        uint32_t ftrLocalMemory : 1;
+        uint32_t ftrLocalMemoryAllows4KB : 1;
+        uint32_t ftrFlatPhysCCS : 1;
+        uint32_t ftrMultiTileArch : 1;
+        uint32_t ftrCCSMultiInstance : 1;
+        uint32_t ftrPpgtt64KBWalkOptimization : 1;
+        uint32_t ftrUnified3DMediaCompressionFormats : 1;
+        uint32_t reserved : 22;
+    };
+
+    union {
+        Flags flags;
+    };
+};
+
+struct HardwareInfo {
+    Platform* platform;
+    FeatureTable* featureTable;
+    SystemInfo* gtSystemInfo;
+};
 
 enum PRODUCT_FAMILY {
     IGFX_UNKNOWN,

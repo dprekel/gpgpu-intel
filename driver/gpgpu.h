@@ -1,16 +1,22 @@
+#pragma once
+
 struct gpuInfo {
     int fd;
     const char* driver_name;
     int chipset_id;
     int revision_id;
 
+    void* HWConfigTable;                    // if this is nullptr, it is not supported
+    const HardwareInfo* hwInfo;
+    void (*setupHwInfo)(const HardwareInfo*);
+    GTTYPE eGtType;
+    const char* devName;
+
     uint16_t sliceCount;
     uint16_t subSliceCount;
     uint16_t euCount;
     uint16_t subSliceCountPerSlice;
     uint16_t euCountPerSubSlice;
-
-    void* HWConfigTable;                    // if this is nullptr, it is not supported
 
     int supportsSoftPin;
 
