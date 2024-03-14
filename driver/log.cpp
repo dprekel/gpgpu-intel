@@ -2,10 +2,11 @@
 #include <stdint.h>
 
 #include "gpgpu.h"
-#include "driver.h"
+#include "gpuinit.h"
+#include "drm_structs.h"
 #include "log.h"
 
-void logGPUInfo(struct gpuInfo* gpuInfo) {
+void logGPUInfo(GPU* gpuInfo) {
     printf("File descriptor: %d\n", gpuInfo->fd);
     printf("Driver version: %s\n", gpuInfo->driver_name);
     printf("Chipset ID: %d\n", gpuInfo->chipset_id);
@@ -53,7 +54,7 @@ void logGPUInfo(struct gpuInfo* gpuInfo) {
     }
 }
 
-void showTopology(struct gpuInfo* gpuInfo) {
+void showTopology(GPU* gpuInfo) {
     uint16_t sliceCount = gpuInfo->sliceCount;
     uint16_t subSliceCount = gpuInfo->subSliceCount;
     uint16_t euCount = gpuInfo->euCount;

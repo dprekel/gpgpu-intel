@@ -7,6 +7,8 @@
 #include "compiler_interface.h"
 #include "kernel.h"
 #include "gpgpu.h"
+#include "gpuinit.h"
+#include "hwinfo/hwinfo.h"
 
 void loadProgramSource(Kernel* kernel, const char* filename) {
     FILE* file = fopen(filename, "r");
@@ -33,7 +35,7 @@ void loadProgramSource(Kernel* kernel, const char* filename) {
 // - inSrc, fclOptions, fclInternalOptions, fclTranslationCtx
 // - srcCodeType & intermediateCodeType for fclTranslationCtx
 
-int build(struct Kernel* kernel) {
+int build(Kernel* kernel) {
     int ret;
     TranslationInput inputArgs;
     TranslationOutput output;
@@ -67,7 +69,8 @@ int build(struct Kernel* kernel) {
     size_t size3 = inputArgs.internalOptions_endIt - inputArgs.internalOptions_begIt;
     auto fclInternalOptions = CIF::Builtins::CreateConstBuffer(interf->igcMain.get(), inputArgs.internalOptions_begIt, size3);
 
-    auto fclTranslationCtx = createFclTranslationCtx(interf, &inputArgs);
+    auto descriptor = static_cast<DeviceDescriptor*>(kernel->gpuInfo->descriptor);
+    auto fclTranslationCtx = createFclTranslationCtx(interf, &inputArgs, descriptor->pHwInfo);
     // Add checks
     printf("fclTranslationCtx: %p\n", fclTranslationCtx.get());
     auto fclOutput = fclTranslationCtx.get()->Translate(inSrc.get(), fclOptions.get(), fclInternalOptions.get(), nullptr, 0);
@@ -81,7 +84,7 @@ int build(struct Kernel* kernel) {
     return ret;
 }
 
-CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(CompilerInterface* interf, TranslationInput* inputArgs) {
+CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(CompilerInterface* interf, TranslationInput* inputArgs, const HardwareInfo* hwInfo) {
     // look into spinlock
     //std::unique_lock<std::mutex>(spinlock);
 
@@ -93,23 +96,12 @@ CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(Compi
     uint32_t openCLVersion = 30;
     newDeviceCtx->SetOclApiVersion(openCLVersion * 10);
     // maybe handle unsupported OpenCL version
-    Platform* platform = (Platform*)malloc(sizeof(Platform));
     if (newDeviceCtx->GetUnderlyingVersion() > 4U) {
         auto igcPlatform = newDeviceCtx->GetPlatformHandle();
         if (nullptr == igcPlatform.get()) {
             return nullptr;
         }
-        platform->eProductFamily = 18;
-        platform->ePCHProductFamily = 0;
-        platform->eDisplayCoreFamily = 12;
-        platform->eRenderCoreFamily = 12;
-        platform->ePlatformType = 0;
-        platform->usDeviceID = 6439;
-        platform->usRevId = 10;
-        platform->usDeviceID_PCH = 0;
-        platform->usRevId_PCH = 0;
-        platform->eGTType = 9;
-        IGC::PlatformHelper::PopulateInterfaceWith(*igcPlatform, *platform);
+        IGC::PlatformHelper::PopulateInterfaceWith(*igcPlatform, *hwInfo->platform);
     }
     inputArgs->preferredIntermediateType = 2305843009202725362;
     if (interf->fclBaseTranslationCtx == nullptr) {
@@ -120,7 +112,7 @@ CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(Compi
 }
 
 // this needs to be expanded
-void initInternalOptions(struct Kernel* kernel) {
+void initInternalOptions(Kernel* kernel) {
     kernel->internalOptions = "-ocl-version=300 -cl-intel-has-buffer-offset-arg";
     kernel->internalOptionsSize = kernel->internalOptions.size();
 }
@@ -149,11 +141,12 @@ int loadCompiler(const char** libName, void** libHandle, CIF::RAII::UPtr_t<CIF::
     return 0;
 }
 
-int gpBuildKernel(struct gpuInfo* gpuInfo, const char* filename, const char* options) {
+int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options) {
     int err;
     Kernel* kernel;
         
     kernel = (Kernel*)malloc(sizeof(Kernel));
+    kernel->gpuInfo = gpuInfo;
     gpuInfo->kernel = static_cast<void*>(kernel);
     loadProgramSource(kernel, filename);
 

@@ -7,6 +7,7 @@
 
 #include "gpuinit.h"
 #include "hwinfo/hwinfo.h"
+#include "hwinfo/skl_info.h"
 #include "gpgpu.h"
 #include "drm_structs.h"
 
@@ -19,7 +20,7 @@ const DeviceDescriptor deviceDescriptorTable[] = {
     {0, nullptr, nullptr, GTTYPE::GTTYPE_UNDEFINED}
 };
 
-int gpInitGPU(struct gpuInfo* gpuInfo) {
+int gpInitGPU(GPU* gpuInfo) {
     int ret;
 
     //TODO: Discover all devices
@@ -61,17 +62,21 @@ int gpInitGPU(struct gpuInfo* gpuInfo) {
         printf("Hardware configuration table could not be retrieved\n");
     }
     // setup System info from device blob
+    DeviceDescriptor* descriptor = new DeviceDescriptor();
+    gpuInfo->descriptor = static_cast<void*>(descriptor);
     for (auto &d : deviceDescriptorTable) {
         if (gpuInfo->chipset_id == d.deviceId) {
-            gpuInfo->hwInfo = d.pHwInfo;
-            gpuInfo->setupHwInfo = d.setupHardwareInfo;
-            gpuInfo->eGtType = d.eGtType;
-            gpuInfo->devName = d.devName;
+            descriptor->pHwInfo = d.pHwInfo;
+            descriptor->setupHardwareInfo = d.setupHardwareInfo;
+            //gpuInfo->eGtType = d.eGtType;
+            descriptor->devName = d.devName;
             break;
         }
     }
-    if (gpuInfo->hwInfo) {
-        gpuInfo->setupHwInfo(gpuInfo->hwInfo);
+    if (descriptor->pHwInfo) {
+        descriptor->setupHardwareInfo(descriptor->pHwInfo);
+        descriptor->pHwInfo->platform->usDeviceID = gpuInfo->chipset_id;
+        descriptor->pHwInfo->platform->usRevId = gpuInfo->revision_id;
     }
 
     // query topology info
@@ -160,7 +165,7 @@ int openDeviceFile() {
     return fileDescriptor;
 }
 
-bool checkDriverVersion(struct gpuInfo* gpuInfo) {
+bool checkDriverVersion(GPU* gpuInfo) {
     int ret;
     struct drm_version version = {};
 
@@ -177,7 +182,7 @@ bool checkDriverVersion(struct gpuInfo* gpuInfo) {
     return strcmp(name, "i915") == 0;
 }
 
-int getParamIoctl(struct gpuInfo* gpuInfo, int param, int* paramValue) {
+int getParamIoctl(GPU* gpuInfo, int param, int* paramValue) {
     int ret;
     struct drm_i915_getparam getParam = {};
     getParam.param = param;
@@ -187,7 +192,7 @@ int getParamIoctl(struct gpuInfo* gpuInfo, int param, int* paramValue) {
     return ret;
 }
 
-void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFlags, int32_t length) {
+void* queryIoctl(GPU* gpuInfo, uint32_t queryId, uint32_t queryItemFlags, int32_t length) {
     int ret;
     struct drm_i915_query query = {};
     struct drm_i915_query_item queryItem = {};
@@ -215,7 +220,7 @@ void* queryIoctl(struct gpuInfo* gpuInfo, uint32_t queryId, uint32_t queryItemFl
     return data;
 }
 
-void translateTopologyInfo(struct gpuInfo* gpuInfo, struct drm_i915_query_topology_info* topologyInfo) {
+void translateTopologyInfo(GPU* gpuInfo, struct drm_i915_query_topology_info* topologyInfo) {
     uint16_t sliceCount = 0;
     uint16_t subSliceCount = 0;
     uint16_t euCount = 0;
@@ -257,7 +262,7 @@ void translateTopologyInfo(struct gpuInfo* gpuInfo, struct drm_i915_query_topolo
     gpuInfo->euCountPerSubSlice = euCountPerSubSlice;
 }
 
-int createDrmVirtualMemory(struct gpuInfo* gpuInfo) {
+int createDrmVirtualMemory(GPU* gpuInfo) {
     int ret;
     struct drm_i915_gem_vm_control ctl = {0};
     
@@ -271,7 +276,7 @@ int createDrmVirtualMemory(struct gpuInfo* gpuInfo) {
     return ret;
 }
 
-int enableTurboBoost(struct gpuInfo* gpuInfo) {
+int enableTurboBoost(GPU* gpuInfo) {
     // Even though my test machine (Skylake) has Turbo Boost 2.0, this does not work. 
     // Do we need to specify a context id first?
     // use ftrace to see why we get EINVAL error
@@ -284,7 +289,7 @@ int enableTurboBoost(struct gpuInfo* gpuInfo) {
     return ret;
 }
 
-int queryGttSize(struct gpuInfo* gpuInfo) {
+int queryGttSize(GPU* gpuInfo) {
     int ret;
     struct drm_i915_gem_context_param contextParam = {};
     contextParam.ctx_id = 0;
@@ -297,7 +302,7 @@ int queryGttSize(struct gpuInfo* gpuInfo) {
     return ret;
 }
 
-void checkNonPersistentContextsSupport(struct gpuInfo* gpuInfo) {
+void checkNonPersistentContextsSupport(GPU* gpuInfo) {
     int ret;
     struct drm_i915_gem_context_param contextParam = {};
     contextParam.param = I915_CONTEXT_PARAM_PERSISTENCE;
@@ -311,7 +316,7 @@ void checkNonPersistentContextsSupport(struct gpuInfo* gpuInfo) {
     }
 }
 
-void checkPreemptionSupport(struct gpuInfo* gpuInfo) {
+void checkPreemptionSupport(GPU* gpuInfo) {
     int ret;
     int value = 0;
     ret = getParamIoctl(gpuInfo, I915_PARAM_HAS_SCHEDULER, &value);
@@ -320,13 +325,13 @@ void checkPreemptionSupport(struct gpuInfo* gpuInfo) {
 }
 
 /*
-int getMaxGpuFrequency(struct gpuInfo* gpuInfo) {
+int getMaxGpuFrequency(GPU* gpuInfo) {
     int ret;
     std::string path = "/sys/bus/pci/devices/" + pciPath + "/drm" + "/card";
 
 }
 
-uint32_t createDrmContext(struct gpuInfo* gpuInfo, uint32_t drmVmId, bool isSpecialContextRequested) {
+uint32_t createDrmContext(GPU* gpuInfo, uint32_t drmVmId, bool isSpecialContextRequested) {
     struct drm_i915_gem_context_create_ext gcc = {};
     int ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT, &gcc);
     if (ret) {

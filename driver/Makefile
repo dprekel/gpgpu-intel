@@ -7,8 +7,8 @@ INC = -I/usr/local/include/igc -I/usr/local/include/igc/cif
 .PHONY: default all clean install
 
 TARGET = libigpgpu.so
-SOURCES = $(wildcard *.cpp)
-OBJECTS = $(SOURCES:.cpp=.o)
+SOURCES = $(wildcard *.cpp) $(wildcard */*.cpp)
+OBJECTS = $(SOURCES:.cpp=.o) $(*/SOURCES:.cpp=.o)
 
 default: $(TARGET)
 

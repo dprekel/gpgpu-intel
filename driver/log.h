@@ -1,4 +1,6 @@
 #pragma once
 
+struct GPU;
+
 const char* decodeCapabilities(uint64_t capability);
-void showTopology(struct gpuInfo* gpuInfo);
+void showTopology(GPU* gpuInfo);

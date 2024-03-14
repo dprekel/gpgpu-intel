@@ -12,6 +12,7 @@ struct Platform {
     uint16_t usRevId;
     uint16_t usDeviceID_PCH;
     uint16_t usRevId_PCH;
+    uint32_t eGTType;
 };
 
 struct SystemInfo {
@@ -36,6 +37,7 @@ struct SystemInfo {
     uint32_t CsrSizeInMb;
     uint32_t MaxEuPerSubSlice;
     uint32_t MaxSlicesSupported;
+    uint32_t MaxSubSlicesSupported;
     uint32_t MaxDualSubSlicesSupported;
     bool IsL3HashModeEnabled;
     //GT_VDBOX_INFO VDBoxInfo;
@@ -219,7 +221,7 @@ enum PLATFORM_TYPE {
     PLATFORM_ALL = 255
 };
 
-enum GFXCORE_FAMILY {
+enum GFX_CORE_FAMILY {
     IGFX_UNKNOWN_CORE,
     IGFX_GEN3_CORE,
     IGFX_GEN3_5_CORE,

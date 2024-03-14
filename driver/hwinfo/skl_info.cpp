@@ -1,6 +1,7 @@
+#include "skl_info.h"
 #include "hwinfo.h"
 
-const Platform SKL::platform = {
+Platform SKL::platform = {
     PRODUCT_FAMILY::IGFX_SKYLAKE,
     PCH_PRODUCT_FAMILY::PCH_UNKNOWN,
     GFX_CORE_FAMILY::IGFX_GEN9_CORE,
@@ -14,8 +15,8 @@ const Platform SKL::platform = {
 };
 
 FeatureTable SKL::featureTable = {};
-void SKL::setupFeatureAndWorkaroundTable(HardwareInfo* hwInfo) {
-    FeatureTable* featureTable = &hwInfo->featureTable;
+void SKL::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
+    FeatureTable* featureTable = hwInfo->featureTable;
     featureTable->flags.ftrGpGpuMidBatchPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
     featureTable->flags.ftrL3IACoherency = true;
@@ -41,8 +42,8 @@ void SKL::setupFeatureAndWorkaroundTable(HardwareInfo* hwInfo) {
 }
 
 SystemInfo SKL_1x2x6::gtSystemInfo = {0};
-void SKL_1x2x6::setupHardwareInfo(HardwareInfo* hwInfo) {
-    SystemInfo* gtSysInfo = &hwInfo->gtSystemInfo;
+void SKL_1x2x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * SKL::threadsPerEu;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 384;
@@ -54,7 +55,7 @@ void SKL_1x2x6::setupHardwareInfo(HardwareInfo* hwInfo) {
     gtSysInfo->TotalGsThreads = 336;
     gtSysInfo->TotalPsThreadsWindowerRange = 64;
     gtSysInfo->CsrSizeInMb = 8;
-    gtSysInfo->MaxEuPerSubSlice = SKL::maxEuPerSubslice;
+    gtSysInfo->MaxEuPerSubSlice = SKL::maxEuPerSubSlice;
     gtSysInfo->MaxSlicesSupported = SKL::maxSlicesSupported;
     gtSysInfo->MaxSubSlicesSupported = SKL::maxSubslicesSupported;
     gtSysInfo->IsL3HashModeEnabled = false;
@@ -68,8 +69,8 @@ const HardwareInfo SKL_1x2x6::hwInfo = {
 };
 
 SystemInfo SKL_1x3x6::gtSystemInfo = {0};
-void SKL_1x3x6::setupHardwareInfo(HardwareInfo* hwInfo) {
-    SystemInfo* gtSysInfo = &hwInfo->gtSystemInfo;
+void SKL_1x3x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * SKL::threadsPerEu;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 768;
@@ -81,7 +82,34 @@ void SKL_1x3x6::setupHardwareInfo(HardwareInfo* hwInfo) {
     gtSysInfo->TotalGsThreads = 336;
     gtSysInfo->TotalPsThreadsWindowerRange = 64;
     gtSysInfo->CsrSizeInMb = 8;
-    gtSysInfo->MaxEuPerSubSlice = SKL::maxEuPerSubslice;
+    gtSysInfo->MaxEuPerSubSlice = SKL::maxEuPerSubSlice;
+    gtSysInfo->MaxSlicesSupported = SKL::maxSlicesSupported;
+    gtSysInfo->MaxSubSlicesSupported = SKL::maxSubslicesSupported;
+    gtSysInfo->IsL3HashModeEnabled = false;
+    gtSysInfo->IsDynamicallyPopulated = false;
+    setupFeatureAndWorkaroundTable(hwInfo);
+}
+const HardwareInfo SKL_1x3x6::hwInfo = {
+    &SKL::platform,
+    &SKL::featureTable,
+    &SKL_1x3x6::gtSystemInfo,
+};
+
+SystemInfo SKL_1x3x8::gtSystemInfo = {0};
+void SKL_1x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
+    gtSysInfo->ThreadCount = gtSysInfo->EUCount * SKL::threadsPerEu;
+    gtSysInfo->SliceCount = 1;
+    gtSysInfo->L3CacheSizeInKb = 768;
+    gtSysInfo->L3BankCount = 4;
+    gtSysInfo->MaxFillRate = 8;
+    gtSysInfo->TotalVsThreads = 336;
+    gtSysInfo->TotalHsThreads = 336;
+    gtSysInfo->TotalDsThreads = 336;
+    gtSysInfo->TotalGsThreads = 336;
+    gtSysInfo->TotalPsThreadsWindowerRange = 64;
+    gtSysInfo->CsrSizeInMb = 8;
+    gtSysInfo->MaxEuPerSubSlice = SKL::maxEuPerSubSlice;
     gtSysInfo->MaxSlicesSupported = SKL::maxSlicesSupported;
     gtSysInfo->MaxSubSlicesSupported = SKL::maxSubslicesSupported;
     gtSysInfo->IsL3HashModeEnabled = false;
@@ -95,8 +123,8 @@ const HardwareInfo SKL_1x3x8::hwInfo = {
 };
 
 SystemInfo SKL_2x3x8::gtSystemInfo = {0};
-void SKL_2x3x8::setupHardwareInfo(HardwareInfo* hwInfo) {
-    SystemInfo* gtSysInfo = &hwInfo->gtSystemInfo;
+void SKL_2x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * SKL::threadsPerEu;
     gtSysInfo->SliceCount = 2;
     gtSysInfo->L3CacheSizeInKb = 1536;
@@ -108,7 +136,7 @@ void SKL_2x3x8::setupHardwareInfo(HardwareInfo* hwInfo) {
     gtSysInfo->TotalGsThreads = 336;
     gtSysInfo->TotalPsThreadsWindowerRange = 64;
     gtSysInfo->CsrSizeInMb = 8;
-    gtSysInfo->MaxEuPerSubSlice = SKL::maxEuPerSubslice;
+    gtSysInfo->MaxEuPerSubSlice = SKL::maxEuPerSubSlice;
     gtSysInfo->MaxSlicesSupported = SKL::maxSlicesSupported;
     gtSysInfo->MaxSubSlicesSupported = SKL::maxSubslicesSupported;
     gtSysInfo->IsL3HashModeEnabled = false;
@@ -122,8 +150,8 @@ const HardwareInfo SKL_2x3x8::hwInfo = {
 };
 
 SystemInfo SKL_3x3x8::gtSystemInfo = {0};
-void SKL_3x3x8::setupHardwareInfo(HardwareInfo* hwInfo) {
-    SystemInfo* gtSysInfo = &hwInfo->gtSystemInfo;
+void SKL_3x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * SKL::threadsPerEu;
     gtSysInfo->SliceCount = 3;
     gtSysInfo->L3CacheSizeInKb = 2304;
@@ -135,7 +163,7 @@ void SKL_3x3x8::setupHardwareInfo(HardwareInfo* hwInfo) {
     gtSysInfo->TotalGsThreads = 336;
     gtSysInfo->TotalPsThreadsWindowerRange = 64;
     gtSysInfo->CsrSizeInMb = 8;
-    gtSysInfo->MaxEuPerSubSlice = SKL::maxEuPerSubslice;
+    gtSysInfo->MaxEuPerSubSlice = SKL::maxEuPerSubSlice;
     gtSysInfo->MaxSlicesSupported = SKL::maxSlicesSupported;
     gtSysInfo->MaxSubSlicesSupported = SKL::maxSubslicesSupported;
     gtSysInfo->IsL3HashModeEnabled = false;

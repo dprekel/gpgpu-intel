@@ -1,5 +1,8 @@
 #pragma once
 
+#include "gpgpu.h"
+#include "hwinfo/hwinfo.h"
+
 #define COMPILER_LOAD_FAILED    -1
 
 struct TranslationInput {
@@ -51,6 +54,7 @@ struct CompilerInterface {
 };
 
 struct Kernel {
+    GPU* gpuInfo;
     FILE* fd;
     const char* filename;
     void* compilerInterface;
@@ -70,4 +74,11 @@ void createReabableSource(struct Kernel* kernel, const char* string, uint64_t* l
 int build(struct Kernel* kernel);
 int loadCompiler(const char** libName, void** libHandle, CIF::RAII::UPtr_t<CIF::CIFMain>* libMain);
 void initInternalOptions(struct Kernel* kernel);
-CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(struct CompilerInterface* interf, TranslationInput* inputArgs);
+CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(struct CompilerInterface* interf, TranslationInput* inputArgs, const HardwareInfo* hwInfo);
+
+
+
+
+
+
+

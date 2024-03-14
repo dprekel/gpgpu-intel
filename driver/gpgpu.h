@@ -1,16 +1,13 @@
 #pragma once
 
-struct gpuInfo {
+struct GPU {
     int fd;
     const char* driver_name;
     int chipset_id;
     int revision_id;
 
     void* HWConfigTable;                    // if this is nullptr, it is not supported
-    const HardwareInfo* hwInfo;
-    void (*setupHwInfo)(const HardwareInfo*);
-    GTTYPE eGtType;
-    const char* devName;
+    void* descriptor;
 
     uint16_t sliceCount;
     uint16_t subSliceCount;
@@ -38,8 +35,8 @@ struct gpuInfo {
 #define NO_TURBO_BOOST                      -4
 #define VM_CREATION_FAILED                  -5
 
-extern int gpInitGPU(struct gpuInfo* gpuInfo);
-extern void logGPUInfo(struct gpuInfo* gpuInfo);
+extern int gpInitGPU(GPU* gpuInfo);
+extern void logGPUInfo(GPU* gpuInfo);
 //extern void* gpAllocateAndPinBuffer(size_t size);
-extern int gpBuildKernel(struct gpuInfo* gpuInfo, const char* filename, const char* options);
+extern int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options);
 
