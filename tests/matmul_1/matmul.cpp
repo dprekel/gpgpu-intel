@@ -13,7 +13,7 @@ int main() {
     int err;
     const char* filename;
 
-    gpuInfo* gpuInfo = (struct gpuInfo*)malloc(sizeof(struct gpuInfo));
+    GPU* gpuInfo = (GPU*)malloc(sizeof(GPU));
     err = gpInitGPU(gpuInfo);
     logGPUInfo(gpuInfo);
 
