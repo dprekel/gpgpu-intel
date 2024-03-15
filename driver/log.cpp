@@ -11,6 +11,8 @@ void logGPUInfo(GPU* gpuInfo) {
     printf("Driver version: %s\n", gpuInfo->driver_name);
     printf("Chipset ID: %d\n", gpuInfo->chipset_id);
     printf("Revision ID: %d\n", gpuInfo->revision_id);
+    auto descriptor = static_cast<DeviceDescriptor*>(gpuInfo->descriptor);
+    printf("Device Name: %s\n", descriptor->devName);
     showTopology(gpuInfo);
     printf("\n");
     printf("Available Engines                         Capabilities\n");

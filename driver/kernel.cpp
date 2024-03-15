@@ -68,6 +68,8 @@ int build(Kernel* kernel) {
     auto fclOptions = CIF::Builtins::CreateConstBuffer(interf->igcMain.get(), inputArgs.apiOptions_begIt, size2);
     size_t size3 = inputArgs.internalOptions_endIt - inputArgs.internalOptions_begIt;
     auto fclInternalOptions = CIF::Builtins::CreateConstBuffer(interf->igcMain.get(), inputArgs.internalOptions_begIt, size3);
+    auto idsBuffer = CIF::Builtins::CreateConstBuffer(igcMain.get(), nullptr, 0);
+    auto valuesBuffer = CIF::Builtins::CreateConstBuffer(igcMain.get(), nullptr, 0);
 
     auto descriptor = static_cast<DeviceDescriptor*>(kernel->gpuInfo->descriptor);
     auto fclTranslationCtx = createFclTranslationCtx(interf, &inputArgs, descriptor->pHwInfo);
@@ -81,6 +83,8 @@ int build(Kernel* kernel) {
         printf("Build success\n");
     }
 
+    auto igcTranslationCtx = createIgcTranslationCtx(interf, &inputArgs, descriptor->pHwInfo);
+    auto igcOutput = igcTranslationCtx.get()->Translate(
     return ret;
 }
 
@@ -109,6 +113,49 @@ CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(Compi
     }
     printf("fclBaseTranslationCtx: %p\n", interf->fclBaseTranslationCtx.get());
     return newDeviceCtx->CreateTranslationCtx(inputArgs->srcType, inputArgs->preferredIntermediateType);
+}
+
+CIF::RAII::UPtr_t<IGC::IgcOclTranslationCtxTagOCL> createIgcTranslationCtx(CompilerInterface* interf, TranslationInput* inputArgs, const HardwareInfo* hwInfo) {
+    
+    auto newDeviceCtx = interf->igcMain->CreateInterface<IGC::IgcOclDeviceCtxTagOCL>();
+    if (newDeviceCtx == nullptr) {
+        return nullptr;
+    }
+    newDeviceCtx->SetProfilingTimerResolution(static_cast<float>(outProfilingTimerResolution));
+    auto igcPlatform = newDeviceCtx->GetPlatformHandle();
+    auto igcGetSystemInfo = newDeviceCtx->GetGTSystemInfoHandle();
+    auto igcFeWa = newDeviceCtx->GetIgcFeaturesAndWorkaroundsHandle();
+    if (!igcPlatform.get() || !igcGetSystemInfo.get() || !igcFeWa.get()) {
+        return nullptr;
+    }
+    IGC::PlatformHelper::PopulateInterfaceWith(*igcPlatform, *hwInfo->platform);
+    IGC::GtSysInfoHelper::PopulateInterfaceWith(*igcPlatform, *hwInfo->gtSystemInfo);
+    igcFeWa.get()->SetFtrDesktop(hwInfo->featureTable.flags.ftrDesktop);
+    igcFeWa.get()->SetFtrChannelSwizzlingXOREnabled(hwInfo->featureTable.flags.ftrChannelSwizzlingXOREnabled);
+    igcFeWa.get()->SetFtrGtBigDie(hwInfo->featureTable.flags.ftrGtBigDie);
+    igcFeWa.get()->SetFtrGtMediumDie(hwInfo->featureTable.flags.ftrGtMediumDie);
+    igcFeWa.get()->SetFtrGtSmallDie(hwInfo->featureTable.flags.ftrGtSmallDie);
+    igcFeWa.get()->SetFtrGT1(hwInfo->featureTable.flags.ftrGT1);
+    igcFeWa.get()->SetFtrGT1_5(hwInfo->featureTable.flags.ftrGT1_5);
+    igcFeWa.get()->SetFtrGT2(hwInfo->featureTable.flags.ftrGT2);
+    igcFeWa.get()->SetFtrGT3(hwInfo->featureTable.flags.ftrGT3);
+    igcFeWa.get()->SetFtrGT4(hwInfo->featureTable.flags.ftrGT4);
+    igcFeWa.get()->SetFtrIVBM0M1Platform(hwInfo->featureTable.flags.ftrIVBM0M1Platform);
+    igcFeWa.get()->SetFtrGTL(hwInfo->featureTable.flags.ftrGT1);
+    igcFeWa.get()->SetFtrGTM(hwInfo->featureTable.flags.ftrGT2);
+    igcFeWa.get()->SetFtrGTH(hwInfo->featureTable.flags.ftrGT3);
+    igcFeWa.get()->SetFtrSGTPVSKUStrapPresent(hwInfo->featureTable.flags.ftrSGTPVSKUStrapPresent);
+    igcFeWa.get()->SetFtrGTA(hwInfo->featureTable.flags.ftrGTA);
+    igcFeWa.get()->SetFtrGTC(hwInfo->featureTable.flags.ftftrrGTC);
+    igcFeWa.get()->SetFtrGTX(hwInfo->featureTable.flags.ftrGTX);
+    igcFeWa.get()->SetFtr5Slice(hwInfo->featureTable.flags.ftr5Slice);
+    igcFeWa.get()->SetFtrGpGpuMidThreadLevelPreempt(hwInfo->featureTable.flags.ftrGpGpuMidThreadLevelPreempt);
+    igcFeWa.get()->SetFtrIoMmuPageFaulting(hwInfo->featureTable.flags.ftrIoMmuPageFaulting);
+    igcFeWa.get()->SetFtrWddm2Svm(hwInfo->featureTable.flags.ftrWddm2Svm);
+    igcFeWa.get()->SetFtrPooledEuEnabled(hwInfo->featureTable.flags.ftrPooledEuEnabled);
+    igcFeWa.get()->SetFtrResourceStreamer(hwInfo->featureTable.flags.ftrResourceStreamer);
+
+    return newDeviceCtx->CreateTranslationCtx(inputArgs->preferredIntermediateType, inputArgs->outType);
 }
 
 // this needs to be expanded
