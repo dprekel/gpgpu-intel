@@ -22,18 +22,20 @@ struct TranslationInput {
     IGC::CodeType::CodeType_t srcType;
     IGC::CodeType::CodeType_t preferredIntermediateType;
     IGC::CodeType::CodeType_t outType;
+
+    void* GTPinInput = nullptr;
 };
 
 struct TranslationOutput {
     IGC::CodeType::CodeType_t intermediateCodeType;
 
-    const char* intermediate;
+    std::string intermediate;
     size_t intermediateSize;
 
-    const char* binary;
+    std::string binary;
     size_t binarySize;
 
-    const char* debugData;
+    std::string debugData;
     size_t debugDataSize;
 
     std::string frontendCompilerLog;
@@ -74,7 +76,8 @@ void createReabableSource(struct Kernel* kernel, const char* string, uint64_t* l
 int build(struct Kernel* kernel);
 int loadCompiler(const char** libName, void** libHandle, CIF::RAII::UPtr_t<CIF::CIFMain>* libMain);
 void initInternalOptions(struct Kernel* kernel);
-CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(struct CompilerInterface* interf, TranslationInput* inputArgs, const HardwareInfo* hwInfo);
+CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(CompilerInterface* interf, TranslationInput* inputArgs, const HardwareInfo* hwInfo);
+CIF::RAII::UPtr_t<IGC::IgcOclTranslationCtxTagOCL> createIgcTranslationCtx(CompilerInterface* interf, TranslationInput* inputArgs, const HardwareInfo* hwInfo);
 
 
 

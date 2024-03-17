@@ -2,7 +2,7 @@ CC = g++
 CFLAGS = -g -Wall -fPIC
 LDFLAGS = -shared
 PREFIX = /usr/local
-INC = -I/usr/local/include/igc -I/usr/local/include/igc/cif
+INC = -I/usr/local/include/igc -I/usr/local/include/igc/cif -I/usr/local/include/igc/ocl_igc_shared/executable_format
 
 .PHONY: default all clean install
 

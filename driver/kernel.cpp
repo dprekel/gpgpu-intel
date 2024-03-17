@@ -49,6 +49,10 @@ int build(Kernel* kernel) {
     inputArgs.apiOptions_endIt = kernel->options.c_str() + kernel->optionsSize;
     inputArgs.internalOptions_begIt = kernel->internalOptions.c_str();
     inputArgs.internalOptions_endIt = kernel->internalOptions.c_str() + kernel->internalOptionsSize;
+    inputArgs.preferredIntermediateType = 2305843009202725362;
+    inputArgs.outType = IGC::CodeType::oclGenBin;
+
+    CIF::RAII::UPtr_t<CIF::Builtins::BufferSimple> intermediateRepresentation;
 
     auto interf = (CompilerInterface*)malloc(sizeof(CompilerInterface));
 
@@ -68,8 +72,8 @@ int build(Kernel* kernel) {
     auto fclOptions = CIF::Builtins::CreateConstBuffer(interf->igcMain.get(), inputArgs.apiOptions_begIt, size2);
     size_t size3 = inputArgs.internalOptions_endIt - inputArgs.internalOptions_begIt;
     auto fclInternalOptions = CIF::Builtins::CreateConstBuffer(interf->igcMain.get(), inputArgs.internalOptions_begIt, size3);
-    auto idsBuffer = CIF::Builtins::CreateConstBuffer(igcMain.get(), nullptr, 0);
-    auto valuesBuffer = CIF::Builtins::CreateConstBuffer(igcMain.get(), nullptr, 0);
+    auto idsBuffer = CIF::Builtins::CreateConstBuffer(interf->igcMain.get(), nullptr, 0);
+    auto valuesBuffer = CIF::Builtins::CreateConstBuffer(interf->igcMain.get(), nullptr, 0);
 
     auto descriptor = static_cast<DeviceDescriptor*>(kernel->gpuInfo->descriptor);
     auto fclTranslationCtx = createFclTranslationCtx(interf, &inputArgs, descriptor->pHwInfo);
@@ -80,11 +84,35 @@ int build(Kernel* kernel) {
         printf("Unknown error\n");
     }
     if (fclOutput->Successful() == true) {
-        printf("Build success\n");
+        printf("Frontend build success\n");
     }
+    CIF::Builtins::BufferSimple* src = fclOutput->GetBuildLog();
+    output.frontendCompilerLog.assign(src->GetMemory<char>(), src->GetSize<char>());
+
+    output.intermediateCodeType = inputArgs.preferredIntermediateType;
+    CIF::Builtins::BufferSimple* src2 = fclOutput->GetOutput();
+    output.intermediate.assign(src2->GetMemory<char>(), src2->GetSize<char>());
+
+    fclOutput->GetOutput()->Retain();
+    intermediateRepresentation.reset(fclOutput->GetOutput());
 
     auto igcTranslationCtx = createIgcTranslationCtx(interf, &inputArgs, descriptor->pHwInfo);
-    auto igcOutput = igcTranslationCtx.get()->Translate(
+    auto igcOutput = igcTranslationCtx.get()->Translate(intermediateRepresentation.get(), idsBuffer.get(), valuesBuffer.get(), fclOptions.get(), fclInternalOptions.get(), nullptr, 0, inputArgs.GTPinInput);
+    if (igcOutput == nullptr) {
+        printf("Unknown error during backend compilation\n");
+    }
+    if (igcOutput->Successful() == true) {
+        printf("Backend build success\n");
+    }
+    CIF::Builtins::BufferSimple* src3 = igcOutput->GetBuildLog();
+    output.backendCompilerLog.assign(src3->GetMemory<char>(), src3->GetSize<char>());
+
+    CIF::Builtins::BufferSimple* src4 = igcOutput->GetOutput();
+    output.binary.assign(src4->GetMemory<char>(), src4->GetSize<char>());
+
+    CIF::Builtins::BufferSimple* src5 = igcOutput->GetOutput();
+    output.debugData.assign(src5->GetMemory<char>(), src5->GetSize<char>());
+
     return ret;
 }
 
@@ -107,7 +135,6 @@ CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(Compi
         }
         IGC::PlatformHelper::PopulateInterfaceWith(*igcPlatform, *hwInfo->platform);
     }
-    inputArgs->preferredIntermediateType = 2305843009202725362;
     if (interf->fclBaseTranslationCtx == nullptr) {
         interf->fclBaseTranslationCtx = newDeviceCtx->CreateTranslationCtx(inputArgs->srcType, inputArgs->preferredIntermediateType);
     }
@@ -121,6 +148,7 @@ CIF::RAII::UPtr_t<IGC::IgcOclTranslationCtxTagOCL> createIgcTranslationCtx(Compi
     if (newDeviceCtx == nullptr) {
         return nullptr;
     }
+    int outProfilingTimerResolution = 83;
     newDeviceCtx->SetProfilingTimerResolution(static_cast<float>(outProfilingTimerResolution));
     auto igcPlatform = newDeviceCtx->GetPlatformHandle();
     auto igcGetSystemInfo = newDeviceCtx->GetGTSystemInfoHandle();
@@ -129,31 +157,31 @@ CIF::RAII::UPtr_t<IGC::IgcOclTranslationCtxTagOCL> createIgcTranslationCtx(Compi
         return nullptr;
     }
     IGC::PlatformHelper::PopulateInterfaceWith(*igcPlatform, *hwInfo->platform);
-    IGC::GtSysInfoHelper::PopulateInterfaceWith(*igcPlatform, *hwInfo->gtSystemInfo);
-    igcFeWa.get()->SetFtrDesktop(hwInfo->featureTable.flags.ftrDesktop);
-    igcFeWa.get()->SetFtrChannelSwizzlingXOREnabled(hwInfo->featureTable.flags.ftrChannelSwizzlingXOREnabled);
-    igcFeWa.get()->SetFtrGtBigDie(hwInfo->featureTable.flags.ftrGtBigDie);
-    igcFeWa.get()->SetFtrGtMediumDie(hwInfo->featureTable.flags.ftrGtMediumDie);
-    igcFeWa.get()->SetFtrGtSmallDie(hwInfo->featureTable.flags.ftrGtSmallDie);
-    igcFeWa.get()->SetFtrGT1(hwInfo->featureTable.flags.ftrGT1);
-    igcFeWa.get()->SetFtrGT1_5(hwInfo->featureTable.flags.ftrGT1_5);
-    igcFeWa.get()->SetFtrGT2(hwInfo->featureTable.flags.ftrGT2);
-    igcFeWa.get()->SetFtrGT3(hwInfo->featureTable.flags.ftrGT3);
-    igcFeWa.get()->SetFtrGT4(hwInfo->featureTable.flags.ftrGT4);
-    igcFeWa.get()->SetFtrIVBM0M1Platform(hwInfo->featureTable.flags.ftrIVBM0M1Platform);
-    igcFeWa.get()->SetFtrGTL(hwInfo->featureTable.flags.ftrGT1);
-    igcFeWa.get()->SetFtrGTM(hwInfo->featureTable.flags.ftrGT2);
-    igcFeWa.get()->SetFtrGTH(hwInfo->featureTable.flags.ftrGT3);
-    igcFeWa.get()->SetFtrSGTPVSKUStrapPresent(hwInfo->featureTable.flags.ftrSGTPVSKUStrapPresent);
-    igcFeWa.get()->SetFtrGTA(hwInfo->featureTable.flags.ftrGTA);
-    igcFeWa.get()->SetFtrGTC(hwInfo->featureTable.flags.ftftrrGTC);
-    igcFeWa.get()->SetFtrGTX(hwInfo->featureTable.flags.ftrGTX);
-    igcFeWa.get()->SetFtr5Slice(hwInfo->featureTable.flags.ftr5Slice);
-    igcFeWa.get()->SetFtrGpGpuMidThreadLevelPreempt(hwInfo->featureTable.flags.ftrGpGpuMidThreadLevelPreempt);
-    igcFeWa.get()->SetFtrIoMmuPageFaulting(hwInfo->featureTable.flags.ftrIoMmuPageFaulting);
-    igcFeWa.get()->SetFtrWddm2Svm(hwInfo->featureTable.flags.ftrWddm2Svm);
-    igcFeWa.get()->SetFtrPooledEuEnabled(hwInfo->featureTable.flags.ftrPooledEuEnabled);
-    igcFeWa.get()->SetFtrResourceStreamer(hwInfo->featureTable.flags.ftrResourceStreamer);
+    IGC::GtSysInfoHelper::PopulateInterfaceWith(*igcGetSystemInfo, *hwInfo->gtSystemInfo);
+    igcFeWa.get()->SetFtrDesktop(hwInfo->featureTable->flags.ftrDesktop);
+    igcFeWa.get()->SetFtrChannelSwizzlingXOREnabled(hwInfo->featureTable->flags.ftrChannelSwizzlingXOREnabled);
+    igcFeWa.get()->SetFtrGtBigDie(hwInfo->featureTable->flags.ftrGtBigDie);
+    igcFeWa.get()->SetFtrGtMediumDie(hwInfo->featureTable->flags.ftrGtMediumDie);
+    igcFeWa.get()->SetFtrGtSmallDie(hwInfo->featureTable->flags.ftrGtSmallDie);
+    igcFeWa.get()->SetFtrGT1(hwInfo->featureTable->flags.ftrGT1);
+    igcFeWa.get()->SetFtrGT1_5(hwInfo->featureTable->flags.ftrGT1_5);
+    igcFeWa.get()->SetFtrGT2(hwInfo->featureTable->flags.ftrGT2);
+    igcFeWa.get()->SetFtrGT3(hwInfo->featureTable->flags.ftrGT3);
+    igcFeWa.get()->SetFtrGT4(hwInfo->featureTable->flags.ftrGT4);
+    igcFeWa.get()->SetFtrIVBM0M1Platform(hwInfo->featureTable->flags.ftrIVBM0M1Platform);
+    igcFeWa.get()->SetFtrGTL(hwInfo->featureTable->flags.ftrGT1);
+    igcFeWa.get()->SetFtrGTM(hwInfo->featureTable->flags.ftrGT2);
+    igcFeWa.get()->SetFtrGTH(hwInfo->featureTable->flags.ftrGT3);
+    igcFeWa.get()->SetFtrSGTPVSKUStrapPresent(hwInfo->featureTable->flags.ftrSGTPVSKUStrapPresent);
+    igcFeWa.get()->SetFtrGTA(hwInfo->featureTable->flags.ftrGTA);
+    igcFeWa.get()->SetFtrGTC(hwInfo->featureTable->flags.ftrGTC);
+    igcFeWa.get()->SetFtrGTX(hwInfo->featureTable->flags.ftrGTX);
+    igcFeWa.get()->SetFtr5Slice(hwInfo->featureTable->flags.ftr5Slice);
+    igcFeWa.get()->SetFtrGpGpuMidThreadLevelPreempt(hwInfo->featureTable->flags.ftrGpGpuMidThreadLevelPreempt);
+    igcFeWa.get()->SetFtrIoMmuPageFaulting(hwInfo->featureTable->flags.ftrIoMmuPageFaulting);
+    igcFeWa.get()->SetFtrWddm2Svm(hwInfo->featureTable->flags.ftrWddm2Svm);
+    igcFeWa.get()->SetFtrPooledEuEnabled(hwInfo->featureTable->flags.ftrPooledEuEnabled);
+    igcFeWa.get()->SetFtrResourceStreamer(hwInfo->featureTable->flags.ftrResourceStreamer);
 
     return newDeviceCtx->CreateTranslationCtx(inputArgs->preferredIntermediateType, inputArgs->outType);
 }
