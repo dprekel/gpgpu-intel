@@ -3,6 +3,7 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <utility>
+#include <iostream>
 
 #include "compiler_interface.h"
 #include "kernel.h"
@@ -134,6 +135,7 @@ CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(Compi
             return nullptr;
         }
         IGC::PlatformHelper::PopulateInterfaceWith(*igcPlatform, *hwInfo->platform);
+        //PopulateInterfaceWith(*igcPlatform, *hwInfo->platform);
     }
     if (interf->fclBaseTranslationCtx == nullptr) {
         interf->fclBaseTranslationCtx = newDeviceCtx->CreateTranslationCtx(inputArgs->srcType, inputArgs->preferredIntermediateType);
@@ -141,6 +143,21 @@ CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(Compi
     printf("fclBaseTranslationCtx: %p\n", interf->fclBaseTranslationCtx.get());
     return newDeviceCtx->CreateTranslationCtx(inputArgs->srcType, inputArgs->preferredIntermediateType);
 }
+
+/*
+void PopulateInterfaceWith(IGC::Platform<1> igcPlatform, const Platform platform) {
+    igcPlatform.SetProductFamily(platform.eProductFamily);
+    igcPlatform.SetPCHProductFamily(platform.ePCHProductFamily);
+    igcPlatform.SetDisplayCoreFamily(platform.eDisplayCoreFamily);
+    igcPlatform.SetRenderCoreFamily(platform.eRenderCoreFamily);
+    igcPlatform.SetPlatformType(platform.ePlatformType);
+    igcPlatform.SetDeviceID(platform.usDeviceID);
+    igcPlatform.SetRevId(platform.usRevId);
+    igcPlatform.SetDeviceID_PCH(platform.usDeviceID_PCH);
+    igcPlatform.SetRevId_PCH(platform.usRevId_PCH);
+    igcPlatform.SetGTType(platform.eGTType);
+}
+*/
 
 CIF::RAII::UPtr_t<IGC::IgcOclTranslationCtxTagOCL> createIgcTranslationCtx(CompilerInterface* interf, TranslationInput* inputArgs, const HardwareInfo* hwInfo) {
     

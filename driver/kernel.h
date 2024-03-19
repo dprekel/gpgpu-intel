@@ -78,7 +78,7 @@ int loadCompiler(const char** libName, void** libHandle, CIF::RAII::UPtr_t<CIF::
 void initInternalOptions(struct Kernel* kernel);
 CIF::RAII::UPtr_t<IGC::FclOclTranslationCtxTagOCL> createFclTranslationCtx(CompilerInterface* interf, TranslationInput* inputArgs, const HardwareInfo* hwInfo);
 CIF::RAII::UPtr_t<IGC::IgcOclTranslationCtxTagOCL> createIgcTranslationCtx(CompilerInterface* interf, TranslationInput* inputArgs, const HardwareInfo* hwInfo);
-
+//void PopulateInterfaceWith(IGC::Platform<1>, const Platform platform);
 
 
 

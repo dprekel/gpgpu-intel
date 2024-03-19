@@ -3,16 +3,16 @@
 #include <stdint.h>
 
 struct Platform {
-    uint32_t eProductFamily;
-    uint32_t ePCHProductFamily;
-    uint32_t eDisplayCoreFamily;
-    uint32_t eRenderCoreFamily;
-    uint32_t ePlatformType;
+    uint64_t eProductFamily;
+    uint64_t ePCHProductFamily;
+    uint64_t eDisplayCoreFamily;
+    uint64_t eRenderCoreFamily;
+    uint64_t ePlatformType;
     uint16_t usDeviceID;
     uint16_t usRevId;
     uint16_t usDeviceID_PCH;
     uint16_t usRevId_PCH;
-    uint32_t eGTType;
+    uint64_t eGTType;
 };
 
 struct SystemInfo {
