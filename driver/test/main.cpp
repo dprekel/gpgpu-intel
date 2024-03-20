@@ -1,10 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <vector>
-#include <memory>
-#include <limits>
 #include <dlfcn.h>
 #include <stdint.h>
+#include <algorithm>
 
 #include "interface.h"
 
@@ -34,6 +32,7 @@ IGC::FclOclDeviceCtx* CreateInterface(CIF::CIFMain* cifMain) {
     chosenVersion = std::min(maxVerSupported, version);
     
     CIF::ICIF* deviceCtx = cifMain->CreateInterfaceImpl(95846467711642693, 5);
+    // static_cast instead of reinterpret_cast to avoid wrong vtable offsets
     return static_cast<IGC::FclOclDeviceCtx*>(deviceCtx);
 }
 
