@@ -1,3 +1,4 @@
+
 struct PlatformInfo {
     uint64_t eProductFamily;
     uint64_t ePCHProductFamily;
@@ -32,8 +33,6 @@ struct ICIF {
     virtual ICIF* CreateInterfaceImpl(uint64_t intId, uint64_t version);
 };
 
-
-
 struct CIFMain : public ICIF {
     virtual uint64_t GetBinaryVersion() const = 0;
 //protected:
@@ -63,21 +62,10 @@ struct Buffer {
     virtual bool IsConst() const;
 };
 
+} // Namespace Builtins
+} // Namespace CIF
 
 
-}
-
-/*
-template <uint64_t id, typename BaseClass = ICIF>
-struct NamedCIF : public BaseClass {
-    static constexpr uint64_t GetInterfaceId() {
-        return id;
-    };
-};
-*/
-
-
-}
 
 
 
@@ -137,49 +125,8 @@ struct FclOclDeviceCtx : public CIF::ICIF {
 };
 
 
-
-
-}
-
+} // Namespace IGC
 
 
 
-/*
-namespace IGC {
-
-struct NamedCIF : public ICIF {
-    static constexpr uint64_t GetInterfaceId() {
-        return 95846467711642693;
-    };
-};
-
-//#define CIF_DECLARE_INTERFACE(NAME, ID)
-template <uint64_t version = CIF::InvalidVersion>
-struct FclOclDeviceCtx;
-
-template <>
-struct FclOclDeviceCtx<CIF::BaseVersion> : public NamedCIF { //<CIF::InterfaceIdCoder::Enc("FCL_OCL_DEVC")> {
-    struct Impl;
-    virtual Impl * GetImpl(){ 
-        return pImpl;
-    }
-    virtual const Impl * GetImpl() const { 
-        return pImpl;
-    }
-  protected:
-    ~FclOclDeviceCtx() override;
-    Impl* pImpl;
-    template<typename ... ArgsT>
-    FclOclDeviceCtx(ArgsT &&... args);
-    FclOclDeviceCtx(Impl* pImpl);
-};
-//using FclOclDeviceCtxBase = FclOclDeviceCtx<CIF::BaseVersion>;
-//using FclOclDeviceCtxTagOCL = FclOclDeviceCtx<FclOclDeviceCtx<CIF::TraitsSpecialVersion>::GetLatestSupportedVersion()>; 
-
-
-//CIF_DECLARE_INTERFACE(FclOclDeviceCtx, "FCL_OCL_DEVC");
-
-
-}
-*/
 
