@@ -1,3 +1,17 @@
+struct PlatformInfo {
+    uint64_t eProductFamily;
+    uint64_t ePCHProductFamily;
+    uint64_t eDisplayCoreFamily;
+    uint64_t eRenderCoreFamily;
+    uint64_t ePlatformType;
+    uint16_t usDeviceID;
+    uint16_t usRevId;
+    uint16_t usDeviceID_PCH;
+    uint16_t usRevId_PCH;
+    uint64_t eGTType;
+};
+
+
 
 namespace CIF {
 
@@ -66,40 +80,48 @@ struct NamedCIF : public BaseClass {
 }
 
 
+
 namespace IGC {
 
+struct Platform : public CIF::ICIF {
+    struct Impl;
+    virtual Impl* GetImpl() = 0;
+    virtual const Impl* GetImpl() const = 0;
+    virtual uint64_t GetProductFamily() const = 0;
+    virtual void SetProductFamily(uint64_t v) = 0;
+    virtual uint64_t GetPCHProductFamily() const = 0;
+    virtual void SetPCHProductFamily(uint64_t v) = 0;
+    virtual uint64_t GetDisplayCoreFamily() const = 0;
+    virtual void SetDisplayCoreFamily(uint64_t v) = 0;
+    virtual uint64_t GetRenderCoreFamily() const = 0;
+    virtual void SetRenderCoreFamily(uint64_t v) = 0;
+    virtual uint64_t GetPlatformType() const = 0;
+    virtual void SetPlatformType(uint64_t v) = 0;
 
-struct Platform {
-    virtual uint64_t GetProductFamily() const;
-    virtual void SetProductFamily(uint64_t v);
-    virtual uint64_t GetPCHProductFamily() const;
-    virtual void SetPCHProductFamily(uint64_t v);
-    virtual uint64_t GetDisplayCoreFamily() const;
-    virtual void SetDisplayCoreFamily(uint64_t v);
-    virtual uint64_t GetRenderCoreFamily() const;
-    virtual void SetRenderCoreFamily(uint64_t v);
-    virtual uint64_t GetPlatformType() const;
-    virtual void SetPlatformType(uint64_t v);
+    virtual uint16_t GetDeviceID() const = 0;
+    virtual void SetDeviceID(uint16_t v) = 0;
+    virtual uint16_t GetRevId() const = 0;
+    virtual void SetRevId(uint16_t v) = 0;
+    virtual uint16_t GetDeviceID_PCH() const = 0;
+    virtual void SetDeviceID_PCH(uint16_t v) = 0;
+    virtual uint16_t GetRevId_PCH() const = 0;
+    virtual void SetRevId_PCH(uint16_t v) = 0;
 
-    virtual uint16_t GetDeviceID() const;
-    virtual void SetDeviceID(uint16_t v);
-    virtual uint16_t GetRevId() const;
-    virtual void SetRevId(uint16_t v);
-    virtual uint16_t GetDeviceID_PCH() const;
-    virtual void SetDeviceID_PCH(uint16_t v);
-    virtual uint16_t GetRevId_PCH() const;
-    virtual void SetRevId_PCH(uint16_t v);
-
-    virtual uint16_t GetGTType() const;
-    virtual void SetGTType(uint64_t v);
+    virtual uint16_t GetGTType() const = 0;
+    virtual void SetGTType(uint64_t v) = 0;
 };
 
 struct OclTranslationOutput {
 
 };
 
-struct FclOclTranslationCtx {
+struct FclOclTranslationCtx : public CIF::ICIF {
+    struct Impl;
+    virtual Impl* GetImpl();
+    virtual const Impl* GetImpl() const;
     virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, CIF::Builtins::Buffer* src, CIF::Builtins::Buffer* options, CIF::Builtins::Buffer* internalOptions, CIF::Builtins::Buffer* tracingOptions, uint32_t tracingOptionsCount);
+    virtual GetFclOptions(CIF::Builtins::Buffer*);
+    virtual GetFclInternalOptions(CIF::Builtins::Buffer*);
 };
 
 

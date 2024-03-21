@@ -33,9 +33,20 @@ IGC::FclOclDeviceCtx* CreateInterface(CIF::CIFMain* cifMain) {
     
     CIF::ICIF* deviceCtx = cifMain->CreateInterfaceImpl(95846467711642693, 5);
     // static_cast instead of reinterpret_cast to avoid wrong vtable offsets
-    return static_cast<IGC::FclOclDeviceCtx*>(deviceCtx);
+    IGC::FclOclDeviceCtx* deviceCtxPtr = static_cast<IGC::FclOclDeviceCtx*>(deviceCtx);
+    return deviceCtxPtr;
 }
 
+int CreateBuffer(CIF::CIFMain* cifMain, const void* data, size_t size) {
+    if (cifMain == nullptr) {
+        return nullptr;
+    }
+    uint64_t interfaceID = 0xfffe2429681d9502;
+    auto buff = CreateInterface(cifMain, 
+    if (buff == nullptr) {
+        return nullptr;
+    }
+}
 
 int loadCompiler(const char* libName) {
     void* handle;
@@ -63,20 +74,36 @@ int loadCompiler(const char* libName) {
     if (newDeviceCtx == nullptr) {
         printf("No Device Context!\n");
     }
+    PlatformInfo platform = {18, 0, 12, 12, 0, 6439, 10, 0, 0, 9};
     uint32_t openCLVersion = 30;
     newDeviceCtx->SetOclApiVersion(openCLVersion * 10);
     // maybe handle unsupported OpenCL version
     if (newDeviceCtx->GetUnderlyingVersion() > 4U) {
-        /*
-        auto igcPlatform = deviceCtx->GetPlatformHandle();
+        uint64_t platformVersion = 1;
+        IGC::Platform* igcPlatform = newDeviceCtx->GetPlatformHandleImpl(platformVersion);
         if (nullptr == igcPlatform) {
             return -1;
         }
-        */
-        printf("ok\n");
-        //IGC::PlatformHelper::PopulateInterfaceWith(*igcPlatform, *hwInfo->platform);
-        //PopulateInterfaceWith(*igcPlatform, *hwInfo->platform);
+        igcPlatform->SetProductFamily(platform.eProductFamily);
+        igcPlatform->SetPCHProductFamily(platform.ePCHProductFamily);
+        igcPlatform->SetDisplayCoreFamily(platform.eDisplayCoreFamily);
+        igcPlatform->SetRenderCoreFamily(platform.eRenderCoreFamily);
+        igcPlatform->SetPlatformType(platform.ePlatformType);
+        igcPlatform->SetDeviceID(platform.usDeviceID);
+        igcPlatform->SetRevId(platform.usRevId);
+        igcPlatform->SetDeviceID_PCH(platform.usDeviceID_PCH);
+        igcPlatform->SetRevId_PCH(platform.usRevId_PCH);
+        igcPlatform->SetGTType(platform.eGTType);
+        uint64_t fam = igcPlatform->GetProductFamily();
+        uint64_t core = igcPlatform->GetRenderCoreFamily();
+        printf("fam: %lu, %lu\n", fam, core);
     }
+    uint64_t in = 140737353803434;
+    uint64_t out = 140737488345488;
+    uint64_t translationCtxVersion = 1;
+    auto fclTranslationCtx = newDeviceCtx->CreateTranslationCtxImpl(translationCtxVersion, in, out);
+    auto fclOutput = fclTranslationCtx->TranslateImpl(platformVersion, 
+    
     return 0;
 }
 
