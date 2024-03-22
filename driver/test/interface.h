@@ -44,9 +44,12 @@ struct CIFMain : public ICIF {
 
 namespace Builtins {
 
-struct Buffer {
-    //virtual void SetAllocator(AllocatorT allocator, DeallocatorT deallocator, ReallocatorT reallocator);
-    //virtual void SetUnderlyingStorage(void* memory, size_t size, DeallocatorT deallocator);
+struct Buffer : public ICIF {
+    struct Impl;
+    virtual Impl* GetImpl() = 0;
+    virtual const Impl* GetImpl() const = 0;
+    virtual void SetAllocator(void* (*allocator)(uint64_t alloc_a), void* (*deallocator)(void* alloc_b), void* (*reallocator)(void* alloc_c, uint64_t alloc_d, uint64_t alloc_e));
+    virtual void SetUnderlyingStorage(void* memory, size_t size, void* (*deallocator)(void* alloc_b));
     virtual void SetUnderlyingStorage(const void* memory, size_t size);
     virtual void* DetachAllocation();
     virtual const void* GetMemoryRaw() const;
@@ -60,6 +63,8 @@ struct Buffer {
     virtual bool AlignUp(uint32_t alignment);
     virtual bool PushBackRawBytes(const void* newData, size_t size);
     virtual bool IsConst() const;
+  public:
+    Impl* pImpl;
 };
 
 } // Namespace Builtins
@@ -110,6 +115,8 @@ struct FclOclTranslationCtx : public CIF::ICIF {
     virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, CIF::Builtins::Buffer* src, CIF::Builtins::Buffer* options, CIF::Builtins::Buffer* internalOptions, CIF::Builtins::Buffer* tracingOptions, uint32_t tracingOptionsCount);
     virtual GetFclOptions(CIF::Builtins::Buffer*);
     virtual GetFclInternalOptions(CIF::Builtins::Buffer*);
+  public:
+    Impl* pImpl;
 };
 
 
@@ -122,6 +129,8 @@ struct FclOclDeviceCtx : public CIF::ICIF {
     virtual uint64_t GetPreferredIntermediateRepresentation();
     virtual FclOclTranslationCtx* CreateTranslationCtxImpl(uint64_t ver, uint64_t inType, uint64_t outType, CIF::Builtins::Buffer* err);
     virtual Platform* GetPlatformHandleImpl(uint64_t ver);
+  public:
+    Impl* pImpl;
 };
 
 

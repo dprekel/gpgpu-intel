@@ -10,12 +10,33 @@
 
 int loadCompiler(const char* libName);
 IGC::FclOclDeviceCtx* CreateInterface(CIF::CIFMain* cifMain);
+CIF::Builtins::Buffer* CreateBuffer(CIF::CIFMain* cifMain, const void* data, size_t size);
+void loadProgramSource(const char* filename, const char* sourceCode, size_t* size);
 
-IGC::FclOclDeviceCtx* CreateInterface(CIF::CIFMain* cifMain) {
+void loadProgramSource(const char* filename, const char* sourceCode, size_t* Codesize) {
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        printf("Error opening file!\n");
+        exit(1);
+    }
+    fseek(file, 0, SEEK_END);
+    uint64_t size = ftell(file);
+    rewind(file);
+
+    char* source = (char*)malloc((size+1)*sizeof(char));
+    fread((void*)source, 1, size*sizeof(char), file);
+    source[size] = '\0';
+    fclose(file);
+
+    sourceCode = (const char*)source;
+    *CodeSize = size+1;
+    return 
+}
+
+CIF::ICIF* CreateInterface(CIF::CIFMain* cifMain, uint64_t interfaceID) {
     uint64_t chosenVersion;
     uint64_t minVerSupported = 0;
     uint64_t maxVerSupported = 0;
-    uint64_t interfaceID = 95846467711642693;
     uint64_t version = 5;
     bool isSupported;
 
@@ -31,21 +52,24 @@ IGC::FclOclDeviceCtx* CreateInterface(CIF::CIFMain* cifMain) {
     printf("Versions are ok\n");
     chosenVersion = std::min(maxVerSupported, version);
     
-    CIF::ICIF* deviceCtx = cifMain->CreateInterfaceImpl(95846467711642693, 5);
-    // static_cast instead of reinterpret_cast to avoid wrong vtable offsets
-    IGC::FclOclDeviceCtx* deviceCtxPtr = static_cast<IGC::FclOclDeviceCtx*>(deviceCtx);
-    return deviceCtxPtr;
+    CIF::ICIF* deviceCtx = cifMain->CreateInterfaceImpl(interfaceID, 5);
+    return deviceCtx;
 }
 
-int CreateBuffer(CIF::CIFMain* cifMain, const void* data, size_t size) {
+CIF::Builtins::Buffer* CreateBuffer(CIF::CIFMain* cifMain, const void* data, size_t size) {
     if (cifMain == nullptr) {
         return nullptr;
     }
     uint64_t interfaceID = 0xfffe2429681d9502;
-    auto buff = CreateInterface(cifMain, 
-    if (buff == nullptr) {
+    auto buff = CreateInterface(cifMain, interfaceID);
+    CIF::Builtins::Buffer* buffer = static_cast<CIF::Builtins::Buffer*>(buff);
+    if (buffer == nullptr) {
         return nullptr;
     }
+    if ((data != nullptr) && (size != 0)) {
+        buffer->SetUnderlyingStorage(data, size);
+    }
+    return buffer;
 }
 
 int loadCompiler(const char* libName) {
@@ -69,7 +93,9 @@ int loadCompiler(const char* libName) {
         printf("Could create main entry point\n");
         //return COMPILER_LOAD_FAILED;
     }
-    IGC::FclOclDeviceCtx* newDeviceCtx = CreateInterface(cifMain);
+    uint64_t interfaceID = 95846467711642693;
+    CIF::ICIF* DeviceCtx = CreateInterface(cifMain, interfaceID);
+    IGC::FclOclDeviceCtx* newDeviceCtx = static_cast<IGC::FclOclDeviceCtx*>(DeviceCtx);
 
     if (newDeviceCtx == nullptr) {
         printf("No Device Context!\n");
@@ -102,16 +128,24 @@ int loadCompiler(const char* libName) {
     uint64_t out = 140737488345488;
     uint64_t translationCtxVersion = 1;
     auto fclTranslationCtx = newDeviceCtx->CreateTranslationCtxImpl(translationCtxVersion, in, out);
-    auto fclOutput = fclTranslationCtx->TranslateImpl(platformVersion, 
+    //auto fclOutput = fclTranslationCtx->TranslateImpl(platformVersion, 
     
     return 0;
 }
 
 int main() {
+    const char* kernel = "matmul.cl";
     const char* fclName = "libigdfcl.so.1";
+    const char* sourceCode;
+    size_t CodeSize;
+    loadProgramSource(kernel, sourceCode, CodeSize);
     int err = loadCompiler(fclName);
     return 0;
 }
+
+
+
+
 
 
 

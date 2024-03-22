@@ -14,20 +14,20 @@
 void loadProgramSource(Kernel* kernel, const char* filename) {
     FILE* file = fopen(filename, "r");
     if (!file) {
+        // add return value, don't exit
         printf("Error opening file!\n");
         exit(1);
     }
     fseek(file, 0, SEEK_END);
     uint64_t size = ftell(file);
-    rewind(file);
-
-    char* source = (char*)malloc((size+1)*sizeof(char));
-    fread((void*)source, 1, size*sizeof(char), file);
+    //rewind(file);
+    const char* source = new char[size+1];
+    fread(static_cast<void*>(source), 1, size*sizeof(char), file);
     source[size] = '\0';
     fclose(file);
 
     kernel->fd = file;
-    kernel->sourceCode = (const char*)source;
+    kernel->sourceCode = source;
     kernel->sourceCodeSize = size+1;
 }
 
