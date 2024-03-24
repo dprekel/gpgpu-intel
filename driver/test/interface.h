@@ -13,22 +13,19 @@ struct PlatformInfo {
 };
 
 
-
-namespace CIF {
-
 // generic interface for all components
 struct ICIF {
-    //ICIF(const ICIF &) = delete;
-    //ICIF &operator=(const ICIF &) = delete;
-    //ICIF(ICIF &&) = delete;
-    //ICIF *operator=(ICIF &&) = delete;
+    ICIF(const ICIF &) = delete;
+    ICIF &operator=(const ICIF &) = delete;
+    ICIF(ICIF &&) = delete;
+    ICIF *operator=(ICIF &&) = delete;
     virtual void Release() = 0;
     virtual void Retain() = 0;
     virtual uint32_t GetRefCount() const = 0;
     virtual uint64_t GetEnabledVersion() const = 0;
     virtual uint64_t GetUnderlyingVersion() const;
     virtual bool GetSupportedVersions(uint64_t intId, uint64_t &verMin, uint64_t &verMax) const;
-    //ICIF() = default;
+    ICIF() = default;
     virtual ~ICIF() = default;
     virtual ICIF* CreateInterfaceImpl(uint64_t intId, uint64_t version);
 };
@@ -41,10 +38,7 @@ struct CIFMain : public ICIF {
     virtual bool FindSupportedVersionsImpl(uint64_t entryPointInterface, uint64_t interfaceToFind, uint64_t &verMin, uint64_t &verMax) const;
 };
 
-
-namespace Builtins {
-
-struct Buffer : public ICIF {
+struct IgcBuffer : public ICIF {
     struct Impl;
     virtual Impl* GetImpl() = 0;
     virtual const Impl* GetImpl() const = 0;
@@ -67,74 +61,90 @@ struct Buffer : public ICIF {
     Impl* pImpl;
 };
 
-} // Namespace Builtins
-} // Namespace CIF
-
-
-
-
-
-namespace IGC {
-
-struct Platform : public CIF::ICIF {
-    struct Impl;
-    virtual Impl* GetImpl() = 0;
-    virtual const Impl* GetImpl() const = 0;
-    virtual uint64_t GetProductFamily() const = 0;
-    virtual void SetProductFamily(uint64_t v) = 0;
-    virtual uint64_t GetPCHProductFamily() const = 0;
-    virtual void SetPCHProductFamily(uint64_t v) = 0;
-    virtual uint64_t GetDisplayCoreFamily() const = 0;
-    virtual void SetDisplayCoreFamily(uint64_t v) = 0;
-    virtual uint64_t GetRenderCoreFamily() const = 0;
-    virtual void SetRenderCoreFamily(uint64_t v) = 0;
-    virtual uint64_t GetPlatformType() const = 0;
-    virtual void SetPlatformType(uint64_t v) = 0;
-
-    virtual uint16_t GetDeviceID() const = 0;
-    virtual void SetDeviceID(uint16_t v) = 0;
-    virtual uint16_t GetRevId() const = 0;
-    virtual void SetRevId(uint16_t v) = 0;
-    virtual uint16_t GetDeviceID_PCH() const = 0;
-    virtual void SetDeviceID_PCH(uint16_t v) = 0;
-    virtual uint16_t GetRevId_PCH() const = 0;
-    virtual void SetRevId_PCH(uint16_t v) = 0;
-
-    virtual uint16_t GetGTType() const = 0;
-    virtual void SetGTType(uint64_t v) = 0;
-};
-
-struct OclTranslationOutput {
-
-};
-
-struct FclOclTranslationCtx : public CIF::ICIF {
+struct Platform : public ICIF {
     struct Impl;
     virtual Impl* GetImpl();
     virtual const Impl* GetImpl() const;
-    virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, CIF::Builtins::Buffer* src, CIF::Builtins::Buffer* options, CIF::Builtins::Buffer* internalOptions, CIF::Builtins::Buffer* tracingOptions, uint32_t tracingOptionsCount);
-    virtual GetFclOptions(CIF::Builtins::Buffer*);
-    virtual GetFclInternalOptions(CIF::Builtins::Buffer*);
+    virtual uint64_t GetProductFamily() const;
+    virtual void SetProductFamily(uint64_t v);
+    virtual uint64_t GetPCHProductFamily() const;
+    virtual void SetPCHProductFamily(uint64_t v);
+    virtual uint64_t GetDisplayCoreFamily() const;
+    virtual void SetDisplayCoreFamily(uint64_t v);
+    virtual uint64_t GetRenderCoreFamily() const;
+    virtual void SetRenderCoreFamily(uint64_t v);
+    virtual uint64_t GetPlatformType() const;
+    virtual void SetPlatformType(uint64_t v);
+
+    virtual uint16_t GetDeviceID() const;
+    virtual void SetDeviceID(uint16_t v);
+    virtual uint16_t GetRevId() const;
+    virtual void SetRevId(uint16_t v);
+    virtual uint16_t GetDeviceID_PCH() const;
+    virtual void SetDeviceID_PCH(uint16_t v);
+    virtual uint16_t GetRevId_PCH() const;
+    virtual void SetRevId_PCH(uint16_t v);
+
+    virtual uint16_t GetGTType() const;
+    virtual void SetGTType(uint64_t v);
+};
+
+struct OclTranslationOutput : public ICIF {
+    struct Impl;
+    virtual Impl* GetImpl();
+    virtual const Impl* GetImpl() const;
   public:
     Impl* pImpl;
 };
 
+struct IgcOclTranslationCtx : public ICIF {
+    struct Impl;
+    virtual Impl* GetImpl();
+    virtual const Impl* GetImpl() const;
+  public:
+    Impl* pImpl;
+};
 
-struct FclOclDeviceCtx : public CIF::ICIF {
+struct FclOclTranslationCtx : public ICIF {
+    struct Impl;
+    virtual Impl* GetImpl();
+    virtual const Impl* GetImpl() const;
+    virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, IgcBuffer* src, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount);
+    // return values missing
+    virtual GetFclOptions(IgcBuffer*);
+    virtual GetFclInternalOptions(IgcBuffer*);
+  public:
+    Impl* pImpl;
+};
+
+struct IgcOclDeviceCtx : public ICIF {
+    struct Impl;
+    virtual Impl* GetImpl();
+    virtual const Impl* GetImpl() const;
+    virtual void SetProfilingTimerResolution(float v);
+    virtual Platform* GetPlatformHandleImpl(uint64_t ver);
+    virtual GTSystemInfo* GetGTSystemInfoHandleImpl(uint64_t version);
+    virtual IgcFeaturesAndWorkarounds* GetIgcFeaturesAndWorkaroundsHandleImpl(uint64_t version);
+    virtual IgcOclTranslationCtx* CreateTranslationCtxImpl(uint64_t version, uint64_t inType, uint64_t outType);
+    virtual bool GetSystemRoutine(uint64_t typeOfSystemRoutine, bool bindless, IgcBuffer* outSystemRoutineBuffer, IgcBuffer* stateSaveAreaHeaderInit);
+    virtual const char* GetIGCRevision();
+  public:
+    Impl* pImpl;
+};
+
+struct FclOclDeviceCtx : public ICIF {
     struct Impl;
     virtual Impl* GetImpl();
     virtual const Impl* GetImpl() const;
     virtual void SetOclApiVersion(uint32_t version);
     virtual FclOclTranslationCtx* CreateTranslationCtxImpl(uint64_t ver, uint64_t inType, uint64_t outType);
     virtual uint64_t GetPreferredIntermediateRepresentation();
-    virtual FclOclTranslationCtx* CreateTranslationCtxImpl(uint64_t ver, uint64_t inType, uint64_t outType, CIF::Builtins::Buffer* err);
+    virtual FclOclTranslationCtx* CreateTranslationCtxImpl(uint64_t ver, uint64_t inType, uint64_t outType, IgcBuffer* err);
     virtual Platform* GetPlatformHandleImpl(uint64_t ver);
   public:
     Impl* pImpl;
 };
 
-
-} // Namespace IGC
 
 
 
