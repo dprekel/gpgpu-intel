@@ -83,5 +83,19 @@ CIF::RAII::UPtr_t<IGC::IgcOclTranslationCtxTagOCL> createIgcTranslationCtx(Compi
 
 
 
+class Kernel {
+  public:
+    int loadProgramSource(const char* filename);
+  private:
+    GPU* gpuInfo;
+    const char* igcName;
+    const char* fclName;
+    CIFMain* igcMain;
+    CIFMain* fclMain;
+    uint64_t srcType;
+    uint64_t intermediateType;
+    uint64_t outType;
+};
+
 
 

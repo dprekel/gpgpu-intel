@@ -13,7 +13,9 @@ FclOclDeviceCtx* CreateInterface(CIFMain* cifMain);
 IgcBuffer* CreateBuffer(CIFMain* cifMain, const void* data, size_t size);
 void loadProgramSource(const char* filename, const char* sourceCode, size_t* size);
 
-void loadProgramSource(const char* filename, const char* sourceCode, size_t* Codesize) {
+Kernel::Kernel() : 
+
+void Kernel::loadProgramSource(const char* filename, const char* sourceCode, size_t* Codesize) {
     FILE* file = fopen(filename, "r");
     if (!file) {
         printf("Error opening file!\n");
@@ -33,7 +35,7 @@ void loadProgramSource(const char* filename, const char* sourceCode, size_t* Cod
     return 
 }
 
-ICIF* CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion) {
+ICIF* Kernel::CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion) {
     uint64_t chosenVersion;
     uint64_t minVerSupported = 0;
     uint64_t maxVerSupported = 0;
@@ -50,16 +52,17 @@ ICIF* CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interface
     printf("Versions are ok\n");
     chosenVersion = std::min(maxVerSupported, version);
     
-    ICIF* deviceCtx = cifMain->CreateInterfaceImpl(interfaceID, 5);
+    ICIF* deviceCtx = cifMain->CreateInterfaceImpl(interfaceID, interfaceVersion);
     return deviceCtx;
 }
 
-IgcBuffer* CreateIgcBuffer(CIFMain* cifMain, const void* data, size_t size) {
+IgcBuffer* Kernel::CreateIgcBuffer(CIFMain* cifMain, const void* data, size_t size) {
     if (cifMain == nullptr) {
         return nullptr;
     }
     uint64_t interfaceID = 0xfffe2429681d9502;
-    auto buff = CreateInterface(cifMain, interfaceID);
+    uint64_t interfaceVersion = ;
+    auto buff = CreateInterface(cifMain, interfaceID, interfaceVersion);
     IgcBuffer* buffer = static_cast<IgcBuffer*>(buff);
     if (buffer == nullptr) {
         return nullptr;
@@ -70,7 +73,7 @@ IgcBuffer* CreateIgcBuffer(CIFMain* cifMain, const void* data, size_t size) {
     return buffer;
 }
 
-int loadCompiler(const char* libName, CIFMain* cifMain) {
+int Kernel::loadCompiler(const char* libName, CIFMain* cifMain) {
     void* handle;
     auto dlopenFlag = RTLD_LAZY | RTLD_DEEPBIND;
     handle = dlopen(libName, dlopenFlag);
@@ -93,8 +96,9 @@ int loadCompiler(const char* libName, CIFMain* cifMain) {
     return 0;
 }
 
-FclTranslationCtx* createFclTranslationCtx(CIFMain* fclMain) {
+FclTranslationCtx* Kernel::createFclTranslationCtx(CIFMain* fclMain) {
     uint64_t interfaceID = 95846467711642693;
+    uint64_t interfaceVersion = 5;
     ICIF* DeviceCtx = CreateInterface(fclMain, interfaceID, interfaceVersion);
     FclOclDeviceCtx* newDeviceCtx = static_cast<FclOclDeviceCtx*>(DeviceCtx);
     if (newDeviceCtx == nullptr) {
@@ -110,19 +114,7 @@ FclTranslationCtx* createFclTranslationCtx(CIFMain* fclMain) {
         if (nullptr == igcPlatform) {
             return -1;
         }
-        igcPlatform->SetProductFamily(platform.eProductFamily);
-        igcPlatform->SetPCHProductFamily(platform.ePCHProductFamily);
-        igcPlatform->SetDisplayCoreFamily(platform.eDisplayCoreFamily);
-        igcPlatform->SetRenderCoreFamily(platform.eRenderCoreFamily);
-        igcPlatform->SetPlatformType(platform.ePlatformType);
-        igcPlatform->SetDeviceID(platform.usDeviceID);
-        igcPlatform->SetRevId(platform.usRevId);
-        igcPlatform->SetDeviceID_PCH(platform.usDeviceID_PCH);
-        igcPlatform->SetRevId_PCH(platform.usRevId_PCH);
-        igcPlatform->SetGTType(platform.eGTType);
-        uint64_t fam = igcPlatform->GetProductFamily();
-        uint64_t core = igcPlatform->GetRenderCoreFamily();
-        printf("fam: %lu, %lu\n", fam, core);
+        TransferPlatformInfo(igcPlatform, hwInfo->platform);
     }
     uint64_t in = 140737353803434;
     uint64_t out = 140737488345488;
@@ -131,7 +123,74 @@ FclTranslationCtx* createFclTranslationCtx(CIFMain* fclMain) {
     return fclTranslationCtx;
 }
 
-IgcTranslationCtx* createIgcTranslationCtx(CIFMain* igcMain) {
+void Kernel::TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform) {
+    igcPlatform->SetProductFamily(platform.eProductFamily);
+    igcPlatform->SetPCHProductFamily(platform.ePCHProductFamily);
+    igcPlatform->SetDisplayCoreFamily(platform.eDisplayCoreFamily);
+    igcPlatform->SetRenderCoreFamily(platform.eRenderCoreFamily);
+    igcPlatform->SetPlatformType(platform.ePlatformType);
+    igcPlatform->SetDeviceID(platform.usDeviceID);
+    igcPlatform->SetRevId(platform.usRevId);
+    igcPlatform->SetDeviceID_PCH(platform.usDeviceID_PCH);
+    igcPlatform->SetRevId_PCH(platform.usRevId_PCH);
+    igcPlatform->SetGTType(platform.eGTType);
+    uint64_t fam = igcPlatform->GetProductFamily();
+    uint64_t core = igcPlatform->GetRenderCoreFamily();
+    printf("fam: %lu, %lu\n", fam, core);
+}
+
+void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo) {
+    igcGetSystemInfo->SetEUCount(gtSystemInfo->EUCount);
+    igcGetSystemInfo->SetThreadCount(gtSystemInfo->ThreadCount);
+    igcGetSystemInfo->SetSliceCount(gtSystemInfo->SliceCount);
+    igcGetSystemInfo->SetSubSliceCount(gtSystemInfo->SubSliceCount);
+    igcGetSystemInfo->SetL3CacheSizeInKb(gtSystemInfo->L3CacheSizeInKb);
+    igcGetSystemInfo->SetLLCCacheSizeInKb(gtSystemInfo->LLCCacheSizeInKb);
+    igcGetSystemInfo->SetEdramSizeInKb(gtSystemInfo->EdramSizeInKb);
+    igcGetSystemInfo->SetL3BankCount(gtSystemInfo->L3BankCount);
+    igcGetSystemInfo->SetMaxFillRate(gtSystemInfo->MaxFillRate);
+    igcGetSystemInfo->SetEuCountPerPoolMax(gtSystemInfo->EuCountPerPoolMax);
+    igcGetSystemInfo->SetEuCountPerPoolMin(gtSystemInfo->EuCountPerPoolMin);
+    igcGetSystemInfo->SetTotalVsThreads(gtSystemInfo->TotalVsThreads);
+    igcGetSystemInfo->SetTotalHsThreads(gtSystemInfo->TotalHsThreads);
+    igcGetSystemInfo->SetTotalDsThreads(gtSystemInfo->TotalDsThreads);
+    igcGetSystemInfo->SetTotalGsThreads(gtSystemInfo->TotalGsThreads);
+    igcGetSystemInfo->SetTotalPsThreadsWindowerRange(gtSystemInfo->TotalPsThreadsWindowerRange);
+    igcGetSystemInfo->SetCsrSizeInMb(gtSystemInfo->CsrSizeInMb);
+    igcGetSystemInfo->SetMaxEuPerSubSlice(gtSystemInfo->MaxEuPerSubSlice);
+    igcGetSystemInfo->SetMaxSlicesSupported(gtSystemInfo->MaxSlicesSupported);
+    igcGetSystemInfo->SetMaxSubSlicesSupported(gtSystemInfo->MaxSubSlicesSupported);
+    igcGetSystemInfo->SetIsL3HashModeEnabled(gtSystemInfo->IsL3HashModeEnabled);
+}
+
+void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable) {
+    igcFeWa->SetFtrDesktop(featureTable->flags.ftrDesktop);
+    igcFeWa->SetFtrChannelSwizzlingXOREnabled(featureTable->flags.ftrChannelSwizzlingXOREnabled);
+    igcFeWa->SetFtrGtBigDie(featureTable->flags.ftrGtBigDie);
+    igcFeWa->SetFtrGtMediumDie(featureTable->flags.ftrGtMediumDie);
+    igcFeWa->SetFtrGtSmallDie(featureTable->flags.ftrGtSmallDie);
+    igcFeWa->SetFtrGT1(featureTable->flags.ftrGT1);
+    igcFeWa->SetFtrGT1_5(featureTable->flags.ftrGT1_5);
+    igcFeWa->SetFtrGT2(featureTable->flags.ftrGT2);
+    igcFeWa->SetFtrGT3(featureTable->flags.ftrGT3);
+    igcFeWa->SetFtrGT4(featureTable->flags.ftrGT4);
+    igcFeWa->SetFtrIVBM0M1Platform(featureTable->flags.ftrIVBM0M1Platform);
+    igcFeWa->SetFtrGTL(featureTable->flags.ftrGT1);
+    igcFeWa->SetFtrGTM(featureTable->flags.ftrGT2);
+    igcFeWa->SetFtrGTH(featureTable->flags.ftrGT3);
+    igcFeWa->SetFtrSGTPVSKUStrapPresent(featureTable->flags.ftrSGTPVSKUStrapPresent);
+    igcFeWa->SetFtrGTA(featureTable->flags.ftrGTA);
+    igcFeWa->SetFtrGTC(featureTable->flags.ftrGTC);
+    igcFeWa->SetFtrGTX(featureTable->flags.ftrGTX);
+    igcFeWa->SetFtr5Slice(featureTable->flags.ftr5Slice);
+    igcFeWa->SetFtrGpGpuMidThreadLevelPreempt(featureTable->flags.ftrGpGpuMidThreadLevelPreempt);
+    igcFeWa->SetFtrIoMmuPageFaulting(featureTable->flags.ftrIoMmuPageFaulting);
+    igcFeWa->SetFtrWddm2Svm(featureTable->flags.ftrWddm2Svm);
+    igcFeWa->SetFtrPooledEuEnabled(featureTable->flags.ftrPooledEuEnabled);
+    igcFeWa->SetFtrResourceStreamer(featureTable->flags.ftrResourceStreamer);
+}
+
+IgcTranslationCtx* Kernel::createIgcTranslationCtx(CIFMain* igcMain) {
     uint64_t interfaceID = 0x15483dac4ed88c8;
     uint64_t interfaceVersion = 2;
     ICIF* DeviceCtx = CreateInterface(igcMain, interfaceID, interfaceVersion);
@@ -141,46 +200,27 @@ IgcTranslationCtx* createIgcTranslationCtx(CIFMain* igcMain) {
     }
     int outProfilingTimerResolution = 83;
     newDeviceCtx->SetProfilingTimerResolution(static_cast<float>(outProfilingTimerResolution));
+    uint64_t platformID = ;
+    uint64_t gtsystemID = ;
+    uint64_t featureID = ;
     auto igcPlatform = newDeviceCtx->GetPlatformHandleImpl();
-    auto igcGetSystemInfo = newDeviceCtx->GetGTSystemInfoHandle();
-    auto igcFeWa = newDeviceCtx->GetIgcFeaturesAndWorkaroundsHandle();
-    if (!igcPlatform.get() || !igcGetSystemInfo.get() || !igcFeWa.get()) {
+    auto igcGetSystemInfo = newDeviceCtx->GetGTSystemInfoHandleImpl();
+    auto igcFeWa = newDeviceCtx->GetIgcFeaturesAndWorkaroundsHandleImpl();
+    if (!igcPlatform || !igcGetSystemInfo || !igcFeWa) {
         return nullptr;
     }
-    IGC::PlatformHelper::PopulateInterfaceWith(*igcPlatform, *hwInfo->platform);
-    IGC::GtSysInfoHelper::PopulateInterfaceWith(*igcGetSystemInfo, *hwInfo->gtSystemInfo);
-    igcFeWa.get()->SetFtrDesktop(hwInfo->featureTable->flags.ftrDesktop);
-    igcFeWa.get()->SetFtrChannelSwizzlingXOREnabled(hwInfo->featureTable->flags.ftrChannelSwizzlingXOREnabled);
-    igcFeWa.get()->SetFtrGtBigDie(hwInfo->featureTable->flags.ftrGtBigDie);
-    igcFeWa.get()->SetFtrGtMediumDie(hwInfo->featureTable->flags.ftrGtMediumDie);
-    igcFeWa.get()->SetFtrGtSmallDie(hwInfo->featureTable->flags.ftrGtSmallDie);
-    igcFeWa.get()->SetFtrGT1(hwInfo->featureTable->flags.ftrGT1);
-    igcFeWa.get()->SetFtrGT1_5(hwInfo->featureTable->flags.ftrGT1_5);
-    igcFeWa.get()->SetFtrGT2(hwInfo->featureTable->flags.ftrGT2);
-    igcFeWa.get()->SetFtrGT3(hwInfo->featureTable->flags.ftrGT3);
-    igcFeWa.get()->SetFtrGT4(hwInfo->featureTable->flags.ftrGT4);
-    igcFeWa.get()->SetFtrIVBM0M1Platform(hwInfo->featureTable->flags.ftrIVBM0M1Platform);
-    igcFeWa.get()->SetFtrGTL(hwInfo->featureTable->flags.ftrGT1);
-    igcFeWa.get()->SetFtrGTM(hwInfo->featureTable->flags.ftrGT2);
-    igcFeWa.get()->SetFtrGTH(hwInfo->featureTable->flags.ftrGT3);
-    igcFeWa.get()->SetFtrSGTPVSKUStrapPresent(hwInfo->featureTable->flags.ftrSGTPVSKUStrapPresent);
-    igcFeWa.get()->SetFtrGTA(hwInfo->featureTable->flags.ftrGTA);
-    igcFeWa.get()->SetFtrGTC(hwInfo->featureTable->flags.ftrGTC);
-    igcFeWa.get()->SetFtrGTX(hwInfo->featureTable->flags.ftrGTX);
-    igcFeWa.get()->SetFtr5Slice(hwInfo->featureTable->flags.ftr5Slice);
-    igcFeWa.get()->SetFtrGpGpuMidThreadLevelPreempt(hwInfo->featureTable->flags.ftrGpGpuMidThreadLevelPreempt);
-    igcFeWa.get()->SetFtrIoMmuPageFaulting(hwInfo->featureTable->flags.ftrIoMmuPageFaulting);
-    igcFeWa.get()->SetFtrWddm2Svm(hwInfo->featureTable->flags.ftrWddm2Svm);
-    igcFeWa.get()->SetFtrPooledEuEnabled(hwInfo->featureTable->flags.ftrPooledEuEnabled);
-    igcFeWa.get()->SetFtrResourceStreamer(hwInfo->featureTable->flags.ftrResourceStreamer);
-
+    TransferPlatformInfo(igcPlatform, hwInfo->platform);
+    TransferSystemInfo(igcGetSystemInfo, hwInfo->gtSystemInfo);
+    TransferFeaturesInfo(igcFeWa, hwInfo->featureTable);
+    
+    uint64_t translationCtxVersion = ;
     return newDeviceCtx->CreateTranslationCtx(inputArgs->preferredIntermediateType, inputArgs->outType);
 }
 
-int build(const char* fclName, const char* igcName, const char* sourceCode, size_t codeSize) {
+int Kernel::build(const char* fclName, const char* igcName, const char* sourceCode, size_t codeSize) {
     int ret;
     CifMain* fclMain;
-    CiMain* igcMain;
+    CifMain* igcMain;
 
     ret = loadCompiler(fclName, fclMain);
     if (ret) {
@@ -192,21 +232,27 @@ int build(const char* fclName, const char* igcName, const char* sourceCode, size
     }
 
     const void* srcCode = static_cast<const void*>(sourceCode);
-    auto src = CreateBuffer(igcMain, srcCode, codeSize);
+    IgcBuffer* src = CreateBuffer(igcMain, srcCode, codeSize);
 
     std::string build_options = "-DTILE_SIZE_M=" + std::to_string(TILE_SIZE_M)
                               + " -DTILE_GROUP_M=" + std::to_string(TILE_GROUP_M)
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
     size_t optionsSize = build_options.size();
-    auto options = CreateBuffer(igcMain, build_options.c_str(), optionsSize);
+    IgcBuffer* options = CreateBuffer(igcMain, build_options.c_str(), optionsSize);
 
     const char* internal_options = "-ocl-version=300 -cl-intel-has-buffer-offset-arg";
     size_t internalOptionsSize = strlen(internal_options);
-    auto internalOptions = CreateBuffer(igcMain, internal_options, internalOptionsSize);
+    IgcBuffer* internalOptions = CreateBuffer(igcMain, internal_options, internalOptionsSize);
 
     FclOclTranslationCtx* fclTranslationCtx = createFclTranslationCtx(fclMain);
-    auto fclOutput = fclTranslationCtx->TranslateImpl();
+    auto fclOutput = fclTranslationCtx->TranslateImpl(140737353803434, src, options, internalOptions, 0, nullptr);
+    if (fclOutput == nullptr) {
+        printf("Unknown error\n");
+    }
+    if (fclOutput->Successful() == true) {
+        printf("Frontend build success\n");
+    }
 
     return 0;
 }

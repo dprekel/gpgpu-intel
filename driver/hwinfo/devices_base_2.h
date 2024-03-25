@@ -87,7 +87,7 @@ NAMEDDEVICE( 0x4E55, EHL_HW_CONFIG, GTTYPE_GT1, "Intel(R) UHD Graphics" )
 #endif
 
 //#ifdef SUPPORT_GEN9
-//#ifdef SUPPORT_SKL
+//#ifdef SUPPORT_SKL // Skylake
 // GT1
 NAMEDDEVICE( 0x1902, SKL_1x2x6, GTTYPE::GTTYPE_GT1, "Intel(R) HD Graphics 510" )
 NAMEDDEVICE( 0x190B, SKL_1x2x6, GGTTYPE::TTYPE_GT1, "Intel(R) HD Graphics 510" )
@@ -121,7 +121,7 @@ NAMEDDEVICE( 0x193A, SKL_3x3x8, GGTTYPE::TTYPE_GT4, "Intel(R) Iris(R) Pro Graphi
 NAMEDDEVICE( 0x193D, SKL_3x3x8, GGTTYPE::TTYPE_GT4, "Intel(R) Iris(R) Pro Graphics P580" )
 //#endif
 
-#ifdef SUPPORT_KBL
+#ifdef SUPPORT_KBL //Kaby Lake
 // GT1
 NAMEDDEVICE( 0x5902, KBL_1x2x6, GTTYPE_GT1, "Intel(R) HD Graphics 610" )
 NAMEDDEVICE( 0x590B, KBL_1x2x6, GTTYPE_GT1, "Intel(R) HD Graphics 610" )
@@ -155,7 +155,7 @@ DEVICE( 0x593A, KBL_3x3x8,  GTTYPE_GT4 )
 DEVICE( 0x593D, KBL_3x3x8,  GTTYPE_GT4 )
 #endif
 
-#ifdef SUPPORT_CFL
+#ifdef SUPPORT_CFL // Coffee Lake
 // GT1
 NAMEDDEVICE( 0x3E90, CFL_1x2x6, GTTYPE_GT1, "Intel(R) UHD Graphics 610" )
 NAMEDDEVICE( 0x3E93, CFL_1x2x6, GTTYPE_GT1, "Intel(R) UHD Graphics 610" )
@@ -207,12 +207,12 @@ NAMEDDEVICE( 0x9BE6, CFL_1x3x8, GTTYPE_GT2, "Intel(R) UHD Graphics P630" )
 NAMEDDEVICE( 0x9BF6, CFL_1x3x8, GTTYPE_GT2, "Intel(R) UHD Graphics P630" )
 #endif
 
-#ifdef SUPPORT_GLK
+#ifdef SUPPORT_GLK // Gemini Lake
 NAMEDDEVICE( 0x3184, GLK_1x3x6, GTTYPE_GTA, "Intel(R) UHD Graphics 605" )
 NAMEDDEVICE( 0x3185, GLK_1x2x6, GTTYPE_GTA, "Intel(R) UHD Graphics 600" )
 #endif
 
-#ifdef SUPPORT_BXT
+#ifdef SUPPORT_BXT // Broxton
 DEVICE( 0x9906, BXT_1x3x6,  GTTYPE_GTA)
 DEVICE( 0x9907, BXT_1x3x6,  GTTYPE_GTA)
 DEVICE( 0x0A84, BXT_1x3x6,  GTTYPE_GTA)
@@ -224,7 +224,7 @@ DEVICE( 0x9908, BXT_1x3x6,  GTTYPE_GTA)
 #endif
 //#endif
 
-#ifdef SUPPORT_GEN8
+#ifdef SUPPORT_GEN8 // Broadwell
 // GT1
 DEVICE( 0x1602, BDW_1x2x6,  GTTYPE_GT1 )
 DEVICE( 0x160A, BDW_1x2x6,  GTTYPE_GT1 )
