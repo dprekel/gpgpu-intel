@@ -2,7 +2,6 @@ CC = g++
 CFLAGS = -g -Wall -fPIC
 LDFLAGS = -shared
 PREFIX = /usr/local
-INC = -I/usr/local/include/igc -I/usr/local/include/igc/cif -I/usr/local/include/igc/ocl_igc_shared/executable_format
 
 .PHONY: default all clean install
 
@@ -13,7 +12,7 @@ OBJECTS = $(SOURCES:.cpp=.o) $(*/SOURCES:.cpp=.o)
 default: $(TARGET)
 
 %.o: %.cpp
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ $^

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "hwinfo/hwinfo.h"
+#include "hwinfo.h"
 
 struct GPU;
 

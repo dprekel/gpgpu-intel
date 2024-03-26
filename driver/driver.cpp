@@ -6,15 +6,15 @@
 #include <fcntl.h>
 
 #include "gpuinit.h"
-#include "hwinfo/hwinfo.h"
-#include "hwinfo/skl_info.h"
+#include "hwinfo.h"
+#include "skl_info.h"
 #include "gpgpu.h"
 #include "drm_structs.h"
 
 const DeviceDescriptor deviceDescriptorTable[] = {
 #define NAMEDDEVICE(devId, gt, gtType, devName) {devId, &gt::hwInfo, &gt::setupHardwareInfo, gtType, devName},
 #define DEVICE(devId, gt, gtType) {devId, &gt::hwInfo, &gt::setupHardwareInfo, gtType, ""},
-#include "hwinfo/devices_base.h"
+#include "devices_base.h"
 #undef DEVICE
 #undef NAMEDDEVICE
     {0, nullptr, nullptr, GTTYPE::GTTYPE_UNDEFINED}

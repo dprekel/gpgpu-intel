@@ -1,3 +1,4 @@
+#pragma once
 
 // generic interface for all components
 struct ICIF {
@@ -73,6 +74,8 @@ struct PlatformInfo : public ICIF {
 
     virtual uint16_t GetGTType() const;
     virtual void SetGTType(uint64_t v);
+  public:
+    Impl* pImpl;
 };
 
 struct GTSystemInfo : public ICIF {
@@ -171,20 +174,20 @@ struct IgcFeaturesAndWorkarounds : public ICIF {
     virtual void SetFtrGTC(bool v);
     virtual bool GetFtrGTX() const; 
     virtual void SetFtrGTX(bool v);
-    virtual bool SetFtr5Slice() const; 
+    virtual bool GetFtr5Slice() const; 
     virtual void SetFtr5Slice(bool v);
-    virtual bool SetFtrGpGpuMidThreadLevelPreempt() const; 
-    virtual void GetFtrGpGpuMidThreadLevelPreempt(bool v);
-    virtual bool SetFtrIoMmuPageFaulting() const; 
-    virtual void GetFtrIoMmuPageFaulting(bool v);
-    virtual bool SetFtrWddm2Svm() const; 
-    virtual void GetFtrWddm2Svm(bool v);
-    virtual bool SetFtrPooledEuEnabled() const; 
+    virtual bool GetFtrGpGpuMidThreadLevelPreempt() const; 
+    virtual void SetFtrGpGpuMidThreadLevelPreempt(bool v);
+    virtual bool GetFtrIoMmuPageFaulting() const; 
+    virtual void SetFtrIoMmuPageFaulting(bool v);
+    virtual bool GetFtrWddm2Svm() const; 
+    virtual void SetFtrWddm2Svm(bool v);
     virtual bool GetFtrPooledEuEnabled() const; 
+    virtual bool SetFtrPooledEuEnabled(bool v); 
+    virtual void GetFtrResourceStreamer() const;
     virtual void SetFtrResourceStreamer(bool v);
-    virtual void GetFtrResourceStreamer(bool v);
+    virtual void GetMaxOCLParamSize() const;
     virtual void SetMaxOCLParamSize(bool v);
-    virtual void GetMaxOCLParamSize(bool v);
   public:
     Impl* pImpl;
 };
@@ -193,6 +196,12 @@ struct OclTranslationOutput : public ICIF {
     struct Impl;
     virtual Impl* GetImpl();
     virtual const Impl* GetImpl() const;
+    virtual bool Successful() const;
+    virtual bool HasWarnings() const;
+    virtual uint64_t GetOutputType() const;
+    virtual IgcBuffer* GetBuildLogImpl(uint64_t bufferVersion);
+    virtual IgcBuffer* GetOutputImpl(uint64_t bufferVersion);
+    virtual IgcBuffer* GetDebugDataImpl(uint64_t bufferVersion);
   public:
     Impl* pImpl;
 };
@@ -211,8 +220,8 @@ struct FclOclTranslationCtx : public ICIF {
     virtual const Impl* GetImpl() const;
     virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, IgcBuffer* src, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount);
     // return values missing
-    virtual GetFclOptions(IgcBuffer*);
-    virtual GetFclInternalOptions(IgcBuffer*);
+    virtual void GetFclOptions(IgcBuffer*);
+    virtual void GetFclInternalOptions(IgcBuffer*);
   public:
     Impl* pImpl;
 };
@@ -240,7 +249,7 @@ struct FclOclDeviceCtx : public ICIF {
     virtual FclOclTranslationCtx* CreateTranslationCtxImpl(uint64_t ver, uint64_t inType, uint64_t outType);
     virtual uint64_t GetPreferredIntermediateRepresentation();
     virtual FclOclTranslationCtx* CreateTranslationCtxImpl(uint64_t ver, uint64_t inType, uint64_t outType, IgcBuffer* err);
-    virtual Platform* GetPlatformHandleImpl(uint64_t ver);
+    virtual PlatformInfo* GetPlatformHandleImpl(uint64_t ver);
   public:
     Impl* pImpl;
 };
