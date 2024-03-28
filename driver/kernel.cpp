@@ -44,6 +44,7 @@ int Kernel::loadProgramSource() {
 
     this->srcCode = static_cast<const char*>(source);
     this->srcSize = strlen(source+1);
+    printf("%s\n", srcCode);
     return 0;
 }
 
@@ -151,6 +152,8 @@ void Kernel::TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform)
 
 void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo) {
     igcGetSystemInfo->SetEuCount(gtSystemInfo->EUCount);
+    uint32_t EUCount = igcGetSystemInfo->GetEUCount();
+    printf("EUCount: %u\n", EUCount);
     igcGetSystemInfo->SetThreadCount(gtSystemInfo->ThreadCount);
     igcGetSystemInfo->SetSliceCount(gtSystemInfo->SliceCount);
     igcGetSystemInfo->SetSubSliceCount(gtSystemInfo->SubSliceCount);
@@ -171,6 +174,8 @@ void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSy
     igcGetSystemInfo->SetMaxSlicesSupported(gtSystemInfo->MaxSlicesSupported);
     igcGetSystemInfo->SetMaxSubSlicesSupported(gtSystemInfo->MaxSubSlicesSupported);
     igcGetSystemInfo->SetIsL3HashModeEnabled(gtSystemInfo->IsL3HashModeEnabled);
+    uint32_t IsL3HashModeEnabled = igcGetSystemInfo->GetIsL3HashModeEnabled();
+    printf("EUCount: %u\n", IsL3HashModeEnabled);
 }
 
 void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable) {
@@ -210,9 +215,9 @@ IgcOclTranslationCtx* Kernel::createIgcTranslationCtx() {
     }
     int outProfilingTimerResolution = 83;
     newDeviceCtx->SetProfilingTimerResolution(static_cast<float>(outProfilingTimerResolution));
-    uint64_t platformID = 0;
-    uint64_t gtsystemID = 0;
-    uint64_t featureID = 0;
+    uint64_t platformID = 1;
+    uint64_t gtsystemID = 3;
+    uint64_t featureID = 2;
     auto igcPlatform = newDeviceCtx->GetPlatformHandleImpl(platformID);
     auto igcGetSystemInfo = newDeviceCtx->GetGTSystemInfoHandleImpl(gtsystemID);
     auto igcFeWa = newDeviceCtx->GetIgcFeaturesAndWorkaroundsHandleImpl(featureID);
@@ -224,38 +229,46 @@ IgcOclTranslationCtx* Kernel::createIgcTranslationCtx() {
     TransferSystemInfo(igcGetSystemInfo, dd->pHwInfo->gtSystemInfo);
     TransferFeaturesInfo(igcFeWa, dd->pHwInfo->featureTable);
     
-    uint64_t translationCtxVersion = 0;
+    uint64_t translationCtxVersion = 3;
     return newDeviceCtx->CreateTranslationCtxImpl(translationCtxVersion, intermediateType, outType);
 }
 
 int Kernel::build() {
-    int ret;
-
-    ret = loadCompiler(fclName, &fclMain);
-    if (ret) {
-        return -1;
-    }
-    ret = loadCompiler(igcName, &igcMain);
-    if (ret) {
+    int retFcl = loadCompiler(fclName, &fclMain);
+    int retIgc = loadCompiler(igcName, &igcMain);
+    if (retFcl || retIgc) {
         return -1;
     }
 
-    IgcBuffer* src = CreateIgcBuffer(igcMain, srcCode, srcSize);
-    IgcBuffer* buildOptions = CreateIgcBuffer(igcMain, options, optionsSize);
+    IgcBuffer* src = CreateIgcBuffer(igcMain, srcCode, srcSize+1);
+    IgcBuffer* buildOptions = CreateIgcBuffer(igcMain, options, optionsSize+1);
+    printf("options: %s\n", options);
 
-    const char* internal_options = "-ocl-version=300 -cl-intel-has-buffer-offset-arg";
-    size_t internalOptionsSize = strlen(internal_options);
+    const char* internal_options = "-ocl-version=300 -cl-intel-has-buffer-offset-arg -D__IMAGE_SUPPORT__=1 -fpreserve-vec3-type  -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_fp16,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_icd,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_intel_command_queue_families,+cl_intel_subgroups,+cl_intel_required_subgroup_size,+cl_intel_subgroups_short,+cl_khr_spir,+cl_intel_accelerator,+cl_intel_driver_diagnostics,+cl_khr_priority_hints,+cl_khr_throttle_hints,+cl_khr_create_command_queue,+cl_intel_subgroups_char,+cl_intel_subgroups_long,+cl_khr_il_program,+cl_intel_mem_force_host_memory,+cl_khr_subgroup_extended_types,+cl_khr_subgroup_non_uniform_vote,+cl_khr_subgroup_ballot,+cl_khr_subgroup_non_uniform_arithmetic,+cl_khr_subgroup_shuffle,+cl_khr_subgroup_shuffle_relative,+cl_khr_subgroup_clustered_reduce,+cl_intel_device_attribute_query,+cl_khr_suggested_local_work_size,+cl_khr_fp64,+cl_khr_subgroups,+cl_intel_spirv_device_side_avc_motion_estimation,+cl_intel_spirv_media_block_io,+cl_intel_spirv_subgroups,+cl_khr_spirv_no_integer_wrap_decoration,+cl_intel_unified_shared_memory_preview,+cl_khr_mipmap_image,+cl_khr_mipmap_image_writes,+cl_intel_planar_yuv,+cl_intel_packed_yuv,+cl_intel_motion_estimation,+cl_intel_device_side_avc_motion_estimation,+cl_intel_advanced_motion_estimation,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_khr_image2d_from_buffer,+cl_khr_depth_images,+cl_khr_3d_image_writes,+cl_intel_media_block_io,+cl_intel_va_api_media_sharing,+cl_intel_sharing_format_query,+cl_khr_pci_bus_info";
+    size_t internalOptionsSize = strlen(internal_options)+1;
     IgcBuffer* internalOptions = CreateIgcBuffer(igcMain, internal_options, internalOptionsSize);
+    printf("internalOptionsSize: %lu\n", internalOptionsSize);
 
     FclOclTranslationCtx* fclTranslationCtx = createFclTranslationCtx();
-    auto fclOutput = fclTranslationCtx->TranslateImpl(intermediateType, src, buildOptions, internalOptions, nullptr, 0);
+    auto fclOutput = fclTranslationCtx->TranslateImpl(1, src, buildOptions, internalOptions, nullptr, 0);
     if (fclOutput == nullptr) {
         printf("Unknown error\n");
         return -1;
     }
     if (fclOutput->Successful() == true) {
-        printf("Frontend build success\n");
+        printf("Frontend build success!\n");
     }
+    IgcBuffer* fclBuildLog = fclOutput->GetBuildLogImpl(1);
+    const char* fclBuildLogMem = reinterpret_cast<const char*>(fclBuildLog->GetMemoryRaw());
+    if (fclBuildLogMem) {
+        printf("%s\n", fclBuildLogMem);
+    }
+    IgcBuffer* fclBuildOutput = fclOutput->GetOutputImpl(1);
+    const char* fclBuildOutputMem = reinterpret_cast<const char*>(fclBuildOutput->GetMemoryRaw());
+    if (fclBuildOutputMem) {
+        printf("%s\n", fclBuildOutputMem);
+    }
+    IgcOclTranslationCtx* igcTranslationCtx = createIgcTranslationCtx();
 
     return 0;
 }
