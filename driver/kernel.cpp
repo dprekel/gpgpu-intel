@@ -144,26 +144,33 @@ void Kernel::TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform)
     igcPlatform->SetRevId(platform->usRevId);
     igcPlatform->SetDeviceID_PCH(platform->usDeviceID_PCH);
     igcPlatform->SetRevId_PCH(platform->usRevId_PCH);
-    igcPlatform->SetGTType(platform->eGTType);
+    //igcPlatform->SetGTType(platform->eGTType);
+    igcPlatform->SetGTType(GTTYPE::GTTYPE_GT3);
     uint64_t fam = igcPlatform->GetProductFamily();
     uint64_t core = igcPlatform->GetRenderCoreFamily();
     printf("fam: %lu, %lu\n", fam, core);
 }
 
 void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo) {
-    igcGetSystemInfo->SetEuCount(gtSystemInfo->EUCount);
+    //igcGetSystemInfo->SetEuCount(gtSystemInfo->EUCount);
+    igcGetSystemInfo->SetEuCount(48);
     uint32_t EUCount = igcGetSystemInfo->GetEUCount();
     printf("EUCount: %u\n", EUCount);
-    igcGetSystemInfo->SetThreadCount(gtSystemInfo->ThreadCount);
+    //igcGetSystemInfo->SetThreadCount(gtSystemInfo->ThreadCount);
+    igcGetSystemInfo->SetThreadCount(336);
     igcGetSystemInfo->SetSliceCount(gtSystemInfo->SliceCount);
-    igcGetSystemInfo->SetSubSliceCount(gtSystemInfo->SubSliceCount);
+    //igcGetSystemInfo->SetSubSliceCount(gtSystemInfo->SubSliceCount);
+    igcGetSystemInfo->SetSubSliceCount(6);
     igcGetSystemInfo->SetL3CacheSizeInKb(gtSystemInfo->L3CacheSizeInKb);
     igcGetSystemInfo->SetLLCCacheSizeInKb(gtSystemInfo->LLCCacheSizeInKb);
-    igcGetSystemInfo->SetEdramSizeInKb(gtSystemInfo->EdramSizeInKb);
+    //igcGetSystemInfo->SetEdramSizeInKb(gtSystemInfo->EdramSizeInKb);
+    igcGetSystemInfo->SetEdramSizeInKb(65536);
     igcGetSystemInfo->SetL3BankCount(gtSystemInfo->L3BankCount);
     igcGetSystemInfo->SetMaxFillRate(gtSystemInfo->MaxFillRate);
-    igcGetSystemInfo->SetEuCountPerPoolMax(gtSystemInfo->EuCountPerPoolMax);
-    igcGetSystemInfo->SetEuCountPerPoolMin(gtSystemInfo->EuCountPerPoolMin);
+    //igcGetSystemInfo->SetEuCountPerPoolMax(gtSystemInfo->EuCountPerPoolMax);
+    igcGetSystemInfo->SetEuCountPerPoolMax(0);
+    //igcGetSystemInfo->SetEuCountPerPoolMin(gtSystemInfo->EuCountPerPoolMin);
+    igcGetSystemInfo->SetEuCountPerPoolMin(0);
     igcGetSystemInfo->SetTotalVsThreads(gtSystemInfo->TotalVsThreads);
     igcGetSystemInfo->SetTotalHsThreads(gtSystemInfo->TotalHsThreads);
     igcGetSystemInfo->SetTotalDsThreads(gtSystemInfo->TotalDsThreads);
@@ -175,7 +182,7 @@ void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSy
     igcGetSystemInfo->SetMaxSubSlicesSupported(gtSystemInfo->MaxSubSlicesSupported);
     igcGetSystemInfo->SetIsL3HashModeEnabled(gtSystemInfo->IsL3HashModeEnabled);
     uint32_t IsL3HashModeEnabled = igcGetSystemInfo->GetIsL3HashModeEnabled();
-    printf("EUCount: %u\n", IsL3HashModeEnabled);
+    printf("IsL3HashModeEnabled: %u\n", IsL3HashModeEnabled);
 }
 
 void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable) {
@@ -248,11 +255,13 @@ int Kernel::build() {
     size_t internalOptionsSize = strlen(internal_options)+1;
     IgcBuffer* internalOptions = CreateIgcBuffer(igcMain, internal_options, internalOptionsSize);
     printf("internalOptionsSize: %lu\n", internalOptionsSize);
+    IgcBuffer* idsBuffer = CreateIgcBuffer(igcMain, nullptr, 0);
+    IgcBuffer* valuesBuffer = CreateIgcBuffer(igcMain, nullptr, 0);
 
     FclOclTranslationCtx* fclTranslationCtx = createFclTranslationCtx();
     auto fclOutput = fclTranslationCtx->TranslateImpl(1, src, buildOptions, internalOptions, nullptr, 0);
     if (fclOutput == nullptr) {
-        printf("Unknown error\n");
+        printf("FCL Compiler error!\n");
         return -1;
     }
     if (fclOutput->Successful() == true) {
@@ -268,7 +277,24 @@ int Kernel::build() {
     if (fclBuildOutputMem) {
         printf("%s\n", fclBuildOutputMem);
     }
+    fclBuildOutput->Retain();
     IgcOclTranslationCtx* igcTranslationCtx = createIgcTranslationCtx();
+    if (igcTranslationCtx) {
+        printf("igcTranslationCtx creation successful!\n");
+    }
+    void* gtpinInit = nullptr;
+    auto igcOutput = igcTranslationCtx->TranslateImpl(1, fclBuildOutput, idsBuffer, valuesBuffer, buildOptions, internalOptions, nullptr, 0, gtpinInit);
+    if (igcOutput == nullptr) {
+        printf("IGC Compiler error!\n");
+    }
+    if (igcOutput->Successful() == true) {
+        printf("Backend build successful!\n");
+    }
+    IgcBuffer* igcBuildLog = igcOutput->GetBuildLogImpl(1);
+    const char* igcBuildLogMem = reinterpret_cast<const char*>(igcBuildLog->GetMemoryRaw());
+    if (igcBuildLogMem) {
+        printf("%s\n", igcBuildLogMem);
+    }
 
     return 0;
 }

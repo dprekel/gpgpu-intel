@@ -210,6 +210,10 @@ struct IgcOclTranslationCtx : public ICIF {
     struct Impl;
     virtual Impl* GetImpl();
     virtual const Impl* GetImpl() const;
+    virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, IgcBuffer* src, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount);
+    virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, IgcBuffer* src, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount, void* gtPinInput);
+    virtual bool GetSpecConstantsInfoImpl(IgcBuffer* src, IgcBuffer* outSpecConstantsIds, IgcBuffer* outSpecConstantsSizes);
+    virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, IgcBuffer* src, IgcBuffer* specConstantsIds, IgcBuffer* specConstantsValues, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount, void* gtPinInput);
   public:
     Impl* pImpl;
 };
