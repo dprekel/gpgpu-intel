@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
         printf("Invalid argument! Aborting...\n");
         return -1;
     }
-    struct gpuInfo* gpuInfo = (struct gpuInfo*)malloc(sizeof(struct gpuInfo));
+    struct GPU* gpuInfo = (struct GPU*)malloc(sizeof(struct GPU));
     if (0 == strcmp(argv[1], "yes")) {
         int ret = gpInitGPU(gpuInfo); 
         logGPUInfo(gpuInfo);
