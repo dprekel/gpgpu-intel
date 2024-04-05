@@ -44,7 +44,7 @@ int Kernel::loadProgramSource() {
 
     this->srcCode = static_cast<const char*>(source);
     this->srcSize = strlen(source+1);
-    printf("%s\n", srcCode);
+    //printf("%s\n", srcCode);
     return 0;
 }
 
@@ -54,8 +54,8 @@ ICIF* Kernel::CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t i
     uint64_t maxVerSupported = 0;
 
     bool isSupported = cifMain->GetSupportedVersions(interfaceID, minVerSupported, maxVerSupported);
-    printf("maxVerSupported: %lu\n", maxVerSupported);
-    printf("minVerSupported: %lu\n", minVerSupported);
+    //printf("maxVerSupported: %lu\n", maxVerSupported);
+    //printf("minVerSupported: %lu\n", minVerSupported);
     if (isSupported == false) {
         return nullptr;
     }
@@ -148,7 +148,7 @@ void Kernel::TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform)
     igcPlatform->SetGTType(GTTYPE::GTTYPE_GT3);
     uint64_t fam = igcPlatform->GetProductFamily();
     uint64_t core = igcPlatform->GetRenderCoreFamily();
-    printf("fam: %lu, %lu\n", fam, core);
+    //printf("fam: %lu, %lu\n", fam, core);
 }
 
 void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo) {
@@ -295,8 +295,17 @@ int Kernel::build() {
     if (igcBuildLogMem) {
         printf("%s\n", igcBuildLogMem);
     }
+    IgcBuffer* igcBuildOutput = igcOutput->GetOutputImpl(1);
+    const char* igcBuildOutputMem = reinterpret_cast<const char*>(igcBuildOutput->GetMemoryRaw());
+    if (igcBuildOutputMem) {
+        printf("%s\n", igcBuildOutputMem);
+    }
 
     return 0;
+}
+
+int Kernel::createKernelAllocation() {
+    
 }
 
 int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options) {
@@ -309,6 +318,7 @@ int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options) {
         return -1;
     }
     err = kernel->build();
+    kernel->createKernelAllocation();
     return err;
 }
 

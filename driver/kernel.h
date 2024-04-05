@@ -18,6 +18,7 @@ class Kernel {
     void TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable);
     IgcOclTranslationCtx* createIgcTranslationCtx();
     int build();
+    int createKernelAllocation();
   private:
     GPU* gpuInfo;
     const char* filename;
