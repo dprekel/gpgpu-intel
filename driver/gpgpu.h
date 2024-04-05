@@ -37,6 +37,6 @@ struct GPU {
 
 extern int gpInitGPU(GPU* gpuInfo);
 extern void logGPUInfo(GPU* gpuInfo);
-//extern void* gpAllocateAndPinBuffer(size_t size);
+extern void* gpAllocateAndPinBuffer(GPU* gpuInfo, size_t size);
 extern int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options);
 

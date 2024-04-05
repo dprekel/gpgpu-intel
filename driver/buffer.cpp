@@ -1,29 +1,49 @@
+#include "context.h"
+#include "drm_structs.h"
 
-/*
-void* gpAllocateAndPinBuffer(size_t size) {
+void* gpCreateBuffer(GPU* gpuInfo, size_t size) {
     void* alloc;
     int ret;
 
     alloc = alignedMalloc(size);
     if (!alloc) {
-        return NULL;
+        return nullptr;
     }
 
-    ret = allocUserptr(reinterpret_cast<uintptr_t>(alloc), size, 0);
+    ret = allocUserptr(gpuInfo->fd, reinterpret_cast<uintptr_t>(alloc), size, 0);
+    if (ret) {
+        return nullptr;
+    }
+    // aligned free is needed here
 
 }
-*/
 
-/*
-int allocUserptr(uintptr_t alloc, size_t size, uint32_t flags) {
+void* Context::alignedMalloc(size_t size) {
+    size_t alignment = 4096;  // page size
+    size_t sizeToAlloc = size + alignment;
+    void* pOriginalMemory = malloc(sizeToAlloc);
+
+    uintptr_t pAlignedMemory = reinterpret_cast<uintptr_t>(pOriginalMemory);
+    if (pAlignedMemory) {
+        pAlignedMemory += alignment;
+        pAlignedMemory -= pAlignedMemory % alignment;
+        reinterpret_cast<void**>(pAlignedMemory)[-1] = pOriginalMemory;
+    }
+    return reinterpret_cast<void*>(pAlignedMemory);
+}
+
+
+int Context::allocUserptr(int fd, uintptr_t alloc, size_t size, uint32_t flags) {
     int ret;
-    struct drm_i915_gem_userptr userptr = {};  
+    drm_i915_gem_userptr userptr = {};  
 
     userptr.user_ptr = alloc;
     userptr.user_size = size;
     userptr.flags = flags;
 
-    // can't continue here because I don't have a valid file descriptor. I could read it out from the deviceStruct, but this is too much work. It's better to replace clGetPlatformIDs first.
-    //ret = ioctl(
+    ret = ioctl(fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr);
+    if (ret) {
+        return -1;
+    }
+    
 }
-*/
