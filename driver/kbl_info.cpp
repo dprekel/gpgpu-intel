@@ -1,3 +1,4 @@
+/*
 #include "kbl_info.h"
 #include "hwinfo.h"
 
@@ -38,4 +39,4 @@ void KBL::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrTileY = true;
 }
 
-
+*/
