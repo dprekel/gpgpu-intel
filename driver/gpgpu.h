@@ -25,6 +25,7 @@ struct GPU {
     bool preemptionSupported;
     int schedulerValue;
 
+    void* context;
     void* kernel;
 };
 
@@ -34,9 +35,11 @@ struct GPU {
 #define NO_SOFTPIN_SUPPORT                  -3
 #define NO_TURBO_BOOST                      -4
 #define VM_CREATION_FAILED                  -5
+#define CONTEXT_CREATION_FAILED             -6
 
 extern int gpInitGPU(GPU* gpuInfo);
 extern void logGPUInfo(GPU* gpuInfo);
-extern void* gpAllocateAndPinBuffer(GPU* gpuInfo, size_t size);
+extern int CreateContext(GPU* gpuInfo);
+extern void* CreateBuffer(GPU* gpuInfo, size_t size);
 extern int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options);
 

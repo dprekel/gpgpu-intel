@@ -15,7 +15,7 @@
 
 
 Kernel::Kernel(GPU* gpuInfo, const char* filename, const char* options) 
-         : gpuInfo(static_cast<GPU*>(gpuInfo)),
+         : gpuInfo(gpuInfo),
            filename(filename),
            options(options),
            igcName("libigc.so.1"),

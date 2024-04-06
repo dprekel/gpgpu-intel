@@ -330,26 +330,8 @@ int getMaxGpuFrequency(GPU* gpuInfo) {
     std::string path = "/sys/bus/pci/devices/" + pciPath + "/drm" + "/card";
 
 }
-
-uint32_t createDrmContext(GPU* gpuInfo, uint32_t drmVmId, bool isSpecialContextRequested) {
-    struct drm_i915_gem_context_create_ext gcc = {};
-    int ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT, &gcc);
-    if (ret) {
-        return ret;
-    }
-    if (drmVmId > 0) {
-        struct drm_i915_gem_context_param param = {};
-        param.ctx_id = gcc.ctx_id;
-        param.value = drmVmId;
-        param.param = I915_CONTEXT_PARAM_VM;
-        ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &param);
-        if (ret) {
-            return ret;
-        }
-    }
-    return gcc.ctx_id;
-}
 */
+
 
 
 

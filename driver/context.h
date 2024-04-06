@@ -20,8 +20,14 @@ struct BufferObject {
 
 class Context {
   public:
+    Context(GPU* gpuInfo);
+    ~Context();
+    int createDrmContext();
     void* alignedMalloc(size_t size);
-    int allocUserptr(uintptr_t alloc, size_t size, uint32_t flags);
+    int allocUserptr(int fd, uintptr_t alloc, size_t size, uint32_t flags);
   private:
+    GPU* gpuInfo;
     std::vector<BufferObject> execBuffer;
-}
+    uint32_t vmId;
+    uint32_t ctxId;
+};
