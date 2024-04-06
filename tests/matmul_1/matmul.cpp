@@ -23,6 +23,11 @@ int main() {
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
     err = gpBuildKernel(gpuInfo, filename, build_options.c_str());
+    printf("Kernel build: %d\n", err);
+    err = CreateContext(gpuInfo);
+    printf("Context creation: %d\n", err);
+    void* ptrToBuffer = CreateBuffer(gpuInfo, 4096);
+    printf("Buffer ptr: %p\n", ptrToBuffer);
 
     return 0;
 }
