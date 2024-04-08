@@ -27,7 +27,7 @@ class Context {
     int allocUserptr(int fd, uintptr_t alloc, size_t size, uint32_t flags);
   private:
     GPU* gpuInfo;
-    std::vector<BufferObject> execBuffer;
+    std::vector<BufferObject*> execBuffer;
     uint32_t vmId;
     uint32_t ctxId;
 };

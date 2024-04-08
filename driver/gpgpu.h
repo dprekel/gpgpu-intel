@@ -42,4 +42,4 @@ extern void logGPUInfo(GPU* gpuInfo);
 extern int CreateContext(GPU* gpuInfo);
 extern void* CreateBuffer(GPU* gpuInfo, size_t size);
 extern int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options);
-
+extern int EnqueueNDRangeKernel(GPU* gpuInfo);
