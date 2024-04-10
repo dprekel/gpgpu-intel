@@ -7,6 +7,7 @@
 #include "gpgpu.h"
 #include "context.h"
 #include "drm_structs.h"
+#include "avx.h"
 
 
 Context::Context(GPU* gpuInfo) 
@@ -43,7 +44,7 @@ BufferObject* Context::allocUserptr(int fd, uintptr_t alloc, size_t size, uint32
     }
     BufferObject* bo = new BufferObject();
     bo->bufferType = BufferType::BUFFER_HOST_MEMORY;
-    bo->alloc = alloc;
+    bo->alloc = reinterpret_cast<void*>(alloc);
     bo->size = size;
     bo->handle = userptr.handle;
     return bo;
@@ -154,6 +155,96 @@ int Context::createPreemptionAllocation() {
     return SUCCESS;
 }
 
+void* ptrOffset(void* ptrBefore, size_t offset) {
+    uintptr_t addrAfter = (uintptr_t)ptrBefore + offset;
+    return (void*)addrAfter;
+}
+
+
+
+void Context::generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16_t threadsPerWorkGroup, uint8_t* dimensionsOrder, uint32_t simdSize) {
+    const int passes = simdSize / 8;
+    int pass = 0;
+
+    __m256i vLwsX = _mm256_set1_epi16(16);   // localWorkgroupSize[xDimNum] == 16
+    __m256i vLwsY = _mm256_set1_epi16(1);    // localWorkgroupSize[yDimNum] == 1
+
+    __m256i zero = _mm256_set1_epi16(0u);
+    __m256i one = _mm256_set1_epi16(1u);
+
+    uint64_t threadSkipSize;
+    if (simdSize == 32) {
+        threadSkipSize = 32 * sizeof(uint16_t);
+    }
+    else {
+        threadSkipSize = 16 * sizeof(uint16_t);
+    }
+    __m256i vSimdX = _mm256_set1_epi16(simdSize);
+    __m256i vSimdY = zero;
+    __m256i vSimdZ = zero;
+
+    __m256i xWrap;
+    __m256i yWrap;
+
+    do {
+        xWrap = vSimdX >= vLwsX;
+        __m256i deltaX = _mm256_blendv_epi8(vLwsX, zero, xWrap);
+        vSimdX -= deltaX;
+        __m256i deltaY = _mm256_blendv_epi8(one, zero, xWrap);
+        vSimdY += deltaY;
+        yWrap = vSimdY >= vLwsY;
+        __m256i deltaY2 = _mm256_blendv_epi8(vLwsY, zero, yWrap);
+        vSimdY -= deltaY2;
+        __m256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
+        vSimdZ += deltaZ;
+    } while (xWrap || yWrap);
+    
+    do {
+        void* buffer = b;
+
+        __m256i x = ;
+        __m256i y = zero;
+        __m256i z = zero;
+
+        do {
+            xWrap = x >= vLwsX;
+            __m256i deltaX = _mm256_blendv_epi8(vLwsX, zero, xWrap);
+            x -= deltaX;
+            __m256i deltaY = _mm256_blendv_epi8(one, zero, xWrap);
+            y += deltaY;
+            yWrap = y >= vLwsY;
+            __m256i deltaY2 = _mm256_blendv_epi8(vLwsY, zero, yWrap);
+            y -= deltaY2;
+            __m256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
+            z += deltaZ;
+        } while (xWrap);
+
+        for (size_t i = 0; i < threadsPerWorkGroup; ++i) {
+            __mm256_store_si256(reinterpret_cast<__mm256i*>(ptrOffset(buffer, xDimNum * threadSkipSize)), x);
+            __mm256_store_si256(reinterpret_cast<__mm256i*>(ptrOffset(buffer, yDimNum * threadSkipSize)), y);
+            __mm256_store_si256(reinterpret_cast<__mm256i*>(ptrOffset(buffer, zDimNum * threadSkipSize)), z);
+
+            x += vSimdX;
+            y += vSimdY;
+            z += vSimdZ;
+            xWrap = x >= vLwsX;
+            __mm256i deltaX = _mm256_blendv_epi8(vLwsX, zero, xWrap);
+            x -= deltaX;
+            __mm256i deltaY = _mm256_blendv_epi8(one, zero, xWrap);
+            y += deltaY;
+            yWrap = y >= vLwsY;
+            __mm256i deltaY2 = _mm256_blendv_epi8(one, zero, yWrap);
+            y -= deltaY2;
+            __mm256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
+            z += deltaZ;
+            buffer = ptrOffset(buffer, 3 * threadSkipSize);
+        }
+        b = ptrOffset(b, 8 * sizeof(uint16_t));
+    } while (++pass < passes);
+
+}
+
+
 int Context::createIndirectObjectHeap() {
     size_t localWorkSize = 16;            // from clEnqueueNDRangeKernel argument
     uint8_t numChannels = 3;             // from kernelInfo.kernelDescriptor.kernelAttributes.numLocalIdChannels
@@ -161,8 +252,8 @@ int Context::createIndirectObjectHeap() {
     uint32_t crossThreadDataSize = 96;    // from kernel
     uint32_t simdSize = 16;               // from kernelInfo.kernelDescriptor.kernelAttributes.simdSize
 
-    uint32_t numGRFsPerThread = (simd == 32 && grfSize == 32) ? 2 : 1;
-    uint32_t perThreadSizeLocalIDs = numGRFsPerThread * grfSize * (simd == 1 ? 1u : numChannels);
+    uint32_t numGRFsPerThread = (simdSize == 32 && grfSize == 32) ? 2 : 1;
+    uint32_t perThreadSizeLocalIDs = numGRFsPerThread * grfSize * (simdSize == 1 ? 1u : numChannels);
     perThreadSizeLocalIDs = std::max(perThreadSizeLocalIDs, grfSize);
     uint64_t threadsPerWG = simdSize + localWorkSize - 1;
     threadsPerWG >>= simdSize == 32 ? 5 : simdSize == 16 ? 4 : simdSize == 8 ? 3 : 0;
@@ -172,7 +263,9 @@ int Context::createIndirectObjectHeap() {
     // here, size must be aligned to cache line size and page size
     size = 4096;
     // allocate userptr
-    //
+    
+    //generateLocalIDsSimd(buffer, localWorkgroupSize, threadsPerWorkGroup, dimensionsOrder, simdSize);
+
 
     return SUCCESS;
 }
@@ -183,6 +276,8 @@ int EnqueueNDRangeKernel(GPU* gpuInfo) {
     Context* context = static_cast<Context*>(gpuInfo->context);
     ret = context->createPreemptionAllocation();
     ret = context->createIndirectObjectHeap();
+    ret = context->createDynamicStateHeap();
+    ret = context->createSurfaceStateHeap();
     return SUCCESS;
 }
 
