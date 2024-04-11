@@ -8,6 +8,7 @@
 #include "context.h"
 #include "drm_structs.h"
 #include "avx.h"
+#include "commands_gen9.h"
 
 
 Context::Context(GPU* gpuInfo) 
@@ -247,10 +248,10 @@ void Context::generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16
 
 int Context::createIndirectObjectHeap() {
     size_t localWorkSize = 16;            // from clEnqueueNDRangeKernel argument
-    uint8_t numChannels = 3;             // from kernelInfo.kernelDescriptor.kernelAttributes.numLocalIdChannels
+    uint8_t numChannels = 3;             // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.numLocalIdChannels
     uint32_t grfSize = 32;                // from sizeof(typename GfxFamily::GRF)
-    uint32_t crossThreadDataSize = 96;    // from kernel
-    uint32_t simdSize = 16;               // from kernelInfo.kernelDescriptor.kernelAttributes.simdSize
+    uint32_t crossThreadDataSize = 96;    // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.crossThreadDataSize
+    uint32_t simdSize = 16;               // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.simdSize
 
     uint32_t numGRFsPerThread = (simdSize == 32 && grfSize == 32) ? 2 : 1;
     uint32_t perThreadSizeLocalIDs = numGRFsPerThread * grfSize * (simdSize == 1 ? 1u : numChannels);
@@ -264,10 +265,46 @@ int Context::createIndirectObjectHeap() {
     size = 4096;
     // allocate userptr
     
-    //generateLocalIDsSimd(buffer, localWorkgroupSize, threadsPerWorkGroup, dimensionsOrder, simdSize);
+    char* crossThreadData;          // from kernel.kernelInfo.crossThreadData
+    // align ioh here
+    setCrossThreadData(ioh, crossThreadData);
+    generateLocalIDsSimd(ioh, localWorkgroupSize, threadsPerWorkGroup, dimensionsOrder, simdSize);
 
 
     return SUCCESS;
+}
+
+/*
+data needed:- ssh pointer
+            - kernel.kernelInfo.kernelDescriptor.payloadMappings.bindingTable.numEntries
+            - kernel.pSshLocal
+            - kernel.sshLocalSize
+            - kernel.numberOfBindingTableStates (from kernel.kernelInfo.kernelDescriptor.payloadMappings.bindingTable.numEntries)
+            - kernel.localBindingTableOffset (from kernel.kernelDescriptor.payloadMappings.bindingTable.tableOffset)
+- populateKernelDescriptor() in kernel_descriptor_from_patchtokens.cpp copies data from src.tokens to kernel.kernelDescriptor
+ */
+int Context::createSurfaceStateHeap() {
+    BINDING_TABLE_STATE bti = {0};
+
+}
+
+int Context::createDynamicStateHeap() {
+    INTERFACE_DESCRIPTOR_DATA interfaceDescriptor = {0};
+    interfaceDescriptor.KernelStartPointerHigh = kernelStartOffset >> 32;
+    interfaceDescriptor.KernelStartPointer = (uint32_t)kernelStartOffset >> 0x6;
+    interfaceDescriptor.DenormMode = 0x1;
+    interfaceDescriptor.SamplerStatePointer = static_cast<uint32_t>(offsetSamplerState) >> 0x5;
+    interfaceDescriptor.BindingTablePointer = static_cast<uint32_t>(bindingTablePointer) >> 0x5;
+    interfaceDescriptor.SharedLocalMemorySize = programmableIDSLMSize;
+    interfaceDescriptor.NumberOfThreadsInGpgpuThreadGroup = threadsPerThreadGroup;
+    interfaceDescriptor.CrossThreadConstantDataReadLength = numGrfCrossThreadData;
+    interfaceDescriptor.ConstantIndirectUrbEntryReadLength = numGrfPerThreadData;
+    interfaceDescriptor.BarrierEnable = barrierCount;       // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.barrierCount
+}
+
+int Context::createGpgpuWalker() {
+    GPGPU_WALKER walkerCmd = {0};
+    walkerCmd
 }
 
 int EnqueueNDRangeKernel(GPU* gpuInfo) {
@@ -278,6 +315,7 @@ int EnqueueNDRangeKernel(GPU* gpuInfo) {
     ret = context->createIndirectObjectHeap();
     ret = context->createDynamicStateHeap();
     ret = context->createSurfaceStateHeap();
+    ret = context->createGpgpuWalker();
     return SUCCESS;
 }
 

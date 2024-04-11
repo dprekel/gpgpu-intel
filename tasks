@@ -70,6 +70,16 @@ clEnqueueNDRangeKernel:
     - SAMPLER_BORDER_COLOR_STATE
 
 
+dispatchWalker()  hardware_interface_base.inl   (otain indirect heaps, align dsh, Kernel Tuning, dispatch Kernel commands, flush caches)
+    |
+    v
+dispatchKernelCommands()  hardware_interface_base.inl   (workgroup offsets, programWalker)
+    |
+    v
+programWalker()  hardware_interface_bdw_and_later.inl   (sendIndirectState + setGpgpuWalkerThreadData)
+    |
+    v
+sendIndirectState()  hardware_commands_helper_base.inl  (fill dsh, ioh, ssh)
 
 
 
