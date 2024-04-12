@@ -282,6 +282,7 @@ data needed:- ssh pointer
             - kernel.numberOfBindingTableStates (from kernel.kernelInfo.kernelDescriptor.payloadMappings.bindingTable.numEntries)
             - kernel.localBindingTableOffset (from kernel.kernelDescriptor.payloadMappings.bindingTable.tableOffset)
 - populateKernelDescriptor() in kernel_descriptor_from_patchtokens.cpp copies data from src.tokens to kernel.kernelDescriptor
+- IMPORTANT: file patchtokens_decoder.cpp
  */
 int Context::createSurfaceStateHeap() {
     BINDING_TABLE_STATE bti = {0};

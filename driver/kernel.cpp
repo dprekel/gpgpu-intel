@@ -296,16 +296,28 @@ int Kernel::build() {
         printf("%s\n", igcBuildLogMem);
     }
     IgcBuffer* igcBuildOutput = igcOutput->GetOutputImpl(1);
-    const char* igcBuildOutputMem = reinterpret_cast<const char*>(igcBuildOutput->GetMemoryRaw());
-    if (igcBuildOutputMem) {
-        printf("%s\n", igcBuildOutputMem);
+    deviceBinary = reinterpret_cast<const char*>(igcBuildOutput->GetMemoryRaw());
+    if (deviceBinary) {
+        printf("%s\n", deviceBinary);
     }
 
     return 0;
 }
 
-int Kernel::createKernelAllocation() {
-    
+void* Kernel::ptrOffset(void* ptrBefore, size_t offset) {
+    uintptr_t addrAfter = (uintptr_t)ptrBefore + offset;
+    return (void*)addrAfter;
+}
+
+int Kernel::extractMetadata() {
+    ProgramBinaryHeader* header = reinterpret_cast<ProgramBinaryHeader*>(deviceBinary);
+    if (header->Magic != 0x494E5443) {
+        printf("Binary header is wrong!\n");
+        return -1;
+    }
+    decodePos = ptrOffset(decodePos, sizeof(ProgramBinaryHeader));
+    //patchListBlob = 
+
 }
 
 int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options) {
@@ -318,7 +330,7 @@ int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options) {
         return -1;
     }
     err = kernel->build();
-    kernel->createKernelAllocation();
+    kernel->extractMetadata();
     return err;
 }
 
