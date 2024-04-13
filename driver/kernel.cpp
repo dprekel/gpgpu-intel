@@ -304,20 +304,32 @@ int Kernel::build() {
     return 0;
 }
 
-void* Kernel::ptrOffset(void* ptrBefore, size_t offset) {
+const void* Kernel::ptrOffset(const void* ptrBefore, size_t offset) {
     uintptr_t addrAfter = (uintptr_t)ptrBefore + offset;
-    return (void*)addrAfter;
+    return (const void*)addrAfter;
 }
 
 int Kernel::extractMetadata() {
-    ProgramBinaryHeader* header = reinterpret_cast<ProgramBinaryHeader*>(deviceBinary);
+    const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary);
     if (header->Magic != 0x494E5443) {
         printf("Binary header is wrong!\n");
         return -1;
     }
-    decodePos = ptrOffset(decodePos, sizeof(ProgramBinaryHeader));
-    //patchListBlob = 
+    //printf("header Magic: %p\n", header->Magic);
+    //printf("header NumberOfkernels: %u\n", header->NumberOfKernels);
+    header = reinterpret_cast<const char*>(binHeader);
+    patchListBlob = header + sizeof(ProgramBinaryHeader);
+    kernelInfoBlob = patchListBlob + binHeader->PatchListSize;
 
+    kernelData = new KernelFromPatchtokens();
+    kernelData->header = reinterpret_cast<const KernelBinaryHeader*>(kernelInfoBlob);
+    kernelData->kernelInfo = kernelInfoBlob;
+    kernelData->name = header + sizeof(KernelBinaryHeader);
+    kernelData->isa = kernelData->name + kernelData->header->KernelNameSize;
+    kernelData->generalState = kernelData->isa + kernelData->header->KernelHeapSize;
+    kernelData->dynamicState = kernelData->generalState + kernelData->header->GeneralStateHeapSize;
+    kernelData->surfaceState = kernelData->dynamicState + kernelData->header->DynamicStateHeapSize;
+    kernelData->patchList = kernelData->surfaceState + kernelData->header->SurfaceStateHeapSize;
 }
 
 int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options) {

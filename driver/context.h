@@ -28,11 +28,13 @@ class Context {
     BufferObject* allocUserptr(int fd, uintptr_t alloc, size_t size, uint32_t flags);
     void enqueueBufferObject(BufferObject* bo);
     void setNonPersistentContext();
+    /*
     void generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16_t threadsPerWorkGroup, uint8_t* dimensionsOrder, uint32_t simdSize) {
     int createPreemptionAllocation();
     int createDynamicStateHeap();
     int createIndirectObjectHeap();
     int createSurfaceStateHeap();
+    */
   private:
     GPU* gpuInfo;
     std::vector<BufferObject*> execBuffer;

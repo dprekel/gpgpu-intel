@@ -152,11 +152,12 @@ int CreateContext(GPU* gpuInfo) {
     return SUCCESS;
 }
 
+/*
 int Context::createPreemptionAllocation() {
     return SUCCESS;
 }
 
-void* ptrOffset(void* ptrBefore, size_t offset) {
+void* Context::ptrOffset(void* ptrBefore, size_t offset) {
     uintptr_t addrAfter = (uintptr_t)ptrBefore + offset;
     return (void*)addrAfter;
 }
@@ -274,7 +275,7 @@ int Context::createIndirectObjectHeap() {
     return SUCCESS;
 }
 
-/*
+
 data needed:- ssh pointer
             - kernel.kernelInfo.kernelDescriptor.payloadMappings.bindingTable.numEntries
             - kernel.pSshLocal
@@ -283,7 +284,7 @@ data needed:- ssh pointer
             - kernel.localBindingTableOffset (from kernel.kernelDescriptor.payloadMappings.bindingTable.tableOffset)
 - populateKernelDescriptor() in kernel_descriptor_from_patchtokens.cpp copies data from src.tokens to kernel.kernelDescriptor
 - IMPORTANT: file patchtokens_decoder.cpp
- */
+
 int Context::createSurfaceStateHeap() {
     BINDING_TABLE_STATE bti = {0};
 
@@ -305,7 +306,7 @@ int Context::createDynamicStateHeap() {
 
 int Context::createGpgpuWalker() {
     GPGPU_WALKER walkerCmd = {0};
-    walkerCmd
+    //walkerCmd
 }
 
 int EnqueueNDRangeKernel(GPU* gpuInfo) {
@@ -320,7 +321,7 @@ int EnqueueNDRangeKernel(GPU* gpuInfo) {
     return SUCCESS;
 }
 
-
+*/
 
 
 

@@ -14,6 +14,29 @@ struct ProgramBinaryHeader {
     uint32_t PatchListSize;
 };
 
+struct KernelBinaryHeader {
+    uint32_t CheckSum;
+    uint64_t ShaderHashCode;
+    uint32_t KernelNameSize;
+    uint32_t PatchListSize;
+    uint32_t KernelHeapSize;
+    uint32_t GeneralStateHeapSize;
+    uint32_t DynamicStateHeapSize;
+    uint32_t SurfaceStateHeapSize;
+    uint32_t KernelUnpaddedSize;
+};
+
+struct KernelFromPatchtokens {
+    const KernelBinaryHeader* header;
+    const uint8_t* isa;
+    const uint8_t* generalState;
+    const uint8_t* dynamicState;
+    const uint8_t* surfaceState;
+    const uint8_t* kernelInfo;
+    const uint8_t* patchList;
+};
+
+
 class Kernel {
   public:
     Kernel(GPU* gpuInfo, const char* filename, const char* options);
@@ -28,7 +51,8 @@ class Kernel {
     void TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable);
     IgcOclTranslationCtx* createIgcTranslationCtx();
     int build();
-    int createMetadata();
+    const void* ptrOffset(const void* ptrBefore, size_t offset);
+    int extractMetadata();
   private:
     GPU* gpuInfo;
     const char* filename;
@@ -46,4 +70,13 @@ class Kernel {
     uint64_t outType;
 
     const char* deviceBinary;
+    const char* header;
+    const char* patchListBlob;
+    const char* kernelInfoBlob;
+    KernelFromPatchtokens* kernelData;
 };
+
+
+
+
+
