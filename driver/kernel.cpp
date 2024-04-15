@@ -243,15 +243,18 @@ IgcOclTranslationCtx* Kernel::createIgcTranslationCtx() {
 int Kernel::build() {
     int retFcl = loadCompiler(fclName, &fclMain);
     int retIgc = loadCompiler(igcName, &igcMain);
-    if (retFcl || retIgc) {
-        return -1;
+    if (retFcl) {
+        return retFcl;
+    }
+    if (retIgc) {
+        return retIgc;
     }
 
     IgcBuffer* src = CreateIgcBuffer(igcMain, srcCode, srcSize+1);
     IgcBuffer* buildOptions = CreateIgcBuffer(igcMain, options, optionsSize+1);
     printf("options: %s\n", options);
 
-    const char* internal_options = "-ocl-version=300 -cl-intel-has-buffer-offset-arg -D__IMAGE_SUPPORT__=1 -fpreserve-vec3-type  -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_fp16,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_icd,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_intel_command_queue_families,+cl_intel_subgroups,+cl_intel_required_subgroup_size,+cl_intel_subgroups_short,+cl_khr_spir,+cl_intel_accelerator,+cl_intel_driver_diagnostics,+cl_khr_priority_hints,+cl_khr_throttle_hints,+cl_khr_create_command_queue,+cl_intel_subgroups_char,+cl_intel_subgroups_long,+cl_khr_il_program,+cl_intel_mem_force_host_memory,+cl_khr_subgroup_extended_types,+cl_khr_subgroup_non_uniform_vote,+cl_khr_subgroup_ballot,+cl_khr_subgroup_non_uniform_arithmetic,+cl_khr_subgroup_shuffle,+cl_khr_subgroup_shuffle_relative,+cl_khr_subgroup_clustered_reduce,+cl_intel_device_attribute_query,+cl_khr_suggested_local_work_size,+cl_khr_fp64,+cl_khr_subgroups,+cl_intel_spirv_device_side_avc_motion_estimation,+cl_intel_spirv_media_block_io,+cl_intel_spirv_subgroups,+cl_khr_spirv_no_integer_wrap_decoration,+cl_intel_unified_shared_memory_preview,+cl_khr_mipmap_image,+cl_khr_mipmap_image_writes,+cl_intel_planar_yuv,+cl_intel_packed_yuv,+cl_intel_motion_estimation,+cl_intel_device_side_avc_motion_estimation,+cl_intel_advanced_motion_estimation,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_khr_image2d_from_buffer,+cl_khr_depth_images,+cl_khr_3d_image_writes,+cl_intel_media_block_io,+cl_intel_va_api_media_sharing,+cl_intel_sharing_format_query,+cl_khr_pci_bus_info";
+    const char* internal_options = "-ocl-version=300 -cl-disable-zebin -cl-intel-has-buffer-offset-arg -D__IMAGE_SUPPORT__=1 -fpreserve-vec3-type -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_fp16,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_icd,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_intel_command_queue_families,+cl_intel_subgroups,+cl_intel_required_subgroup_size,+cl_intel_subgroups_short,+cl_khr_spir,+cl_intel_accelerator,+cl_intel_driver_diagnostics,+cl_khr_priority_hints,+cl_khr_throttle_hints,+cl_khr_create_command_queue,+cl_intel_subgroups_char,+cl_intel_subgroups_long,+cl_khr_il_program,+cl_intel_mem_force_host_memory,+cl_khr_subgroup_extended_types,+cl_khr_subgroup_non_uniform_vote,+cl_khr_subgroup_ballot,+cl_khr_subgroup_non_uniform_arithmetic,+cl_khr_subgroup_shuffle,+cl_khr_subgroup_shuffle_relative,+cl_khr_subgroup_clustered_reduce,+cl_intel_device_attribute_query,+cl_khr_suggested_local_work_size,+cl_khr_fp64,+cl_khr_subgroups,+cl_intel_spirv_device_side_avc_motion_estimation,+cl_intel_spirv_media_block_io,+cl_intel_spirv_subgroups,+cl_khr_spirv_no_integer_wrap_decoration,+cl_intel_unified_shared_memory_preview,+cl_khr_mipmap_image,+cl_khr_mipmap_image_writes,+cl_intel_planar_yuv,+cl_intel_packed_yuv,+cl_intel_motion_estimation,+cl_intel_device_side_avc_motion_estimation,+cl_intel_advanced_motion_estimation,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_khr_image2d_from_buffer,+cl_khr_depth_images,+cl_khr_3d_image_writes,+cl_intel_media_block_io,+cl_intel_va_api_media_sharing,+cl_intel_sharing_format_query,+cl_khr_pci_bus_info";
     size_t internalOptionsSize = strlen(internal_options)+1;
     IgcBuffer* internalOptions = CreateIgcBuffer(igcMain, internal_options, internalOptionsSize);
     printf("internalOptionsSize: %lu\n", internalOptionsSize);
@@ -304,32 +307,55 @@ int Kernel::build() {
     return 0;
 }
 
-const void* Kernel::ptrOffset(const void* ptrBefore, size_t offset) {
-    uintptr_t addrAfter = (uintptr_t)ptrBefore + offset;
-    return (const void*)addrAfter;
+bool decodeToken(PatchItemHeader* token, KernelFromPatchtokens* kernelData) {
+    switch (token->Token) {
+    case PATCH_TOKEN_SAMPLER_STATE_ARRAY:
+        break;
+    case PATCH_TOKEN_BINDING_TABLE_STATE:
+        break;
+    case PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD:
+        break;
+    case PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA:
+        break;
+    }
 }
 
 int Kernel::extractMetadata() {
     const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary);
-    if (header->Magic != 0x494E5443) {
+    if (binHeader->Magic != 0x494E5443) {
         printf("Binary header is wrong!\n");
         return -1;
     }
-    //printf("header Magic: %p\n", header->Magic);
-    //printf("header NumberOfkernels: %u\n", header->NumberOfKernels);
-    header = reinterpret_cast<const char*>(binHeader);
+    //printf("header Magic: %p\n", (void*)(binHeader->Magic));
+    //printf("header NumberOfkernels: %u\n", binHeader->NumberOfKernels);
+    header = reinterpret_cast<const uint8_t*>(binHeader);
     patchListBlob = header + sizeof(ProgramBinaryHeader);
     kernelInfoBlob = patchListBlob + binHeader->PatchListSize;
-
+    
     kernelData = new KernelFromPatchtokens();
     kernelData->header = reinterpret_cast<const KernelBinaryHeader*>(kernelInfoBlob);
+    //printf("header.Checksum: %u\n", kernelData->header->CheckSum);
+    //printf("header.ShaderHashCode: %lu\n", kernelData->header->ShaderHashCode);
+    //printf("header.KernelNameSize: %u\n", kernelData->header->KernelNameSize);
+    //printf("header.PatchListSize: %u\n", kernelData->header->PatchListSize);
+    //printf("header.KernelHeapSize: %u\n", kernelData->header->KernelHeapSize);
     kernelData->kernelInfo = kernelInfoBlob;
-    kernelData->name = header + sizeof(KernelBinaryHeader);
+    kernelData->name = kernelInfoBlob + sizeof(KernelBinaryHeader);
+    //printf("kernel name: %s\n", *(kernelData->name));
     kernelData->isa = kernelData->name + kernelData->header->KernelNameSize;
     kernelData->generalState = kernelData->isa + kernelData->header->KernelHeapSize;
     kernelData->dynamicState = kernelData->generalState + kernelData->header->GeneralStateHeapSize;
     kernelData->surfaceState = kernelData->dynamicState + kernelData->header->DynamicStateHeapSize;
     kernelData->patchList = kernelData->surfaceState + kernelData->header->SurfaceStateHeapSize;
+    kernelData->patchListEnd = kernelData->patchList + kernelData->header->PatchListSize;
+    const uint8_t* decodePos = kernelData->patchList;
+    bool decodeSuccess = true;
+    while ((kernelData->patchListEnd - decodePos) > sizeof(PatchItemHeader) && decodeSuccess) {
+        PatchItemHeader* token = reinterpret_cast<const PatchItemHeader*>(decodePos);
+        decodeSuccess = decodeToken(token, kernelData);
+        decodePos = decodePos + token->Size;
+    }
+    return 0;
 }
 
 int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options) {
@@ -339,10 +365,13 @@ int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options) {
     gpuInfo->kernel = static_cast<void*>(kernel);
     err = kernel->loadProgramSource();
     if (err) {
-        return -1;
+        return err;
     }
     err = kernel->build();
-    kernel->extractMetadata();
+    if (err) {
+        return err;
+    }
+    err = kernel->extractMetadata();
     return err;
 }
 

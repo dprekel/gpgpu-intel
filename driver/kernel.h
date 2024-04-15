@@ -4,6 +4,15 @@
 #include "hwinfo.h"
 #include "gpgpu.h"
 
+#pragma pack( push, 1 )
+
+enum PATCH_TOKEN {
+    PATCH_TOKEN_SAMPLER_STATE_ARRAY,
+    PATCH_TOKEN_BINDING_TABLE_STATE,
+    PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD,
+    PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA
+};
+
 struct ProgramBinaryHeader {
     uint32_t Magic;
     uint32_t Version;
@@ -26,16 +35,27 @@ struct KernelBinaryHeader {
     uint32_t KernelUnpaddedSize;
 };
 
+struct PatchItemHeader {
+    uint32_t Token;
+    uint32_t Size;
+};
+
 struct KernelFromPatchtokens {
     const KernelBinaryHeader* header;
+    const uint8_t* name;
     const uint8_t* isa;
     const uint8_t* generalState;
     const uint8_t* dynamicState;
     const uint8_t* surfaceState;
     const uint8_t* kernelInfo;
     const uint8_t* patchList;
+    const PatchSamplerStateArray* samplerStateArray;
+    const PatchBindingTableState* bindingTableState;
+    const PatchMediaInterfaceDescriptorLoad* mediaInterfaceDescriptorLoad;
+    const PatchInterfaceDescriptorData* interfaceDescriptorData;
 };
 
+#pragma pack ( pop )
 
 class Kernel {
   public:
@@ -70,9 +90,9 @@ class Kernel {
     uint64_t outType;
 
     const char* deviceBinary;
-    const char* header;
-    const char* patchListBlob;
-    const char* kernelInfoBlob;
+    const uint8_t* header;
+    const uint8_t* patchListBlob;
+    const uint8_t* kernelInfoBlob;
     KernelFromPatchtokens* kernelData;
 };
 
