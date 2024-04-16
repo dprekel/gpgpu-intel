@@ -307,15 +307,24 @@ int Kernel::build() {
     return 0;
 }
 
-bool decodeToken(PatchItemHeader* token, KernelFromPatchtokens* kernelData) {
+void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData) {
     switch (token->Token) {
     case PATCH_TOKEN_SAMPLER_STATE_ARRAY:
+        kernelData->samplerStateArray = reinterpret_cast<const PatchSamplerStateArray*>(token);
         break;
     case PATCH_TOKEN_BINDING_TABLE_STATE:
+        kernelData->bindingTableState = reinterpret_cast<const PatchBindingTableState*>(token);
         break;
     case PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD:
+        kernelData->mediaInterfaceDescriptorLoad = reinterpret_cast<const PatchMediaInterfaceDescriptorLoad*>(token);
         break;
     case PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA:
+        kernelData->interfaceDescriptorData = reinterpret_cast<const PatchInterfaceDescriptorData*>(token);
+        break;
+    case PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO:
+        kernelData->kernelAttributesInfo = reinterpret_cast<const PatchKernelAttributesInfo*>(token);
+        break;
+    default:
         break;
     }
 }
@@ -349,16 +358,19 @@ int Kernel::extractMetadata() {
     kernelData->patchList = kernelData->surfaceState + kernelData->header->SurfaceStateHeapSize;
     kernelData->patchListEnd = kernelData->patchList + kernelData->header->PatchListSize;
     const uint8_t* decodePos = kernelData->patchList;
-    bool decodeSuccess = true;
-    while ((kernelData->patchListEnd - decodePos) > sizeof(PatchItemHeader) && decodeSuccess) {
-        PatchItemHeader* token = reinterpret_cast<const PatchItemHeader*>(decodePos);
-        decodeSuccess = decodeToken(token, kernelData);
+    while (static_cast<uint64_t>(kernelData->patchListEnd - decodePos) > sizeof(PatchItemHeader)) {
+        const PatchItemHeader* token = reinterpret_cast<const PatchItemHeader*>(decodePos);
+        decodeToken(token, kernelData);
         decodePos = decodePos + token->Size;
     }
+    if (kernelData->bindingTableState == nullptr) {
+        return -1;
+    }
+    printf("bindingTableState->Count = %u\n", kernelData->bindingTableState->Count);
     return 0;
 }
 
-int gpBuildKernel(GPU* gpuInfo, const char* filename, const char* options) {
+int BuildKernel(GPU* gpuInfo, const char* filename, const char* options) {
     int err;
     
     Kernel* kernel = new Kernel(gpuInfo, filename, options);

@@ -35,6 +35,7 @@ class Context {
     int createIndirectObjectHeap();
     int createSurfaceStateHeap();
     */
+    int createCommandBuffer();
   private:
     GPU* gpuInfo;
     std::vector<BufferObject*> execBuffer;

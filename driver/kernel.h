@@ -7,10 +7,11 @@
 #pragma pack( push, 1 )
 
 enum PATCH_TOKEN {
-    PATCH_TOKEN_SAMPLER_STATE_ARRAY,
-    PATCH_TOKEN_BINDING_TABLE_STATE,
-    PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD,
-    PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA
+    PATCH_TOKEN_SAMPLER_STATE_ARRAY = 5,
+    PATCH_TOKEN_BINDING_TABLE_STATE = 8,
+    PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD = 19,
+    PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA = 21,
+    PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO = 27
 };
 
 struct ProgramBinaryHeader {
@@ -40,6 +41,33 @@ struct PatchItemHeader {
     uint32_t Size;
 };
 
+struct PatchSamplerStateArray : PatchItemHeader {
+    uint32_t Offset;
+    uint32_t Count;
+    uint32_t BorderColorOffset;
+};
+
+struct PatchBindingTableState : PatchItemHeader {
+    uint32_t Offset;
+    uint32_t Count;
+    uint32_t SurfaceStateOffset;
+};
+
+struct PatchMediaInterfaceDescriptorLoad : PatchItemHeader {
+    uint32_t InterfaceDescriptorDataOffset;
+};
+
+struct PatchInterfaceDescriptorData : PatchItemHeader {
+    uint32_t Offset;
+    uint32_t SamplerStateOffset;
+    uint32_t KernelOffset;
+    uint32_t BindingTableOffset;
+};
+
+struct PatchKernelAttributesInfo : PatchItemHeader {
+    uint32_t AttributesSize;
+};
+
 struct KernelFromPatchtokens {
     const KernelBinaryHeader* header;
     const uint8_t* name;
@@ -49,10 +77,12 @@ struct KernelFromPatchtokens {
     const uint8_t* surfaceState;
     const uint8_t* kernelInfo;
     const uint8_t* patchList;
-    const PatchSamplerStateArray* samplerStateArray;
-    const PatchBindingTableState* bindingTableState;
-    const PatchMediaInterfaceDescriptorLoad* mediaInterfaceDescriptorLoad;
-    const PatchInterfaceDescriptorData* interfaceDescriptorData;
+    const uint8_t* patchListEnd;
+    const PatchSamplerStateArray* samplerStateArray = nullptr;
+    const PatchBindingTableState* bindingTableState = nullptr;
+    const PatchMediaInterfaceDescriptorLoad* mediaInterfaceDescriptorLoad = nullptr;
+    const PatchInterfaceDescriptorData* interfaceDescriptorData = nullptr;
+    const PatchKernelAttributesInfo* kernelAttributesInfo = nullptr;
 };
 
 #pragma pack ( pop )
@@ -72,6 +102,7 @@ class Kernel {
     IgcOclTranslationCtx* createIgcTranslationCtx();
     int build();
     const void* ptrOffset(const void* ptrBefore, size_t offset);
+    void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     int extractMetadata();
   private:
     GPU* gpuInfo;

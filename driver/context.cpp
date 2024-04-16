@@ -85,7 +85,6 @@ int Context::emitPinningRequest(BufferObject* bo) {
 
 void* CreateBuffer(GPU* gpuInfo, size_t size) {
     void* alloc;
-    int ret;
 
     Context* context = static_cast<Context*>(gpuInfo->context);
     alloc = context->alignedMalloc(size);
@@ -303,25 +302,36 @@ int Context::createDynamicStateHeap() {
     interfaceDescriptor.ConstantIndirectUrbEntryReadLength = numGrfPerThreadData;
     interfaceDescriptor.BarrierEnable = barrierCount;       // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.barrierCount
 }
+*/
 
-int Context::createGpgpuWalker() {
-    GPGPU_WALKER walkerCmd = {0};
+int Context::createCommandBuffer() {
+    alloc = alignedMalloc(size);
+    if (!alloc) {
+        return -1;
+    }
+    BufferObject* bo = allocUserptr(gpuInfo->fd, reinterpret_cast<uintptr_t>(alloc), size, 0);
+    if (!bo) {
+        return -1;
+    }
+    *pCmd = MEDIA_STATE_FLUSH;
+
+    //GPGPU_WALKER walkerCmd = {0};
     //walkerCmd
+    return 0;
 }
 
 int EnqueueNDRangeKernel(GPU* gpuInfo) {
     int ret;
 
     Context* context = static_cast<Context*>(gpuInfo->context);
-    ret = context->createPreemptionAllocation();
-    ret = context->createIndirectObjectHeap();
-    ret = context->createDynamicStateHeap();
-    ret = context->createSurfaceStateHeap();
-    ret = context->createGpgpuWalker();
+    //ret = context->createPreemptionAllocation();
+    //ret = context->createIndirectObjectHeap();
+    //ret = context->createDynamicStateHeap();
+    //ret = context->createSurfaceStateHeap();
+    ret = context->createCommandBuffer();
     return SUCCESS;
 }
 
-*/
 
 
 

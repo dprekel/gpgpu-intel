@@ -2,6 +2,30 @@
 
 #define BITFIELD_RANGE(startbit, endbit) ((endbit) - (startbit) + 1)
 
+struct MEDIA_STATE_FLUSH {
+    uint32_t DwordLength : BITFIELD_RANGE(0, 15);
+    uint32_t Subopcode : BITFIELD_RANGE(16, 23);
+    uint32_t MediaCommandOpcode : BITFIELD_RANGE(24, 26);
+    uint32_t Pipeline : BITFIELD_RANGE(27, 28);
+    uint32_t CommandType : BITFIELD_RANGE(29, 31);
+    uint32_t InterfaceDescriptorOffset : BITFIELD_RANGE(0, 5);
+    uint32_t WatermarkRequired : BITFIELD_RANGE(6, 6);
+    uint32_t FlushToGo : BITFIELD_RANGE(7, 7);
+    uint32_t Reserved_40 : BITFIELD_RANGE(8, 31);
+};
+
+struct MEDIA_INTERFACE_DESCRIPTOR_LOAD {
+    uint32_t DwordLength : BITFIELD_RANGE(0, 15);
+    uint32_t Subopcode : BITFIELD_RANGE(16, 23);
+    uint32_t MediaCommandOpcode : BITFIELD_RANGE(24, 26);
+    uint32_t Pipeline : BITFIELD_RANGE(27, 28);
+    uint32_t CommandType : BITFIELD_RANGE(29, 31);
+    uint32_t Reserved_32;
+    uint32_t InterfaceDescriptorTotalLength : BITFIELD_RANGE(0, 16);
+    uint32_t Reserved_81 : BITFIELD_RANGE(17, 31);
+    uint32_t InterfaceDescriptorDataStartAddress;
+};
+
 struct INTERFACE_DESCRIPTOR_DATA {
     uint32_t Reserved_0 : BITFIELD_RANGE(0, 5);
     uint32_t KernelStartPointer : BITFIELD_RANGE(6, 31);
