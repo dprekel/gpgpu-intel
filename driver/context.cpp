@@ -17,8 +17,8 @@ Context::Context(GPU* gpuInfo)
 
 Context::~Context() {}
 
-void* Context::alignedMalloc(size_t size) {
-    size_t alignment = 4096;  // page size
+BufferObject* Context::allocateBufferObject(size_t size, uint32_t flags) {
+    size_t alignment = 4096;    // aligned to page size
     size_t sizeToAlloc = size + alignment;
     void* pOriginalMemory = malloc(sizeToAlloc);
 
@@ -28,31 +28,25 @@ void* Context::alignedMalloc(size_t size) {
         pAlignedMemory -= pAlignedMemory % alignment;
         reinterpret_cast<void**>(pAlignedMemory)[-1] = pOriginalMemory;
     }
-    return reinterpret_cast<void*>(pAlignedMemory);
-}
-
-BufferObject* Context::allocUserptr(int fd, uintptr_t alloc, size_t size, uint32_t flags) {
-    int ret;
-    drm_i915_gem_userptr userptr = {};  
-
-    userptr.user_ptr = alloc;
+    else {
+        return nullptr;
+    }
+    drm_i915_gem_userptr userptr = {};
+    userptr.user_ptr = pAlignedMemory;
     userptr.user_size = size;
     userptr.flags = flags;
 
-    ret = ioctl(fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr);
+    int ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr);
     if (ret) {
         return nullptr;
     }
+    // add aligned free here
     BufferObject* bo = new BufferObject();
-    bo->bufferType = BufferType::BUFFER_HOST_MEMORY;
-    bo->alloc = reinterpret_cast<void*>(alloc);
+    bo->alloc = reinterpret_cast<void*>(pAlignedMemory);
     bo->size = size;
     bo->handle = userptr.handle;
-    return bo;
-}
-
-void Context::enqueueBufferObject(BufferObject* bo) {
     execBuffer.push_back(bo);
+    return bo;
 }
 
 /*
@@ -84,27 +78,17 @@ int Context::emitPinningRequest(BufferObject* bo) {
 */
 
 void* CreateBuffer(GPU* gpuInfo, size_t size) {
-    void* alloc;
-
     Context* context = static_cast<Context*>(gpuInfo->context);
-    alloc = context->alignedMalloc(size);
-    if (!alloc) {
-        printf("Malloc not successful!\n");
-        return nullptr;
-    }
 
-    BufferObject* bo = context->allocUserptr(gpuInfo->fd, reinterpret_cast<uintptr_t>(alloc), size, 0);
-    if (!bo) {
-        printf("Userptr not successful!\n");
+    BufferObject* dataBuffer = context->allocateBufferObject(size, 0);
+    if (!dataBuffer) {
         return nullptr;
     }
-    // aligned free is needed here
+    dataBuffer->bufferType = BufferType::BUFFER_HOST_MEMORY;
     
-    bo->bufferType = BufferType::BUFFER_HOST_MEMORY;
-    context->enqueueBufferObject(bo);
     //context->emitPinningRequest(bo);
 
-    return alloc;
+    return dataBuffer->alloc;
 }
 
 int Context::createDrmContext() {
@@ -305,15 +289,22 @@ int Context::createDynamicStateHeap() {
 */
 
 int Context::createCommandBuffer() {
-    alloc = alignedMalloc(size);
-    if (!alloc) {
+    BufferObject* commandBuffer = allocateBufferObject(65536, 0);
+    if (!commandBuffer) {
         return -1;
     }
-    BufferObject* bo = allocUserptr(gpuInfo->fd, reinterpret_cast<uintptr_t>(alloc), size, 0);
-    if (!bo) {
-        return -1;
-    }
-    *pCmd = MEDIA_STATE_FLUSH;
+    commandBuffer->bufferType = BufferType::COMMAND_BUFFER;
+
+    auto pCmd1 = reinterpret_cast<MEDIA_STATE_FLUSH*>(commandBuffer->alloc);
+    *pCmd1 = MEDIA_STATE_FLUSH::init();
+    pCmd1 = pCmd1 + sizeof(MEDIA_STATE_FLUSH);
+    //printf("MEDIA_STATE_FLUSH: %lu\n", sizeof(MEDIA_STATE_FLUSH));
+
+    auto pCmd2 = reinterpret_cast<MEDIA_INTERFACE_DESCRIPTOR_LOAD*>(pCmd1);
+    *pCmd2 = MEDIA_INTERFACE_DESCRIPTOR_LOAD::init();
+    //*pCmd.Bitfield.InterfaceDescriptorDataStartAddress = ;
+    pCmd2->Bitfield.InterfaceDescriptorTotalLength = sizeof(INTERFACE_DESCRIPTOR_DATA);
+    pCmd2 = pCmd2 + sizeof(MEDIA_INTERFACE_DESCRIPTOR_LOAD);
 
     //GPGPU_WALKER walkerCmd = {0};
     //walkerCmd

@@ -24,9 +24,7 @@ class Context {
     Context(GPU* gpuInfo);
     ~Context();
     int createDrmContext();
-    void* alignedMalloc(size_t size);
-    BufferObject* allocUserptr(int fd, uintptr_t alloc, size_t size, uint32_t flags);
-    void enqueueBufferObject(BufferObject* bo);
+    BufferObject* allocateBufferObject(size_t size, uint32_t flags);
     void setNonPersistentContext();
     /*
     void generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16_t threadsPerWorkGroup, uint8_t* dimensionsOrder, uint32_t simdSize) {

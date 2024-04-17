@@ -1,29 +1,72 @@
 #pragma once
 
+#include <string.h>
+
 #define BITFIELD_RANGE(startbit, endbit) ((endbit) - (startbit) + 1)
 
+#pragma pack(1)
 struct MEDIA_STATE_FLUSH {
-    uint32_t DwordLength : BITFIELD_RANGE(0, 15);
-    uint32_t Subopcode : BITFIELD_RANGE(16, 23);
-    uint32_t MediaCommandOpcode : BITFIELD_RANGE(24, 26);
-    uint32_t Pipeline : BITFIELD_RANGE(27, 28);
-    uint32_t CommandType : BITFIELD_RANGE(29, 31);
-    uint32_t InterfaceDescriptorOffset : BITFIELD_RANGE(0, 5);
-    uint32_t WatermarkRequired : BITFIELD_RANGE(6, 6);
-    uint32_t FlushToGo : BITFIELD_RANGE(7, 7);
-    uint32_t Reserved_40 : BITFIELD_RANGE(8, 31);
+    struct TheStructure {
+        uint32_t DwordLength : BITFIELD_RANGE(0, 15);
+        uint32_t Subopcode : BITFIELD_RANGE(16, 23);
+        uint32_t MediaCommandOpcode : BITFIELD_RANGE(24, 26);
+        uint32_t Pipeline : BITFIELD_RANGE(27, 28);
+        uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        uint32_t InterfaceDescriptorOffset : BITFIELD_RANGE(0, 5);
+        uint32_t WatermarkRequired : BITFIELD_RANGE(6, 6);
+        uint32_t FlushToGo : BITFIELD_RANGE(7, 7);
+        uint32_t Reserved_40 : BITFIELD_RANGE(8, 31);
+    } Bitfield;
+    enum Codes {
+        DWORD_LENGTH_DWORD_COUNT_N = 0x0,
+        SUBOPCODE_MEDIA_STATE_FLUSH_SUBOP = 0x4,
+        MEDIA_COMMAND_OPCODE_MEDIA_STATE_FLUSH = 0x0,
+        PIPELINE_MEDIA = 0x2,
+        COMMAND_TYPE_GFXPIPE = 0x3
+    };
+    static MEDIA_STATE_FLUSH init() {
+        MEDIA_STATE_FLUSH state;
+        memset(&state, 0, sizeof(state));
+        state.Bitfield.DwordLength = DWORD_LENGTH_DWORD_COUNT_N;
+        state.Bitfield.Subopcode = SUBOPCODE_MEDIA_STATE_FLUSH_SUBOP;
+        state.Bitfield.MediaCommandOpcode = MEDIA_COMMAND_OPCODE_MEDIA_STATE_FLUSH;
+        state.Bitfield.Pipeline = PIPELINE_MEDIA;
+        state.Bitfield.CommandType = COMMAND_TYPE_GFXPIPE;
+        return state;
+    }
 };
 
 struct MEDIA_INTERFACE_DESCRIPTOR_LOAD {
-    uint32_t DwordLength : BITFIELD_RANGE(0, 15);
-    uint32_t Subopcode : BITFIELD_RANGE(16, 23);
-    uint32_t MediaCommandOpcode : BITFIELD_RANGE(24, 26);
-    uint32_t Pipeline : BITFIELD_RANGE(27, 28);
-    uint32_t CommandType : BITFIELD_RANGE(29, 31);
-    uint32_t Reserved_32;
-    uint32_t InterfaceDescriptorTotalLength : BITFIELD_RANGE(0, 16);
-    uint32_t Reserved_81 : BITFIELD_RANGE(17, 31);
-    uint32_t InterfaceDescriptorDataStartAddress;
+    struct TheStructure {
+        uint32_t DwordLength : BITFIELD_RANGE(0, 15);
+        uint32_t Subopcode : BITFIELD_RANGE(16, 23);
+        uint32_t MediaCommandOpcode : BITFIELD_RANGE(24, 26);
+        uint32_t Pipeline : BITFIELD_RANGE(27, 28);
+        uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        uint32_t Reserved_32;
+        uint32_t InterfaceDescriptorTotalLength : BITFIELD_RANGE(0, 16);
+        uint32_t Reserved_81 : BITFIELD_RANGE(17, 31);
+        uint32_t InterfaceDescriptorDataStartAddress;
+    } Bitfield;
+    enum Codes {
+        DWORD_LENGTH_DWORD_COUNT_N = 0x2,
+        SUBOPCODE_MEDIA_INTERFACE_DESCRIPTOR_LOAD_SUBOP = 0x2,
+        MEDIA_COMMAND_OPCODE_MEDIA_INTERFACE_DESCRIPTOR_LOAD = 0x0,
+        PIPELINE_MEDIA = 0x2,
+        COMMAND_TYPE_GFXPIPE = 0x3,
+        INTERFACEDESCRIPTORDATASTARTADDRESS_BYTEOFFSET = 0xc,
+        INTERFACEDESCRIPTORDATASTARTADDRESS_INDEX = 0x3
+    };
+    static MEDIA_INTERFACE_DESCRIPTOR_LOAD init() {
+        MEDIA_INTERFACE_DESCRIPTOR_LOAD state;
+        memset(&state, 0, sizeof(state));
+        state.Bitfield.DwordLength = DWORD_LENGTH_DWORD_COUNT_N;
+        state.Bitfield.Subopcode = SUBOPCODE_MEDIA_INTERFACE_DESCRIPTOR_LOAD_SUBOP;
+        state.Bitfield.MediaCommandOpcode = MEDIA_COMMAND_OPCODE_MEDIA_INTERFACE_DESCRIPTOR_LOAD;
+        state.Bitfield.Pipeline = PIPELINE_MEDIA;
+        state.Bitfield.CommandType = COMMAND_TYPE_GFXPIPE;
+        return state;
+    }
 };
 
 struct INTERFACE_DESCRIPTOR_DATA {
@@ -101,7 +144,7 @@ struct BINDING_TABLE_STATE {
     uint32_t Reserved_0 : BITFIELD_RANGE(0, 5);
     uint32_t SurfaceStatePointer : BITFIELD_RANGE(6, 31);
 };
-
+#pragma pack()
 
 
 
