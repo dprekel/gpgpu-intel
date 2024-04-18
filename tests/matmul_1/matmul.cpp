@@ -14,8 +14,8 @@ int main() {
     const char* filename;
 
     GPU* gpuInfo = (GPU*)malloc(sizeof(GPU));
-    err = gpInitGPU(gpuInfo);
-    logGPUInfo(gpuInfo);
+    err = CreateDevice(gpuInfo);
+    GetInfo(gpuInfo);
 
     filename = "matmul.cl";
     std::string build_options = "-DTILE_SIZE_M=" + std::to_string(TILE_SIZE_M)

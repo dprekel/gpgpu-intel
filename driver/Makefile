@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -g -Wall -fPIC -mavx2
+CFLAGS = -g -Wall -fPIC -fvisibility=hidden -mavx2
 LDFLAGS = -shared
 PREFIX = /usr/local
 

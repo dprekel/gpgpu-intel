@@ -2,18 +2,25 @@
 #include <stdint.h>
 
 #include "gpgpu.h"
-#include "gpuinit.h"
+#include "device.h"
 #include "drm_structs.h"
 #include "log.h"
 
-void logGPUInfo(GPU* gpuInfo) {
+
+Log::Log(GPU* gpuInfo) 
+         : gpuInfo(gpuInfo) {
+}
+
+Log::~Log() {}
+
+void Log::printDeviceInfo() {
     printf("File descriptor: %d\n", gpuInfo->fd);
     printf("Driver version: %s\n", gpuInfo->driver_name);
     printf("Chipset ID: %d\n", gpuInfo->chipset_id);
     printf("Revision ID: %d\n", gpuInfo->revision_id);
     auto descriptor = static_cast<DeviceDescriptor*>(gpuInfo->descriptor);
     printf("Device Name: %s\n", descriptor->devName);
-    showTopology(gpuInfo);
+    printTopologyInfo();
     printf("\n");
     printf("Available Engines                         Capabilities\n");
     printf("---------------------------------------------------------------------\n");
@@ -36,27 +43,9 @@ void logGPUInfo(GPU* gpuInfo) {
                 break;
         }
     }
-    printf("\n");
-    printf("Context Information\n");
-    printf("---------------------------------------------------------------------\n");
-    printf("Selected Engine:\n");
-    printf("DrmVmId: %d\n", gpuInfo->drmVmId);
-    printf("GTT size: %lu\n", gpuInfo->gttSize);
-    if (gpuInfo->nonPersistentContextsSupported) {
-        printf("Persistence Support: No\n");
-    }
-    else if (!gpuInfo->nonPersistentContextsSupported) {
-        printf("Persistence Support: Yes\n");
-    }
-    if (gpuInfo->preemptionSupported) {
-        printf("Preemption Support: Yes\n");
-    }
-    else if (!gpuInfo->preemptionSupported) {
-        printf("Preemption Support: No\n");
-    }
 }
 
-void showTopology(GPU* gpuInfo) {
+void Log::printTopologyInfo() {
     uint16_t sliceCount = gpuInfo->sliceCount;
     uint16_t subSliceCount = gpuInfo->subSliceCount;
     uint16_t euCount = gpuInfo->euCount;
@@ -116,7 +105,7 @@ void showTopology(GPU* gpuInfo) {
     }
 }
 
-const char* decodeCapabilities(uint64_t capability) {
+const char* Log::decodeCapabilities(uint64_t capability) {
     const char* cap;
     switch (capability) {
         case I915_CAPABILITY_NOT_SPECIFIED:
@@ -133,6 +122,27 @@ const char* decodeCapabilities(uint64_t capability) {
             break;
     }
     return cap;
+}
+
+void Log::printContextInfo() {
+    printf("\n");
+    printf("Context Information\n");
+    printf("---------------------------------------------------------------------\n");
+    printf("Selected Engine:\n");
+    printf("DrmVmId: %d\n", gpuInfo->drmVmId);
+    printf("GTT size: %lu\n", gpuInfo->gttSize);
+    if (gpuInfo->nonPersistentContextsSupported) {
+        printf("Persistence Support: No\n");
+    }
+    else if (!gpuInfo->nonPersistentContextsSupported) {
+        printf("Persistence Support: Yes\n");
+    }
+    if (gpuInfo->preemptionSupported) {
+        printf("Preemption Support: Yes\n");
+    }
+    else if (!gpuInfo->preemptionSupported) {
+        printf("Preemption Support: No\n");
+    }
 }
 
 

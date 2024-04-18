@@ -36,10 +36,11 @@ struct GPU {
 #define NO_TURBO_BOOST                      -4
 #define VM_CREATION_FAILED                  -5
 #define CONTEXT_CREATION_FAILED             -6
+#define BUFFER_ALLOCATION_FAILED            -7
 
-extern int gpInitGPU(GPU* gpuInfo);
-extern void logGPUInfo(GPU* gpuInfo);
+extern int CreateDevice(GPU* gpuInfo);
+extern int GetInfo(GPU* gpuInfo);
 extern int CreateContext(GPU* gpuInfo);
-extern void* CreateBuffer(GPU* gpuInfo, size_t size);
+extern int CreateBuffer(GPU* gpuInfo, void* buffer, size_t size);
 extern int BuildKernel(GPU* gpuInfo, const char* filename, const char* options);
 extern int EnqueueNDRangeKernel(GPU* gpuInfo);

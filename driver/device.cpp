@@ -5,7 +5,7 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-#include "gpuinit.h"
+#include "device.h"
 #include "hwinfo.h"
 #include "skl_info.h"
 #include "gpgpu.h"
@@ -20,19 +20,25 @@ const DeviceDescriptor deviceDescriptorTable[] = {
     {0, nullptr, nullptr, GTTYPE::GTTYPE_UNDEFINED}
 };
 
-int gpInitGPU(GPU* gpuInfo) {
+Device::Device(GPU* gpuInfo) 
+         : gpuInfo(gpuInfo) {
+}
+
+Device::~Device() {}
+
+int Device::initializeGPU() {
     int ret;
 
     //TODO: Discover all devices
     gpuInfo->fd = openDeviceFile();
 
     //TODO: Add checks for all ioctls
-    if (!checkDriverVersion(gpuInfo)) {
+    if (!checkDriverVersion()) {
         return WRONG_DRIVER_VERSION;
     }
     // query chipset ID
-    getParamIoctl(gpuInfo, I915_PARAM_CHIPSET_ID, &gpuInfo->chipset_id);
-    getParamIoctl(gpuInfo, I915_PARAM_REVISION, &gpuInfo->revision_id);
+    getParamIoctl(I915_PARAM_CHIPSET_ID, &gpuInfo->chipset_id);
+    getParamIoctl(I915_PARAM_REVISION, &gpuInfo->revision_id);
     
     // Query hardware configuration
     // On newer architectures, the GuC controller has an internal data structure containing
@@ -56,7 +62,7 @@ int gpInitGPU(GPU* gpuInfo) {
     // doesn't dupport HWConfig tables. So I am not including parsing code for HwConfig tables
     // because I cannot test it.
     int32_t length = 0;
-    void* deviceBlob = queryIoctl(gpuInfo, DRM_I915_QUERY_HWCONFIG_TABLE, 0u, length);
+    void* deviceBlob = queryIoctl(DRM_I915_QUERY_HWCONFIG_TABLE, 0u, length);
     gpuInfo->HWConfigTable = deviceBlob;
     if (!deviceBlob) {
         printf("Hardware configuration table could not be retrieved\n");
@@ -80,24 +86,24 @@ int gpInitGPU(GPU* gpuInfo) {
     }
 
     // query topology info
-    void* topology = queryIoctl(gpuInfo, DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
+    void* topology = queryIoctl(DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
     auto data = reinterpret_cast<struct drm_i915_query_topology_info*>(topology);
     if (!data) {
         return QUERY_FAILED;
     }
 
     //TODO: Add checks for topology info
-    translateTopologyInfo(gpuInfo, data);
+    translateTopologyInfo(data);
     free(data);
 
     // Soft-Pinning supported?
-    getParamIoctl(gpuInfo, I915_PARAM_HAS_EXEC_SOFTPIN, &gpuInfo->supportsSoftPin);
+    getParamIoctl(I915_PARAM_HAS_EXEC_SOFTPIN, &gpuInfo->supportsSoftPin);
     if (!gpuInfo->supportsSoftPin) {
         return NO_SOFTPIN_SUPPORT;
     }
 
     // Enable Turbo Boost
-    ret = enableTurboBoost(gpuInfo);
+    ret = enableTurboBoost();
     /*
     if (ret) {
         return NO_TURBO_BOOST;
@@ -107,19 +113,19 @@ int gpInitGPU(GPU* gpuInfo) {
     // query memory info here
 
     // query engine info
-    gpuInfo->engines = queryIoctl(gpuInfo, DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
+    gpuInfo->engines = queryIoctl(DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
     if (!gpuInfo->engines) {
         return QUERY_FAILED;
     }
     
     // create virtual memory address space
-    ret = createDrmVirtualMemory(gpuInfo);
+    ret = createDrmVirtualMemory();
     if (ret) {
         return VM_CREATION_FAILED;
     }
 
     // query GTT (Graphics Translation Table) size
-    ret = queryGttSize(gpuInfo);
+    ret = queryGttSize();
     if (ret) {
         return QUERY_FAILED;
     }
@@ -130,9 +136,9 @@ int gpInitGPU(GPU* gpuInfo) {
     // check if non-persistent contexts are supported. A non-persistent context gets
     // destroyed immediately upon closure (through DRM_I915_GEM_CONTEXT_CLOSE, fd destruction 
     // or process termination). A persistent context can finish the batch before closing.
-    checkNonPersistentContextsSupport(gpuInfo);
+    checkNonPersistentContextsSupport();
 
-    checkPreemptionSupport(gpuInfo);
+    checkPreemptionSupport();
     
     // Initialize memory manager here
 
@@ -154,7 +160,7 @@ int gpInitGPU(GPU* gpuInfo) {
 }
 
 
-int openDeviceFile() {
+int Device::openDeviceFile() {
     const char* fileString;
     int fileDescriptor;
 
@@ -165,7 +171,7 @@ int openDeviceFile() {
     return fileDescriptor;
 }
 
-bool checkDriverVersion(GPU* gpuInfo) {
+bool Device::checkDriverVersion() {
     int ret;
     struct drm_version version = {};
 
@@ -182,7 +188,7 @@ bool checkDriverVersion(GPU* gpuInfo) {
     return strcmp(name, "i915") == 0;
 }
 
-int getParamIoctl(GPU* gpuInfo, int param, int* paramValue) {
+int Device::getParamIoctl(int param, int* paramValue) {
     int ret;
     struct drm_i915_getparam getParam = {};
     getParam.param = param;
@@ -192,7 +198,7 @@ int getParamIoctl(GPU* gpuInfo, int param, int* paramValue) {
     return ret;
 }
 
-void* queryIoctl(GPU* gpuInfo, uint32_t queryId, uint32_t queryItemFlags, int32_t length) {
+void* Device::queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length) {
     int ret;
     struct drm_i915_query query = {};
     struct drm_i915_query_item queryItem = {};
@@ -220,7 +226,7 @@ void* queryIoctl(GPU* gpuInfo, uint32_t queryId, uint32_t queryItemFlags, int32_
     return data;
 }
 
-void translateTopologyInfo(GPU* gpuInfo, struct drm_i915_query_topology_info* topologyInfo) {
+void Device::translateTopologyInfo(struct drm_i915_query_topology_info* topologyInfo) {
     uint16_t sliceCount = 0;
     uint16_t subSliceCount = 0;
     uint16_t euCount = 0;
@@ -262,7 +268,7 @@ void translateTopologyInfo(GPU* gpuInfo, struct drm_i915_query_topology_info* to
     gpuInfo->euCountPerSubSlice = euCountPerSubSlice;
 }
 
-int createDrmVirtualMemory(GPU* gpuInfo) {
+int Device::createDrmVirtualMemory() {
     int ret;
     struct drm_i915_gem_vm_control ctl = {0};
     
@@ -276,7 +282,7 @@ int createDrmVirtualMemory(GPU* gpuInfo) {
     return ret;
 }
 
-int enableTurboBoost(GPU* gpuInfo) {
+int Device::enableTurboBoost() {
     // Even though my test machine (Skylake) has Turbo Boost 2.0, this does not work. 
     // Do we need to specify a context id first?
     // use ftrace to see why we get EINVAL error
@@ -289,7 +295,7 @@ int enableTurboBoost(GPU* gpuInfo) {
     return ret;
 }
 
-int queryGttSize(GPU* gpuInfo) {
+int Device::queryGttSize() {
     int ret;
     struct drm_i915_gem_context_param contextParam = {};
     contextParam.ctx_id = 0;
@@ -302,7 +308,7 @@ int queryGttSize(GPU* gpuInfo) {
     return ret;
 }
 
-void checkNonPersistentContextsSupport(GPU* gpuInfo) {
+void Device::checkNonPersistentContextsSupport() {
     int ret;
     struct drm_i915_gem_context_param contextParam = {};
     contextParam.param = I915_CONTEXT_PARAM_PERSISTENCE;
@@ -316,16 +322,16 @@ void checkNonPersistentContextsSupport(GPU* gpuInfo) {
     }
 }
 
-void checkPreemptionSupport(GPU* gpuInfo) {
+void Device::checkPreemptionSupport() {
     int ret;
     int value = 0;
-    ret = getParamIoctl(gpuInfo, I915_PARAM_HAS_SCHEDULER, &value);
+    ret = getParamIoctl(I915_PARAM_HAS_SCHEDULER, &value);
     gpuInfo->schedulerValue = value;
     gpuInfo->preemptionSupported = ((0 == ret) && (value & I915_SCHEDULER_CAP_PREEMPTION));
 }
 
 /*
-int getMaxGpuFrequency(GPU* gpuInfo) {
+int Device::getMaxGpuFrequency(GPU* gpuInfo) {
     int ret;
     std::string path = "/sys/bus/pci/devices/" + pciPath + "/drm" + "/card";
 

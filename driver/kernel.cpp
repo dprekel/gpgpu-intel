@@ -9,7 +9,7 @@
 #include "igc_interface.h"
 #include "hwinfo.h"
 #include "gpgpu.h"
-#include "gpuinit.h"
+#include "device.h"
 
 #define COMPILER_LOAD_FAILED -1
 
@@ -309,23 +309,23 @@ int Kernel::build() {
 
 void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData) {
     switch (token->Token) {
-    case PATCH_TOKEN_SAMPLER_STATE_ARRAY:
-        kernelData->samplerStateArray = reinterpret_cast<const PatchSamplerStateArray*>(token);
-        break;
-    case PATCH_TOKEN_BINDING_TABLE_STATE:
-        kernelData->bindingTableState = reinterpret_cast<const PatchBindingTableState*>(token);
-        break;
-    case PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD:
-        kernelData->mediaInterfaceDescriptorLoad = reinterpret_cast<const PatchMediaInterfaceDescriptorLoad*>(token);
-        break;
-    case PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA:
-        kernelData->interfaceDescriptorData = reinterpret_cast<const PatchInterfaceDescriptorData*>(token);
-        break;
-    case PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO:
-        kernelData->kernelAttributesInfo = reinterpret_cast<const PatchKernelAttributesInfo*>(token);
-        break;
-    default:
-        break;
+        case PATCH_TOKEN_SAMPLER_STATE_ARRAY:
+            kernelData->samplerStateArray = reinterpret_cast<const PatchSamplerStateArray*>(token);
+            break;
+        case PATCH_TOKEN_BINDING_TABLE_STATE:
+            kernelData->bindingTableState = reinterpret_cast<const PatchBindingTableState*>(token);
+            break;
+        case PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD:
+            kernelData->mediaInterfaceDescriptorLoad = reinterpret_cast<const PatchMediaInterfaceDescriptorLoad*>(token);
+            break;
+        case PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA:
+            kernelData->interfaceDescriptorData = reinterpret_cast<const PatchInterfaceDescriptorData*>(token);
+            break;
+        case PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO:
+            kernelData->kernelAttributesInfo = reinterpret_cast<const PatchKernelAttributesInfo*>(token);
+            break;
+        default:
+            break;
     }
 }
 
@@ -370,22 +370,6 @@ int Kernel::extractMetadata() {
     return 0;
 }
 
-int BuildKernel(GPU* gpuInfo, const char* filename, const char* options) {
-    int err;
-    
-    Kernel* kernel = new Kernel(gpuInfo, filename, options);
-    gpuInfo->kernel = static_cast<void*>(kernel);
-    err = kernel->loadProgramSource();
-    if (err) {
-        return err;
-    }
-    err = kernel->build();
-    if (err) {
-        return err;
-    }
-    err = kernel->extractMetadata();
-    return err;
-}
 
 
 

@@ -77,19 +77,6 @@ int Context::emitPinningRequest(BufferObject* bo) {
 }
 */
 
-void* CreateBuffer(GPU* gpuInfo, size_t size) {
-    Context* context = static_cast<Context*>(gpuInfo->context);
-
-    BufferObject* dataBuffer = context->allocateBufferObject(size, 0);
-    if (!dataBuffer) {
-        return nullptr;
-    }
-    dataBuffer->bufferType = BufferType::BUFFER_HOST_MEMORY;
-    
-    //context->emitPinningRequest(bo);
-
-    return dataBuffer->alloc;
-}
 
 int Context::createDrmContext() {
     int ret;
@@ -121,19 +108,6 @@ void Context::setNonPersistentContext() {
     ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &contextParam);
 }
 
-int CreateContext(GPU* gpuInfo) {
-    int ret;
-    Context* context = new Context(gpuInfo);
-    gpuInfo->context = static_cast<void*>(context);
-    ret = context->createDrmContext();
-    if (gpuInfo->nonPersistentContextsSupported) {
-        context->setNonPersistentContext();
-    }
-    if (ret) {
-        return CONTEXT_CREATION_FAILED;
-    }
-    return SUCCESS;
-}
 
 /*
 int Context::createPreemptionAllocation() {
@@ -291,7 +265,7 @@ int Context::createDynamicStateHeap() {
 int Context::createCommandBuffer() {
     BufferObject* commandBuffer = allocateBufferObject(65536, 0);
     if (!commandBuffer) {
-        return -1;
+        return BUFFER_ALLOCATION_FAILED;
     }
     commandBuffer->bufferType = BufferType::COMMAND_BUFFER;
 
@@ -311,17 +285,6 @@ int Context::createCommandBuffer() {
     return 0;
 }
 
-int EnqueueNDRangeKernel(GPU* gpuInfo) {
-    int ret;
-
-    Context* context = static_cast<Context*>(gpuInfo->context);
-    //ret = context->createPreemptionAllocation();
-    //ret = context->createIndirectObjectHeap();
-    //ret = context->createDynamicStateHeap();
-    //ret = context->createSurfaceStateHeap();
-    ret = context->createCommandBuffer();
-    return SUCCESS;
-}
 
 
 
