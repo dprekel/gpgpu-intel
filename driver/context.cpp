@@ -280,8 +280,72 @@ int Context::createCommandBuffer() {
     pCmd2->Bitfield.InterfaceDescriptorTotalLength = sizeof(INTERFACE_DESCRIPTOR_DATA);
     pCmd2 = pCmd2 + sizeof(MEDIA_INTERFACE_DESCRIPTOR_LOAD);
 
-    //GPGPU_WALKER walkerCmd = {0};
-    //walkerCmd
+    // we need a variable that stores the preemption mode we are using
+    // we don't need to dispatch workarounds on Skylake, but maybe on other architectures
+    auto pCmd3 = reinterpret_cast<GPGPU_WALKER*>(pCmd2);
+    *pCmd3 = GPGPU_WALKER::init();
+    pCmd3->Bitfield.InterfaceDescriptorOffset = interfaceDescriptorIndex;
+    pCmd3->Bitfield.IndirectDataLength = indirectDataLength;
+    pCmd3->Bitfield.ThreadWidthCounterMaximum = static_cast<uint32_t>(threadsPerWorkGroup);
+    pCmd3->Bitfield.ThreadGroupIdXDimension = static_cast<uint32_t>(numWorkGroups[0]);
+    pCmd3->Bitfield.ThreadGroupIdYDimension = static_cast<uint32_t>(numWorkGroups[1]);
+    pCmd3->Bitfield.ThreadGroupIdZDimension = static_cast<uint32_t>(numWorkGroups[2]);
+    pCmd3->Bitfield.RightExecutionMask = static_cast<uint32_t>(executionMask);
+    pCmd3->Bitfield.BottomExecutionMask = static_cast<uint32_t>(0xffffffff);
+    pCmd3->Bitfield.SimdSize = simdSize;
+    pCmd3->Bitfield.ThreadGroupIdStartingX = static_cast<uint32_t>(startWorkGroups[0]);
+    pCmd3->Bitfield.ThreadGroupIdStartingY = static_cast<uint32_t>(startWorkGroups[1]);
+    pCmd3->Bitfield.ThreadGroupIdStartingResumeZ = static_cast<uint32_t>(startWorkGroups[2]);
+    pCmd3 = pCmd3 + sizeof(GPGPU_WALKER);
+
+    auto pCmd4 = reinterpret_cast<MEDIA_STATE_FLUSH*>(pCmd3);
+    *pCmd4 = MEDIA_STATE_FLUSH::init();
+    pCmd4->Bitfield.InterfaceDescriptorOffset = interfaceDescriptorIndex;
+    pCmd4 = pCmd4 + sizeof(MEDIA_STATE_FLUSH);
+
+    // program Cache flush here
+
+    // add pipe control here
+    if (isPipeControlWArequired) {  // this is not in WA table, instead manually set to true
+        auto pCmd5 = reinterpret_cast<PIPE_CONTROL*>(pCmd4);
+        *pCmd5 = PIPE_CONTROL::init();
+        pCmd5->Bitfield.CommandStreamerStallEnable = true;
+        pCmd5 = pCmd5 + sizeof(PIPE_CONTROL);
+    }
+    auto pCmd6 = reinterpret_cast<PIPE_CONTROL*>(pCmd5);
+    *pCmd6 = PIPE_CONTROL::init();
+    pCmd6->Bitfield.CommandStreamerStallEnable = true;
+    pCmd6->Bitfield.ConstantCacheInvalidationEnable(args.constantCacheInvalidationEnable);
+    pCmd6->Bitfield.InstructionCacheInvalidateEnable(args.instructionCacheInvalidateEnable);
+    pCmd6->Bitfield.PipeControlFlushEnable(args.pipeControlFlushEnable);
+    pCmd6->Bitfield.RenderTargetCacheFlushEnable(args.renderTargetCacheFlushEnable);
+    pCmd6->Bitfield.StateCacheInvalidationEnable(args.stateCacheInvalidationEnable);
+    pCmd6->Bitfield.TextureCacheInvalidationEnable(args.textureCacheInvalidationEnable);
+    pCmd6->Bitfield.VfCacheInvalidationEnable(args.vfCacheInvalidationEnable);
+    pCmd6->Bitfield.GenericMediaStateClear(args.genericMediaStateClear);
+    pCmd6->Bitfield.TlbInvalidate(args.tlbInvalidation);
+    pCmd6->Bitfield.setNotifyEnable(args.notifyEnable);
+    if (isDcFlushAllowed) {
+        pCmd6->Bitfield.DcFlushEnable(args.dcFlushEnable);
+    }
+    pCmd6->Bitfield.PostSyncOperation = operation;
+    pCmd6->Bitfield.Address = static_cast<uint32_t>(tagBufferGpuAddress & 0x0000FFFFFFFFULL);
+    pCmd6->Bitfield.AddressHigh = static_cast<uint32_t>(tagBufferGpuAddress >> 32);
+    if (operation == POST_SYNC_OPERATION_WRITE_IMMEDIATE_DATA) {
+        pCmd6->Bitfield.ImmediateData = immediateData;
+    }
+    pCmd6 = pCmd6 + sizeof(PIPE_CONTROL);
+
+    // program Pipeline Select
+    if (mediaSamplerConfigChanged || !isPreambleSent) {
+        auto pCmd7 = reinterpret_cast<PIPELINE_SELECT*>(pCmd6);;
+        *pCmd7 = PIPELINE_SELECT::init();
+        pCmd7->Bitfield.MaskBits = mask;
+        pCmd7->Bitfield.PipelineSelection = PIPELINE_SELECTION_GPGPU;
+        pCmd7->Bitfield.MediaSamplerDopClockGateEnable = !pipelineSelectArgs.mediaSamplerRequired;
+        pCmd7 = pCmd7 + sizeof(PIPELINE_SELECT);
+    }
+
     return 0;
 }
 
