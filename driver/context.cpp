@@ -346,6 +346,49 @@ int Context::createCommandBuffer() {
         pCmd7 = pCmd7 + sizeof(PIPELINE_SELECT);
     }
 
+    // program L3 cache:
+    auto pCmd8 = reinterpret_cast<MI_LOAD_REGISTER_IMM*>(pCmd7);
+    *pCmd8 = MI_LOAD_REGISTER_IMM::init();
+    pCmd8->Bitfield.RegisterOffset = L3RegisterOffset;
+    pCmd8->Bitfield.DataDword = l3Config;
+    pCmd8 = pCmd8 + sizeof(MI_LOAD_REGISTER_IMM);
+
+    // program Thread Arbitration
+    auto pCmd9 = reinterpret_cast<PIPE_CONTROL*>(pCmd8);
+    *pCmd9 = PIPE_CONTROL::init();
+    pCmd9->Bitfield.CommandStreamerStallEnable = true;
+    pCmd9 = pCmd9 + sizeof(PIPE_CONTROL);
+
+    auto pCmd10 = reinterpret_cast<MI_LOAD_REGISTER_IMM*>(pCmd9);
+    *pCmd10 = MI_LOAD_REGISTER_IMM::init();
+    pCmd10->Bitfield.RegisterOffset = debugControlReg2Address;
+    pCmd10->Bitfield.DataDword = requiredThreadArbitrationPolicy;
+    pCmd10 = pCmd10 + sizeof(MI_LOAD_REGISTER_IMM);
+
+    // program Preemption
+    if (isMidThreadPreemption) {
+        auto pCmd11 = reinterpret_cast<GPGPU_CSR_BASE_ADDRESS*>(pCmd10);
+        *pCmd11 = GPGPU_CSR_BASE_ADDRESS::init();
+        pCmd11->Bitfield.GpgpuCsrBaseAddress = preemptionBufferGpuAddress;
+        pCmd11 = pCmd11 + sizeof(GPGPU_CSR_BASE_ADDRESS);
+    }
+
+    // program VFE state
+    if (mediaVfeStateDirty) {
+        auto pCmd12 = reinterpret_cast<MEDIA_VFE_STATE*>(pCmd12);
+        *pCmd12 = MEDIA_VFE_STATE::init();
+        pCmd12->Bitfield.MaximumNumberOfThreads = maxFrontEndThreads;
+        pCmd12->Bitfield.NumberOfUrbEntries = 1;
+        pCmd12->Bitfield.UrbEntryAllocationSize = UrbEntryAllocationSize;
+        pCmd12->Bitfield.PerThreadScratchSpace = ScratchSizeValueToProgramMediaVfeState;
+        pCmd12->Bitfield.StackSize = ScratchSizeValueToProgramMediaVfeState;
+        pCmd12->Bitfield.ScratchSpaceBasePointer = lowAddress;
+        pCmd12->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
+        pCmd12 = pCmd12 + sizeof(MEDIA_VFE_STATE);
+    }
+
+    // program Preemption again?
+
     return 0;
 }
 
