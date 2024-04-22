@@ -6,6 +6,7 @@ On Intel machines, GPU-accelerated GROMACS can be compiled with:
 $ tar xfz gromacs-2024.1.tar.gz
 $ cd gromacs-2024.1
 $ mkdir build
+$ cd build
 $ cmake .. -DGMX_BUILD_OWN_FFTW=ON -DGMX_GPU=OpenCL -DGMX_GPU_NB_CLUSTER_SIZE=4 -DCMAKE_BUILD_TYPE=Debug -DREGRESSIONTEST_DOWNLOAD=ON
 $ make -j4
 $ make check
@@ -14,7 +15,7 @@ $ source /usr/local/gromacs/bin/GMXRC
 ```
 
 ## Running Molecular Dynamics Test Simulations
-Used the Lysozyme tutorial to run test simulations. The NVT equilibration simulation (100 ps, 2 fs timestep, 50000 steps in total) was carried out on two systems:
+Used the [Lysozyme tutorial](http://www.mdtutorials.com/gmx/lysozyme) to run test simulations. The NVT equilibration simulation (100 ps, 2 fs timestep, 50000 steps in total) was carried out on two systems:
 
 - Intel Core i5-6267U (3.3GHz) with Intel Iris Graphics 550; 8 GB RAM
 - Apple Macbook Air M1 with 8-Core-GPU; 8 GB RAM
@@ -36,10 +37,11 @@ Compare that to the Nvidia Titan Xp GPU, which according to the tutorial yields 
 MD simulations are pretty much compute bound and not memory bound.
 The M1 CPU performance is extremely impressive.
 Note that the Macbook Air has a TDP of 10 W while the Titan Xp has a TDP of 250 W and it is only 12 times faster than the M1 CPU!!!!
-The Intel and Apple integrated GPUs seem to not use its full potential. One reason might be power constraints on the die which is shared between CPU and GPU. So the GPU might be throttled. Also the GROMACS compute kernels might not be fully optimized for this hardware. During the simulation, the Intel GPU had a utilization between 50 to 65 percent, while matmul kernel execution yields 100 percent utilization. In the case of Apple (see also this thread) the deprecated OpenCL implementation (it is just a wrapper around the Metal Framework) could be another factor.
+The Intel and Apple integrated GPUs seem to not use its full potential. One reason might be power constraints on the die which is shared between CPU and GPU. So the GPU might be throttled. Also the GROMACS compute kernels might not be fully optimized for this hardware. During the simulation, the Intel GPU had a utilization between 50 to 65 percent, while matmul kernel execution yields 100 percent utilization. In the case of Apple (see also this [thread](https://gromacs.bioexcel.eu/t/gpu-acceleration-on-mac-m1-mini/2938)) the deprecated OpenCL implementation (it is just a wrapper around the Metal Framework) could be another factor.
 
 ## Links
-
+[](https://manual.gromacs.org/documentation/current/install-guide/index.html)
+[](https://developer.nvidia.com/blog/creating-faster-molecular-dynamics-simulations-with-gromacs-2020)
 
 ## Inspecting OpenCL kernels
 On each timestep, several kernels are executed for force calculation:
