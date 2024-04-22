@@ -37,6 +37,7 @@ struct GPU {
 #define VM_CREATION_FAILED                  -5
 #define CONTEXT_CREATION_FAILED             -6
 #define BUFFER_ALLOCATION_FAILED            -7
+#define INVALID_WORK_GROUP_SIZE             -8
 
 extern int CreateDevice(GPU* gpuInfo);
 extern int GetInfo(GPU* gpuInfo);
@@ -44,3 +45,4 @@ extern int CreateContext(GPU* gpuInfo);
 extern int CreateBuffer(GPU* gpuInfo, void* buffer, size_t size);
 extern int BuildKernel(GPU* gpuInfo, const char* filename, const char* options);
 extern int EnqueueNDRangeKernel(GPU* gpuInfo);
+extern int EnqueueNDRangeKernel(GPU* gpuInfo, uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size);

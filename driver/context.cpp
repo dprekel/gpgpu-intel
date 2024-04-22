@@ -13,6 +13,10 @@
 
 Context::Context(GPU* gpuInfo) 
          : gpuInfo(gpuInfo) {
+    globalOffsets = {0, 0, 0};
+    workItems = {1, 1, 1};
+    localWorkSizesIn = {0, 0, 0};
+    enqueuedWorkSizes = {0, 0, 0};
 }
 
 Context::~Context() {}
@@ -261,6 +265,48 @@ int Context::createDynamicStateHeap() {
     interfaceDescriptor.BarrierEnable = barrierCount;       // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.barrierCount
 }
 */
+
+int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size) {
+    workDim = work_dim;
+    size_t remainder = 0;
+    size_t totalWorkItems = 1u;
+    if (local_work_size) {
+        localWorkSizesIn = {1, 1, 1};
+    }
+    else {
+        localWorkSizesIn = nullptr;
+    }
+    for (uint32_t i = 0u; i < workDim; i++) {
+        workItems[i] = global_work_size ? global_work_size[i] : 0;
+        globalOffsets[i] = global_work_offset ? global_work_offset[i] : 0;
+
+        if (haveRequiredWorkGroupSize) {
+            if (kernelInfo.kernelDescriptor.kernelAttributes.requiredWorkgroupSize[i] != local_work_size[i]) {
+                return INVALID_WORK_GROUP_SIZE;
+            }
+            if (local_work_size[i] == 0) {
+                return INVALID_WORK_GROUP_SIZE;
+            }
+            localWorkSizesIn[i] = local_work_size[i];
+            enqueuedWorkSizes[i] = local_work_size[i];
+            totalWorkItems *= local_work_size[i];
+        }
+        remainder += workItems[i] % localWorkSizesIn[i];
+    }
+    if (remainder != 0) {
+        return INVALID_WORK_GROUP_SIZE;
+    }
+    if (totalWorkItems > kernel.getMaxKernelWorkGroupSize()) {
+        return INVALID_WORK_GROUP_SIZE;
+    }
+    if (haveRequiredWorkGroupSize) {
+        localWorkSizesIn[0] = kernelInfo.kernelDescriptor.kernelAttributes.requiredWorkgroupSize[0];
+        localWorkSizesIn[1] = kernelInfo.kernelDescriptor.kernelAttributes.requiredWorkgroupSize[1];
+        localWorkSizesIn[2] = kernelInfo.kernelDescriptor.kernelAttributes.requiredWorkgroupSize[2];
+    }
+
+    return SUCCESS;
+}
 
 int Context::createCommandBuffer() {
     BufferObject* commandBuffer = allocateBufferObject(65536, 0);

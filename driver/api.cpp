@@ -70,9 +70,10 @@ int API_CALL BuildKernel(GPU* gpuInfo, const char* filename, const char* options
 }
 
 
-int API_CALL EnqueueNDRangeKernel(GPU* gpuInfo) {
+int API_CALL EnqueueNDRangeKernel(GPU* gpuInfo, uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size) {
     int ret;
     Context* context = static_cast<Context*>(gpuInfo->context);
+    ret = context->validateWorkGroups(work_dim, global_work_offset, global_work_size, local_work_size);
     //ret = context->createPreemptionAllocation();
     //ret = context->createIndirectObjectHeap();
     //ret = context->createDynamicStateHeap();
