@@ -37,6 +37,7 @@ class Context {
     int createCommandBuffer();
   private:
     GPU* gpuInfo;
+    Kernel* kernel;
     std::vector<BufferObject*> execBuffer;
     uint32_t vmId;
     uint32_t ctxId;

@@ -12,7 +12,8 @@
 
 
 Context::Context(GPU* gpuInfo) 
-         : gpuInfo(gpuInfo) {
+         : gpuInfo(gpuInfo),
+           kernel(static_cast<Kernel*>(gpuInfo->kernel)) {
     globalOffsets = {0, 0, 0};
     workItems = {1, 1, 1};
     localWorkSizesIn = {0, 0, 0};
@@ -270,6 +271,13 @@ int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_off
     workDim = work_dim;
     size_t remainder = 0;
     size_t totalWorkItems = 1u;
+    uint32_t requiredWorkgroupSize[3] = {kernel->kernelData->executionEnvironment->requiredWorkgroupSizeX,
+                                         kernel->kernelData->executionEnvironment->requiredWorkgroupSizeY,
+                                         kernel->kernelData->executionEnvironment->requiredWorkgroupSizeZ};
+    bool haveRequiredWorkGroupSize = false;
+    if (requiredWorkgroupSize[0] != 0) {
+        haveRequiredWorkgroupSize = true;
+    }
     if (local_work_size) {
         localWorkSizesIn = {1, 1, 1};
     }
@@ -281,7 +289,7 @@ int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_off
         globalOffsets[i] = global_work_offset ? global_work_offset[i] : 0;
 
         if (haveRequiredWorkGroupSize) {
-            if (kernelInfo.kernelDescriptor.kernelAttributes.requiredWorkgroupSize[i] != local_work_size[i]) {
+            if (requiredWorkgroupSize[i] != local_work_size[i]) {
                 return INVALID_WORK_GROUP_SIZE;
             }
             if (local_work_size[i] == 0) {
@@ -300,9 +308,9 @@ int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_off
         return INVALID_WORK_GROUP_SIZE;
     }
     if (haveRequiredWorkGroupSize) {
-        localWorkSizesIn[0] = kernelInfo.kernelDescriptor.kernelAttributes.requiredWorkgroupSize[0];
-        localWorkSizesIn[1] = kernelInfo.kernelDescriptor.kernelAttributes.requiredWorkgroupSize[1];
-        localWorkSizesIn[2] = kernelInfo.kernelDescriptor.kernelAttributes.requiredWorkgroupSize[2];
+        localWorkSizesIn[0] = requiredWorkgroupSize[0];
+        localWorkSizesIn[1] = requiredWorkgroupSize[1];
+        localWorkSizesIn[2] = requiredWorkgroupSize[2];
     }
 
     return SUCCESS;
@@ -358,33 +366,47 @@ int Context::createCommandBuffer() {
         pCmd5->Bitfield.CommandStreamerStallEnable = true;
         pCmd5 = pCmd5 + sizeof(PIPE_CONTROL);
     }
+    // updateTag, dispatchFlags.guardCommandBufferWithPipeControl (true), 
+    // dispatchFlags.memoryMigrationRequired (migratableArgsMap), activePartitions, staticWorkPartitioningEnabled
+
+    // This driver doesn't support command queues with batched submission. So each 
+    // kernel submission needs its own pipe control. A batched submission would only 
+    // need one pipe control for the whole batch.
     auto pCmd6 = reinterpret_cast<PIPE_CONTROL*>(pCmd5);
     *pCmd6 = PIPE_CONTROL::init();
     pCmd6->Bitfield.CommandStreamerStallEnable = true;
-    pCmd6->Bitfield.ConstantCacheInvalidationEnable(args.constantCacheInvalidationEnable);
-    pCmd6->Bitfield.InstructionCacheInvalidateEnable(args.instructionCacheInvalidateEnable);
-    pCmd6->Bitfield.PipeControlFlushEnable(args.pipeControlFlushEnable);
-    pCmd6->Bitfield.RenderTargetCacheFlushEnable(args.renderTargetCacheFlushEnable);
-    pCmd6->Bitfield.StateCacheInvalidationEnable(args.stateCacheInvalidationEnable);
-    pCmd6->Bitfield.TextureCacheInvalidationEnable(args.textureCacheInvalidationEnable);
-    pCmd6->Bitfield.VfCacheInvalidationEnable(args.vfCacheInvalidationEnable);
-    pCmd6->Bitfield.GenericMediaStateClear(args.genericMediaStateClear);
-    pCmd6->Bitfield.TlbInvalidate(args.tlbInvalidation);
-    pCmd6->Bitfield.setNotifyEnable(args.notifyEnable);
-    if (isDcFlushAllowed) {
-        pCmd6->Bitfield.DcFlushEnable(args.dcFlushEnable);
-    }
-    pCmd6->Bitfield.PostSyncOperation = operation;
+    pCmd6->Bitfield.ConstantCacheInvalidationEnable = false;
+    pCmd6->Bitfield.InstructionCacheInvalidateEnable = false;
+    pCmd6->Bitfield.PipeControlFlushEnable = false;
+    pCmd6->Bitfield.RenderTargetCacheFlushEnable = false;
+    pCmd6->Bitfield.StateCacheInvalidationEnable = false;
+    pCmd6->Bitfield.TextureCacheInvalidationEnable = false;
+    pCmd6->Bitfield.VfCacheInvalidationEnable = false;
+    pCmd6->Bitfield.GenericMediaStateClear = false;
+    pCmd6->Bitfield.TlbInvalidate = ;
+
+    // has something to do with debugging, is set in DrmCommandStreamReceiver constructor
+    // (drm_command_stream.inl)
+    pCmd6->Bitfield.NotifyEnable = true;
+
+    // For this driver, DcFlushEnable is always true. If batched submission would be
+    // possible with this driver, DcFlushEnable would be true if:
+    // - capabilityTable.gpuAddressSpace >= maxNBitValue(47) (maybe true on some 
+    //   architectures?)
+    // - isFlushL3Required == true (seems to be always the case)
+    pCmd6->Bitfield.DcFlushEnable = true;
+
+    pCmd6->Bitfield.PostSyncOperation = PIPE_CONTROL::POST_SYNC_OPERATION_WRITE_IMMEDIATE_DATA;
     pCmd6->Bitfield.Address = static_cast<uint32_t>(tagBufferGpuAddress & 0x0000FFFFFFFFULL);
     pCmd6->Bitfield.AddressHigh = static_cast<uint32_t>(tagBufferGpuAddress >> 32);
-    if (operation == POST_SYNC_OPERATION_WRITE_IMMEDIATE_DATA) {
-        pCmd6->Bitfield.ImmediateData = immediateData;
-    }
+
+    // immediateData == taskCount (always 1 if no batched submission)
+    pCmd6->Bitfield.ImmediateData = 1u;
     pCmd6 = pCmd6 + sizeof(PIPE_CONTROL);
 
     // program Pipeline Select
     if (mediaSamplerConfigChanged || !isPreambleSent) {
-        auto pCmd7 = reinterpret_cast<PIPELINE_SELECT*>(pCmd6);;
+        auto pCmd7 = reinterpret_cast<PIPELINE_SELECT*>(pCmd6);
         *pCmd7 = PIPELINE_SELECT::init();
         pCmd7->Bitfield.MaskBits = mask;
         pCmd7->Bitfield.PipelineSelection = PIPELINE_SELECTION_GPGPU;
@@ -434,6 +456,8 @@ int Context::createCommandBuffer() {
     }
 
     // program Preemption again?
+
+    // Reprogram State Base Address
 
     return 0;
 }

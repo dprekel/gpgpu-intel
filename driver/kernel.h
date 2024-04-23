@@ -64,6 +64,40 @@ struct PatchInterfaceDescriptorData : PatchItemHeader {
     uint32_t BindingTableOffset;
 };
 
+struct PatchExecutionEnvironment : PatchItemHeader {
+    uint32_t RequiredWorkGroupSizeX;
+    uint32_t RequiredWorkGroupSizeY;
+    uint32_t RequiredWorkGroupSizeZ;
+    uint32_t LargestCompiledSIMDSize;
+    uint32_t CompiledSubGroupsNumber;
+    uint32_t HasBarriers;
+    uint32_t DisableMidThreadPreemption;
+    uint32_t CompiledSIMD8;
+    uint32_t CompiledSIMD16;
+    uint32_t CompiledSIMD32;
+    uint32_t HasDeviceEnqueue;
+    uint32_t MayAccessUndeclaredResource;
+    uint32_t UsesFencesForReadWriteImages;
+    uint32_t UsesStatelessSpillFill;
+    uint32_t UsesMultiScratchSpaces;
+    uint32_t IsCoherent;
+    uint32_t IsInitializer;
+    uint32_t IsFinalizer;
+    uint32_t SubgroupIndependentForwardProgressRequired;
+    uint32_t CompiledForGreaterThan4GBBuffers;
+    uint32_t NumGRFRequired;
+    uint32_t WorkgroupWalkOrderDims;
+    uint32_t HasGlobalAtomics;
+    uint32_t HasDPAS;
+    uint32_t reserved1;
+    uint32_t reserved2;
+    uint32_t StatelessWritesCount;
+    uint32_t IndirectStatelessCount;
+    uint32_t UseBindlessMode;
+    uint32_t HasStackCalls;
+    uint64_t SIMDInfo;
+};
+
 struct PatchKernelAttributesInfo : PatchItemHeader {
     uint32_t AttributesSize;
 };
@@ -82,6 +116,7 @@ struct KernelFromPatchtokens {
     const PatchBindingTableState* bindingTableState = nullptr;
     const PatchMediaInterfaceDescriptorLoad* mediaInterfaceDescriptorLoad = nullptr;
     const PatchInterfaceDescriptorData* interfaceDescriptorData = nullptr;
+    const PatchExecutionEnvironment* executionEnvironment = nullptr;
     const PatchKernelAttributesInfo* kernelAttributesInfo = nullptr;
 };
 

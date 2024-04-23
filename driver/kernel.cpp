@@ -321,6 +321,9 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
         case PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA:
             kernelData->interfaceDescriptorData = reinterpret_cast<const PatchInterfaceDescriptorData*>(token);
             break;
+        case PATCH_TOKEN_EXECUTION_ENVIRONMENT:
+            kernelData->executionEnvironment = reinterpret_cast<const PatchExecutionEnvironment*>(token);
+            break;
         case PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO:
             kernelData->kernelAttributesInfo = reinterpret_cast<const PatchKernelAttributesInfo*>(token);
             break;
@@ -330,6 +333,8 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
 }
 
 int Kernel::extractMetadata() {
+    // The following usage of reinterpret_cast could lead to undefined behaviour. Checking the header magic
+    // makes sure that the reinterpreted memory has the correct format
     const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary);
     if (binHeader->Magic != 0x494E5443) {
         printf("Binary header is wrong!\n");
