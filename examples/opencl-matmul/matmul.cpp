@@ -87,6 +87,16 @@ int main() {
         clGetProgramBuildInfo(program, *deviceStruct, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
         printf("%s\n", log);
     }
+    size_t* programBinarySizes = nullptr;
+    char* programBinary = nullptr;
+    err = clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), programBinarySizes, nullptr);
+    if (err) {
+        return err;
+    }
+    err = clGetProgramInfo(program, CL_PROGRAM_BINARIES, sizeof(char*), programBinary, nullptr);
+    if (err) {
+        return err;
+    }
 
     const char* kernel_name = "matmul";
     cl_kernel kernel = clCreateKernel(program, kernel_name, &err);
