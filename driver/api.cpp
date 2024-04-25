@@ -66,6 +66,14 @@ int API_CALL BuildKernel(GPU* gpuInfo, const char* filename, const char* options
     if (err) {
         return err;
     }
+    err = kernel->allocateKernelMemory();
+    if (err) {
+        return err;
+    }
+    err = kernel->createSipKernel();
+    if (err) {
+        return err;
+    }
     return SUCCESS;
 }
 

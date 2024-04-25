@@ -372,8 +372,38 @@ int Kernel::extractMetadata() {
         return -1;
     }
     printf("bindingTableState->Count = %u\n", kernelData->bindingTableState->Count);
-    return 0;
+    return SUCCESS;
 }
+
+int Kernel::allocateKernelMemory() {
+    return SUCCESS;
+}
+
+int Kernel::createSipKernel() {
+    uint64_t interfaceID = 0x15483dac4ed88c8;
+    uint64_t interfaceVersion = 2;
+    ICIF* DeviceCtx = CreateInterface(igcMain, interfaceID, interfaceVersion);
+    IgcOclDeviceCtx* newDeviceCtx = static_cast<IgcOclDeviceCtx*>(DeviceCtx);
+    if (newDeviceCtx == nullptr) {
+        return nullptr;
+    }
+    uint64_t interfaceID2 = ;
+    uint64_t interfaceVersion = ;
+    ICIF* RoutineBufferCtx = CreateInterface(igcMain, interfaceID2, interfaceVersion2);
+    IgcBuffer* systemRoutineBuffer = static_cast<IgcBuffer*>(RoutineBufferCtx);
+    if (systemRoutineBuffer == nullptr) {
+        return nullptr;
+    }
+    bool result = DeviceCtx->GetSystemRoutine(0u, bindlessSip, systemRoutineBuffer, stateSaveAreaBuffer);    
+
+    return SUCCESS;
+}
+
+
+
+
+
+
 
 
 
