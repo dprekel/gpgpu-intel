@@ -12,7 +12,6 @@ CreateBuffer:
 - finish execBuffer submission
 
 BuildKernel:
-- Finish Backend Compilation
 - Write functions for determination of interface IDs and InterfaceVersions
 - Write function for construction of internalOptions string (query info from device structs)
 - Freeing memory after compilation (writing destructor)
@@ -20,14 +19,7 @@ BuildKernel:
 - Test driver with different IGC versions from Github and Ubuntu repos
 - Is Mutex required?
 - Add macros with Error codes
-- Figuring out why we have PLT dispatch between library functions
 - create userptr for Kernel
-
-Linking to Disassembler:
-- I don't know how difficult it gets
-
-clCreateKernel:
-- What happens here?
 
 clSetKernelArg:
 - What happens here?
@@ -84,6 +76,15 @@ sendIndirectState()  hardware_commands_helper_base.inl  (fill dsh, ioh, ssh)
 
 
 
+
+- Finish all buffer objects
+- Disassemble kernels
+- Support kernel compilation for all other architectures
+- Improve data buffer allocation
+- Get rid of all memory leaks
+
+DumpProgramBinaries command:
+$ gdb --args ./cliloader --dump-output-binaries ./GEMM
 
 
 
