@@ -457,9 +457,28 @@ int Context::createCommandBuffer() {
 
     // program Preemption again?
 
-    // Reprogram State Base Address
+    // Program State Base Address
+    auto pCmd13 = reinterpret_cast<PIPE_CONTROL*>(pCmd12);
+    *pCmd13 = PIPE_CONTROL::init();
+    pCmd13->Bitfield.CommandStreamerStallEnable = true;
+    pCmd13->Bitfield.ConstantCacheInvalidationEnable = false;
+    pCmd13->Bitfield.InstructionCacheInvalidateEnable = false;
+    pCmd13->Bitfield.PipeControlFlushEnable = false;
+    pCmd13->Bitfield.RenderTargetCacheFlushEnable = false;
+    pCmd13->Bitfield.StateCacheInvalidationEnable = false;
+    pCmd13->Bitfield.TextureCacheInvalidationEnable = false;
+    pCmd13->Bitfield.VfCacheInvalidationEnable = false;
+    pCmd13->Bitfield.GenericMediaStateClear = false;
+    pCmd13->Bitfield.TlbInvalidate = false;
+    pCmd13->Bitfield.NotifyEnable = false;
+    pCmd13->Bitfield.DcFlushEnable = true;
+    pCmd13 = pCmd13 + sizeof(PIPE_CONTROL);
 
-    return 0;
+    // Additional Pipe Control
+
+    // Add BATCH_BUFFER_START
+
+    return SUCCESS;
 }
 
 
