@@ -375,10 +375,6 @@ int Kernel::extractMetadata() {
     return SUCCESS;
 }
 
-int Kernel::allocateKernelMemory() {
-    return SUCCESS;
-}
-
 int Kernel::createSipKernel() {
     uint64_t interfaceID = 0x15483dac4ed88c8;
     uint64_t interfaceVersion = 2;
@@ -399,7 +395,70 @@ int Kernel::createSipKernel() {
     return SUCCESS;
 }
 
+// elf_encoder.cpp
+std::vector<uint8_t> Kernel::encodeElf() {
+    ElfFileHeader elfFileHeader = this->elfFileHeader;
+    ElfProgramHeader programHeaders[32] = this->programHeaders;
+    ElfSectionHeader sectionHeaders[32] = this->sectionHeaders;
+    ElfSectionHeader sectionHeaderNamesSection;
+    size_t alignedSectionNamesDataSize = 0u;
+    size_t dataPaddingBeforeSectionNames = 0u;
+    
+    auto alignedDataSize = alignUp(data.size(), static_cast<size_t>(defaultDataAlignment));
+    dataPaddingBeforeSectionNames = alignedDataSize - data.size();
+    sectionHeaderNamesSection.type = 3u;
+    sectionHeaderNamesSection.name = specialStringsOffsets.shStrTab;
+    sectionHeaderNamesSection.offset = static_cast<decltype(sectionHeaderNamesSection.offset)>(alignedDataSize);
+    sectionHeaderNamesSection.size = static_cast<decltype(sectionHeaderNamesSection.size)>(stringTable.size());
+    sectionHeaderNamesSection.addralign = static_cast<decltype(sectionHeaderNamesSection.addralign)>(defaultDataAlignment);
+    elfFileHeader.shStrNdx = static_cast<decltype(elfFileHeader.shStrNdx)>(sectionHeaders.size());
+    sectionHeaders[0] = sectionHeaderNamesSection;
+    alignedSectionNamesDataSize = alignUp(stringTable.size(), static_cast<size_t>(sectionHeaderNamesSection.addralign));
 
+    elfFileHeader.phNum = static_cast<decltype(elfFileHeader.phNum)>(programHeaders.size());
+    elfFileHeader.shNum = static_cast<decltype(elfFileHeader.shNum)>(sectionHeaders.size());
+
+    auto programHeadersOffset = elfFileHeader.ehSize;
+    auto sectionHeadersOffset = programHeadersOffset + elfFileHeader.phEntSize * elfFileHeader.phNum;
+    elfFileHeader.phOff = static_cast<decltype(elfFileHeader.phOff)>(programHeadersOffset);
+    elfFileHeader.shOff = static_cast<decltype(elfFileHeader.shOff)>(sectionHeadersOffset);
+    auto dataOffset = alignUp(sectionHeadersOffset + elfFileHeader.shEntSize * elfFileHeader.shNum, static_cast<size_t>(maxDataAlignmentNeeded));
+    auto stringTabOffset = dataOffset + data.size();
+
+    std::vector<uint8_t> ret;
+    ret.reserve(stringTabOffset + alignedSectionNamesDataSize);
+    ret.reserve(ret.end(), reinterpret_cast<uint8_t>(&elfFileHeader), reinterpret_cast<uint8_t*>(&elfFileHeader + 1));
+    ret.resize(programheadersOffset, 0u);
+
+    for (auto &progSecLookup : programSectionLookupTable) {
+        programHeaders[progSecLookup.programId].offset = sectionHeaders[progSecLookup.sectionId].offset;
+        programHeaders[progSecLookup.programId].fileSz = sectionHeaders[progSecLookup.sectionId].size;
+    }
+
+    for (auto &programHeader : programHeaders) {
+        if (0 != programHeader.fileSz) {
+            programHeader.offset = static_cast<decltype(programHeader.offset)>(programHeader.offset + dataOffset);
+        }
+        ret.insert(ret.end(), reinterpret_cast<uint8_t*>(&programHeader), reinterpret_cast<uint8_t*>(&programHeader + 1));
+        ret.resize(ret.size() + elfFileHeader.phEntSize - sizeof(programHeader), 0u);
+    }
+
+    for (auto &sectionHeader : sectionHeaders) {
+        if ((8 != sectionHeader.type) && (0 != sectionHeader.size)) {
+            sectionHeader.offset = static_cast<decltype(sectionHeader.offset)>(sectionHeader.offset + dataOffset);
+        }
+        ret.insert(ret.end(), reinterpret_cast<uint8_t*>(&sectionHeader), reinterpret_cast<uint8_t*>(&sectionHeader + 1));
+        ret.resize(ret.size() + elfFileHeader.shEntSize - sizeof(sectionHeader), 0u);
+    }
+
+    ret.resize(dataOffset, 0u);
+    ret.insert(ret.end(), data.begin(), data.end());
+    ret.resize(ret.size() + dataPaddingBeforeSectionNames, 0u);
+    ret.insert(ret.end(), reinterpret_cast<const uint8_t*>(stringTable.data()), reinterpret_cast<const uint8_t*>(stringTable.data() + static_cast<size_t>(sectionHeaderNamesSection.size)));
+    ret.resize(ret.size() + alignedSectionNamesDataSize - static_cast<size_t>(sectionHeaderNamesSection.size), 0u);
+
+    return ret;
+}
 
 
 
