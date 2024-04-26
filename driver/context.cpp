@@ -10,6 +10,8 @@
 #include "avx.h"
 #include "commands_gen9.h"
 
+#define PAGE_SIZE 4096
+
 
 Context::Context(GPU* gpuInfo) 
          : gpuInfo(gpuInfo),
@@ -23,7 +25,7 @@ Context::Context(GPU* gpuInfo)
 Context::~Context() {}
 
 BufferObject* Context::allocateBufferObject(size_t size, uint32_t flags) {
-    size_t alignment = 4096;    // aligned to page size
+    size_t alignment = PAGE_SIZE;    // aligned to page size
     size_t sizeToAlloc = size + alignment;
     void* pOriginalMemory = malloc(sizeToAlloc);
 
@@ -313,6 +315,19 @@ int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_off
         localWorkSizesIn[2] = requiredWorkgroupSize[2];
     }
 
+    return SUCCESS;
+}
+
+int Context::allocateISAMemory() {
+    size_t kernelISASize = kernel->kernelData->header->KernelHeapSize;
+    size_t alignedAllocationSize = alignUp(kernelISASize, PAGE_SIZE);
+    BufferObject* kernelISA = allocateBufferObject(alignedAllocationSize, 0);
+    if (!kernelISA) {
+        return KERNEL_ALLOCATION_FAILED;
+    }
+    kernelISA->bufferType = BufferType::KERNEL_ISA;
+
+    memcpy(kernelISA->alloc, kernel->kernelData->isa, kernelISASize);
     return SUCCESS;
 }
 

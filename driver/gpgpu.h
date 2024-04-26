@@ -44,5 +44,4 @@ extern int GetInfo(GPU* gpuInfo);
 extern int CreateContext(GPU* gpuInfo);
 extern int CreateBuffer(GPU* gpuInfo, void* buffer, size_t size);
 extern int BuildKernel(GPU* gpuInfo, const char* filename, const char* options);
-extern int EnqueueNDRangeKernel(GPU* gpuInfo);
 extern int EnqueueNDRangeKernel(GPU* gpuInfo, uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size);

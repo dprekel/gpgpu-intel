@@ -34,6 +34,7 @@ class Context {
     int createIndirectObjectHeap();
     int createSurfaceStateHeap();
     */
+    int allocateISAMemory();
     int createCommandBuffer();
   private:
     GPU* gpuInfo;
