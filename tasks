@@ -78,10 +78,18 @@ sendIndirectState()  hardware_commands_helper_base.inl  (fill dsh, ioh, ssh)
 
 
 - Finish all buffer objects
-- Disassemble kernels
 - Support kernel compilation for all other architectures
 - Improve data buffer allocation
 - Get rid of all memory leaks
+- Think about how the API should look like
+- Kernel binary encoding to ELF format
+- Disassemble the ELF binary by linking to IGA library
+- Add Release() function that destroys all heap objects
+- Add clFinish functionality
+- Definitely need an alignUp function
+- Merge gpuInfo and Device classes
+- Use new for aligned malloc
+- Make sure all API functions can only be called in correct order
 
 DumpProgramBinaries command:
 $ gdb --args ./cliloader --dump-output-binaries ./GEMM
