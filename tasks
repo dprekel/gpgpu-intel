@@ -86,13 +86,24 @@ sendIndirectState()  hardware_commands_helper_base.inl  (fill dsh, ioh, ssh)
 - Disassemble the ELF binary by linking to IGA library
 - Add Release() function that destroys all heap objects
 - Add clFinish functionality
-- Definitely need an alignUp function
 - Merge gpuInfo and Device classes
 - Use new for aligned malloc
 - Make sure all API functions can only be called in correct order
+- Add aligned free for buffer objects
 
 DumpProgramBinaries command:
 $ gdb --args ./cliloader --dump-output-binaries ./GEMM
+
+
+Ideas for a better API:
+- DeviceStub* CreateDevice(int ret);
+- int CreateContext(DeviceStub* device);
+- int BuildKernel(DeviceStub* device, const char* filename, const char* options, int arch, bool disas);
+- int EnqueueNDRangeKernel(DeviceStub* device, uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size);
+
+The context class will contain a vector of kernel objects. Only the kernel that can be executed on the hardware will be enqueued.
+
+
 
 
 
