@@ -1,5 +1,9 @@
 #pragma once
 
+#include <stdint.h>
+
+#include "gpgpu.h"
+
 class Log {
   public:
     Log(GPU* gpuInfo);

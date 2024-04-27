@@ -1,47 +1,29 @@
 #pragma once
 
-struct GPU {
-    int fd;
-    const char* driver_name;
-    int chipset_id;
-    int revision_id;
+#define SUCCESS                               0
+#define WRONG_DRIVER_VERSION                 -1
+#define QUERY_FAILED                         -2
+#define NO_SOFTPIN_SUPPORT                   -3
+#define NO_TURBO_BOOST                       -4
+#define VM_CREATION_FAILED                   -5
+#define CONTEXT_CREATION_FAILED              -6
+#define BUFFER_ALLOCATION_FAILED             -7
+#define KERNEL_ALLOCATION_FAILED             -8
+#define INVALID_WORK_GROUP_SIZE              -9
+#define NO_DEVICE                           -10
 
-    void* HWConfigTable;                    // if this is nullptr, it is not supported
-    void* descriptor;
+class pDevice {
+    int magic;
+}
 
-    uint16_t sliceCount;
-    uint16_t subSliceCount;
-    uint16_t euCount;
-    uint16_t subSliceCountPerSlice;
-    uint16_t euCountPerSubSlice;
+extern pDevice* CreateDevice(int err);
+extern int GetInfo(pDevice* device);
+extern int CreateContext(pDevice* device);
+extern int CreateBuffer(pDevice* device, void* buffer, size_t size);
+extern int BuildKernel(pDevice* device, const char* filename, const char* options, int architecture, bool disassemble);
+extern int EnqueueNDRangeKernel(pDevice* device, uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size);
+extern int ReleaseObjects(pDevice* device);
 
-    int supportsSoftPin;
 
-    void* engines;                          // list of GPU engines (command streamers)
 
-    int drmVmId;                            // unique identifier for ppGTT
-    uint64_t gttSize;
-    bool nonPersistentContextsSupported;
-    bool preemptionSupported;
-    int schedulerValue;
 
-    void* context;
-    void* kernel;
-};
-
-#define SUCCESS                              0
-#define WRONG_DRIVER_VERSION                -1
-#define QUERY_FAILED                        -2
-#define NO_SOFTPIN_SUPPORT                  -3
-#define NO_TURBO_BOOST                      -4
-#define VM_CREATION_FAILED                  -5
-#define CONTEXT_CREATION_FAILED             -6
-#define BUFFER_ALLOCATION_FAILED            -7
-#define INVALID_WORK_GROUP_SIZE             -8
-
-extern int CreateDevice(GPU* gpuInfo);
-extern int GetInfo(GPU* gpuInfo);
-extern int CreateContext(GPU* gpuInfo);
-extern int CreateBuffer(GPU* gpuInfo, void* buffer, size_t size);
-extern int BuildKernel(GPU* gpuInfo, const char* filename, const char* options);
-extern int EnqueueNDRangeKernel(GPU* gpuInfo, uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size);

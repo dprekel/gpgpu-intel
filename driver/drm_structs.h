@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #include <asm/ioctl.h>
 
 #define __user

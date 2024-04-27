@@ -1,8 +1,9 @@
 #pragma once
 
-#include "hwinfo.h"
+#include <stdint.h>
 
-struct GPU;
+#include "hwinfo.h"
+#include "gpgpu.h"
 
 struct DeviceDescriptor {
     uint16_t deviceId;
@@ -28,7 +29,32 @@ class Device {
     void checkPreemptionSupport();
     int enableTurboBoost();
   private:
-    GPU* gpuInfo;
+    int fd;
+    const char* driver_name;
+    int chipset_id;
+    int revision_id;
+
+    void* HWConfigTable;                    // if this is nullptr, it is not supported
+    void* descriptor;
+
+    uint16_t sliceCount;
+    uint16_t subSliceCount;
+    uint16_t euCount;
+    uint16_t subSliceCountPerSlice;
+    uint16_t euCountPerSubSlice;
+
+    int supportsSoftPin;
+
+    void* engines;                          // list of GPU engines (command streamers)
+
+    int drmVmId;                            // unique identifier for ppGTT
+    uint64_t gttSize;
+    bool nonPersistentContextsSupported;
+    bool preemptionSupported;
+    int schedulerValue;
+
+    void* context;
+    void* kernel;
 };
 
 

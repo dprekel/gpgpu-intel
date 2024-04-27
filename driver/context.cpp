@@ -3,11 +3,12 @@
 #include <stdint.h>
 #include <sys/ioctl.h>
 #include <vector>
+#include <memory>
 
 #include "gpgpu.h"
 #include "context.h"
 #include "drm_structs.h"
-#include "avx.h"
+#include "utils.h"
 #include "commands_gen9.h"
 
 #define PAGE_SIZE 4096
@@ -15,14 +16,16 @@
 
 Context::Context(GPU* gpuInfo) 
          : gpuInfo(gpuInfo),
-           kernel(static_cast<Kernel*>(gpuInfo->kernel)) {
-    globalOffsets = {0, 0, 0};
-    workItems = {1, 1, 1};
-    localWorkSizesIn = {0, 0, 0};
-    enqueuedWorkSizes = {0, 0, 0};
+           kernel(static_cast<Kernel*>(gpuInfo->kernel)),
+           globalOffsets{0, 0, 0},
+           workItems{1, 1, 1},
+           localWorkSizesIn{0, 0, 0},
+           enqueuedWorkSizes{0, 0, 0} {
 }
 
-Context::~Context() {}
+Context::~Context() {
+    printf("Context destructor called!\n");
+}
 
 BufferObject* Context::allocateBufferObject(size_t size, uint32_t flags) {
     size_t alignment = PAGE_SIZE;    // aligned to page size
@@ -48,12 +51,13 @@ BufferObject* Context::allocateBufferObject(size_t size, uint32_t flags) {
         return nullptr;
     }
     // add aligned free here
-    BufferObject* bo = new BufferObject();
+    auto bo = std::make_unique<BufferObject>();
     bo->alloc = reinterpret_cast<void*>(pAlignedMemory);
     bo->size = size;
     bo->handle = userptr.handle;
-    execBuffer.push_back(bo);
-    return bo;
+    auto BO = bo.get();
+    execBuffer.push_back(std::move(bo));
+    return BO;
 }
 
 /*
@@ -271,6 +275,7 @@ int Context::createDynamicStateHeap() {
 
 int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size) {
     workDim = work_dim;
+    /*
     size_t remainder = 0;
     size_t totalWorkItems = 1u;
     uint32_t requiredWorkgroupSize[3] = {kernel->kernelData->executionEnvironment->requiredWorkgroupSizeX,
@@ -314,25 +319,29 @@ int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_off
         localWorkSizesIn[1] = requiredWorkgroupSize[1];
         localWorkSizesIn[2] = requiredWorkgroupSize[2];
     }
+    */
 
     return SUCCESS;
 }
 
 int Context::allocateISAMemory() {
-    size_t kernelISASize = kernel->kernelData->header->KernelHeapSize;
+    auto kernelData = kernel->getKernelData();
+    size_t kernelISASize = kernelData->header->KernelHeapSize;
     size_t alignedAllocationSize = alignUp(kernelISASize, PAGE_SIZE);
     BufferObject* kernelISA = allocateBufferObject(alignedAllocationSize, 0);
     if (!kernelISA) {
         return KERNEL_ALLOCATION_FAILED;
     }
     kernelISA->bufferType = BufferType::KERNEL_ISA;
+    printf("Kernel Heap Size: %lu\n", kernelISASize);
+    printf("Kernel ISA Pointer: %p\n", kernelData->isa);
 
-    memcpy(kernelISA->alloc, kernel->kernelData->isa, kernelISASize);
+    memcpy(kernelISA->alloc, kernelData->isa, kernelISASize);
     return SUCCESS;
 }
 
 int Context::createCommandBuffer() {
-    BufferObject* commandBuffer = allocateBufferObject(65536, 0);
+    BufferObject* commandBuffer = allocateBufferObject(16 * PAGE_SIZE, 0);
     if (!commandBuffer) {
         return BUFFER_ALLOCATION_FAILED;
     }
@@ -349,6 +358,7 @@ int Context::createCommandBuffer() {
     pCmd2->Bitfield.InterfaceDescriptorTotalLength = sizeof(INTERFACE_DESCRIPTOR_DATA);
     pCmd2 = pCmd2 + sizeof(MEDIA_INTERFACE_DESCRIPTOR_LOAD);
 
+    /*
     // we need a variable that stores the preemption mode we are using
     // we don't need to dispatch workarounds on Skylake, but maybe on other architectures
     auto pCmd3 = reinterpret_cast<GPGPU_WALKER*>(pCmd2);
@@ -492,6 +502,7 @@ int Context::createCommandBuffer() {
     // Additional Pipe Control
 
     // Add BATCH_BUFFER_START
+    */
 
     return SUCCESS;
 }

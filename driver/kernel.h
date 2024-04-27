@@ -1,5 +1,8 @@
 #pragma once
 
+#include <stdio.h>
+#include <stdint.h>
+
 #include "igc_interface.h"
 #include "hwinfo.h"
 #include "gpgpu.h"
@@ -11,6 +14,7 @@ enum PATCH_TOKEN {
     PATCH_TOKEN_BINDING_TABLE_STATE = 8,
     PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD = 19,
     PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA = 21,
+    PATCH_TOKEN_EXECUTION_ENVIRONMENT = 23,
     PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO = 27
 };
 
@@ -126,6 +130,7 @@ class Kernel {
   public:
     Kernel(GPU* gpuInfo, const char* filename, const char* options);
     ~Kernel();
+    KernelFromPatchtokens* getKernelData();
     int loadProgramSource();
     ICIF* CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion);
     IgcBuffer* CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t size);
@@ -139,6 +144,7 @@ class Kernel {
     const void* ptrOffset(const void* ptrBefore, size_t offset);
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     int extractMetadata();
+    int createSipKernel();
   private:
     GPU* gpuInfo;
     const char* filename;
@@ -159,7 +165,7 @@ class Kernel {
     const uint8_t* header;
     const uint8_t* patchListBlob;
     const uint8_t* kernelInfoBlob;
-    KernelFromPatchtokens* kernelData;
+    KernelFromPatchtokens kernelData;
 };
 
 

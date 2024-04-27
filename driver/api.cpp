@@ -11,19 +11,22 @@
 #define API_CALL __attribute__((visibility("default")))
 
 
-int API_CALL CreateDevice(GPU* gpuInfo) {
-    int ret;
-    Device* device = new Device(gpuInfo);
-    ret = device->initializeGPU();
-    if (ret) {
-        return ret;
+pDevice* API_CALL CreateDevice(int* ret) {
+    Device* device = new Device();
+    int err = device->initializeGPU();
+    *ret = err;
+    if (err) {
+        return nullptr;
     }
-    return SUCCESS;
+    pDevice* pdevice = static_cast<pDevice*>(device);
+    return pdevice;
 }
 
 
-int API_CALL CreateContext(GPU* gpuInfo) {
-    int ret;
+int API_CALL CreateContext(pDevice* device) {
+    if (!device) {
+        return NO_DEVICE;
+    }
     Context* context = new Context(gpuInfo);
     gpuInfo->context = static_cast<void*>(context);
     ret = context->createDrmContext();
@@ -37,7 +40,7 @@ int API_CALL CreateContext(GPU* gpuInfo) {
 }
 
 
-int API_CALL CreateBuffer(GPU* gpuInfo, void* buffer, size_t size) {
+int API_CALL CreateBuffer(pDevice* device, void* buffer, size_t size) {
     Context* context = static_cast<Context*>(gpuInfo->context);
     BufferObject* dataBuffer = context->allocateBufferObject(size, 0);
     if (!dataBuffer) {
@@ -50,50 +53,66 @@ int API_CALL CreateBuffer(GPU* gpuInfo, void* buffer, size_t size) {
 }
 
 
-int API_CALL BuildKernel(GPU* gpuInfo, const char* filename, const char* options) {
-    int err;
+int API_CALL BuildKernel(pDevice* device, const char* filename, const char* options, int architecture, bool disassemble) {
     Kernel* kernel = new Kernel(gpuInfo, filename, options);
     gpuInfo->kernel = static_cast<void*>(kernel);
-    err = kernel->loadProgramSource();
-    if (err) {
-        return err;
+    int ret = kernel->loadProgramSource();
+    if (ret) {
+        return ret;
     }
-    err = kernel->build();
-    if (err) {
-        return err;
+    ret = kernel->build();
+    if (ret) {
+        return ret;
     }
-    err = kernel->extractMetadata();
-    if (err) {
-        return err;
+    ret = kernel->extractMetadata();
+    if (ret) {
+        return ret;
     }
-    err = kernel->allocateKernelMemory();
-    if (err) {
-        return err;
-    }
-    err = kernel->createSipKernel();
-    if (err) {
-        return err;
+    ret = kernel->createSipKernel();
+    if (ret) {
+        return ret;
     }
     return SUCCESS;
 }
 
 
-int API_CALL EnqueueNDRangeKernel(GPU* gpuInfo, uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size) {
-    int ret;
+int API_CALL EnqueueNDRangeKernel(pDevice* device, uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size) {
     Context* context = static_cast<Context*>(gpuInfo->context);
-    ret = context->validateWorkGroups(work_dim, global_work_offset, global_work_size, local_work_size);
+    int ret = context->validateWorkGroups(work_dim, global_work_offset, global_work_size, local_work_size);
+    if (ret) {
+        return ret;
+    }
+    ret = context->allocateISAMemory();
+    if (ret) {
+        return ret;
+    }
     //ret = context->createPreemptionAllocation();
     //ret = context->createIndirectObjectHeap();
     //ret = context->createDynamicStateHeap();
     //ret = context->createSurfaceStateHeap();
+    
     ret = context->createCommandBuffer();
+    if (ret) {
+        return ret;
+    }
     return SUCCESS;
 }
 
 
-int API_CALL GetInfo(GPU* gpuInfo) {
+int API_CALL GetInfo(pDevice* device) {
     Log* info = new Log(gpuInfo);
     info->printDeviceInfo();
     info->printContextInfo();
     return SUCCESS;
 }
+
+
+int API_CALL ReleaseObjects(pDevice* device) {
+    delete static_cast<Context*>(gpuInfo->context);
+    delete static_cast<Kernel*>(gpuInfo->kernel);
+    delete gpuInfo;
+
+    return SUCCESS;
+}
+
+

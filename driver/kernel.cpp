@@ -26,7 +26,13 @@ Kernel::Kernel(GPU* gpuInfo, const char* filename, const char* options)
     this->optionsSize = strlen(options);
 }
 
-Kernel::~Kernel() {}
+Kernel::~Kernel() {
+    printf("Kernel destructor called!\n");
+}
+
+KernelFromPatchtokens* Kernel::getKernelData() {
+    return &kernelData;
+}
 
 int Kernel::loadProgramSource() {
     FILE* file = fopen(filename, "r");
@@ -346,38 +352,38 @@ int Kernel::extractMetadata() {
     patchListBlob = header + sizeof(ProgramBinaryHeader);
     kernelInfoBlob = patchListBlob + binHeader->PatchListSize;
     
-    kernelData = new KernelFromPatchtokens();
-    kernelData->header = reinterpret_cast<const KernelBinaryHeader*>(kernelInfoBlob);
+    kernelData.header = reinterpret_cast<const KernelBinaryHeader*>(kernelInfoBlob);
     //printf("header.Checksum: %u\n", kernelData->header->CheckSum);
     //printf("header.ShaderHashCode: %lu\n", kernelData->header->ShaderHashCode);
     //printf("header.KernelNameSize: %u\n", kernelData->header->KernelNameSize);
     //printf("header.PatchListSize: %u\n", kernelData->header->PatchListSize);
     //printf("header.KernelHeapSize: %u\n", kernelData->header->KernelHeapSize);
-    kernelData->kernelInfo = kernelInfoBlob;
-    kernelData->name = kernelInfoBlob + sizeof(KernelBinaryHeader);
+    kernelData.kernelInfo = kernelInfoBlob;
+    kernelData.name = kernelInfoBlob + sizeof(KernelBinaryHeader);
     //printf("kernel name: %s\n", *(kernelData->name));
-    kernelData->isa = kernelData->name + kernelData->header->KernelNameSize;
-    kernelData->generalState = kernelData->isa + kernelData->header->KernelHeapSize;
-    kernelData->dynamicState = kernelData->generalState + kernelData->header->GeneralStateHeapSize;
-    kernelData->surfaceState = kernelData->dynamicState + kernelData->header->DynamicStateHeapSize;
-    kernelData->patchList = kernelData->surfaceState + kernelData->header->SurfaceStateHeapSize;
-    kernelData->patchListEnd = kernelData->patchList + kernelData->header->PatchListSize;
-    const uint8_t* decodePos = kernelData->patchList;
-    while (static_cast<uint64_t>(kernelData->patchListEnd - decodePos) > sizeof(PatchItemHeader)) {
+    kernelData.isa = kernelData.name + kernelData.header->KernelNameSize;
+    kernelData.generalState = kernelData.isa + kernelData.header->KernelHeapSize;
+    kernelData.dynamicState = kernelData.generalState + kernelData.header->GeneralStateHeapSize;
+    kernelData.surfaceState = kernelData.dynamicState + kernelData.header->DynamicStateHeapSize;
+    kernelData.patchList = kernelData.surfaceState + kernelData.header->SurfaceStateHeapSize;
+    kernelData.patchListEnd = kernelData.patchList + kernelData.header->PatchListSize;
+    const uint8_t* decodePos = kernelData.patchList;
+    while (static_cast<uint64_t>(kernelData.patchListEnd - decodePos) > sizeof(PatchItemHeader)) {
         const PatchItemHeader* token = reinterpret_cast<const PatchItemHeader*>(decodePos);
-        decodeToken(token, kernelData);
+        decodeToken(token, &kernelData);
         decodePos = decodePos + token->Size;
     }
-    if (kernelData->bindingTableState == nullptr) {
+    if (kernelData.bindingTableState == nullptr) {
         return -1;
     }
-    printf("bindingTableState->Count = %u\n", kernelData->bindingTableState->Count);
+    printf("bindingTableState->Count = %u\n", kernelData.bindingTableState->Count);
     return SUCCESS;
 }
 
 int Kernel::createSipKernel() {
     uint64_t interfaceID = 0x15483dac4ed88c8;
     uint64_t interfaceVersion = 2;
+    /*
     ICIF* DeviceCtx = CreateInterface(igcMain, interfaceID, interfaceVersion);
     IgcOclDeviceCtx* newDeviceCtx = static_cast<IgcOclDeviceCtx*>(DeviceCtx);
     if (newDeviceCtx == nullptr) {
@@ -391,10 +397,12 @@ int Kernel::createSipKernel() {
         return nullptr;
     }
     bool result = DeviceCtx->GetSystemRoutine(0u, bindlessSip, systemRoutineBuffer, stateSaveAreaBuffer);    
+    */
 
     return SUCCESS;
 }
 
+/*
 // elf_encoder.cpp
 std::vector<uint8_t> Kernel::encodeElf() {
     ElfFileHeader elfFileHeader = this->elfFileHeader;
@@ -459,7 +467,7 @@ std::vector<uint8_t> Kernel::encodeElf() {
 
     return ret;
 }
-
+*/
 
 
 

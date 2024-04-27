@@ -1,5 +1,13 @@
 #pragma once
 
+#include <stdio.h>
+#include <stdint.h>
+#include <vector>
+#include <memory>
+
+#include "kernel.h"
+#include "gpgpu.h"
+
 
 enum BufferType {
     BUFFER_HOST_MEMORY,
@@ -13,6 +21,10 @@ enum BufferType {
 };
 
 struct BufferObject {
+    BufferObject() {}
+    ~BufferObject() {
+        printf("BufferObject destructor called!\n");
+    }
     int bufferType;
     void* alloc;
     size_t size;
@@ -39,17 +51,16 @@ class Context {
   private:
     GPU* gpuInfo;
     Kernel* kernel;
-    std::vector<BufferObject*> execBuffer;
+    std::vector<std::unique_ptr<BufferObject>> execBuffer;
     uint32_t vmId;
     uint32_t ctxId;
 
     uint32_t workDim;
-    const size_t globalOffsets[3];      // globalWorkOffset
-    const size_t workItems[3];          // region
-    const size_t localWorkSizesIn[3];   // localWkgSizeToPass
-    const size_t enqueuedWorkSizes[3];  // enqueuedLocalWorkSize
+    size_t globalOffsets[3];      // globalWorkOffset
+    size_t workItems[3];          // region
+    size_t localWorkSizesIn[3];   // localWkgSizeToPass
+    size_t enqueuedWorkSizes[3];  // enqueuedLocalWorkSize
 };
-
 
 
 
