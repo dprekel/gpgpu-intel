@@ -10,13 +10,14 @@
 #define BUFFER_ALLOCATION_FAILED             -7
 #define KERNEL_ALLOCATION_FAILED             -8
 #define INVALID_WORK_GROUP_SIZE              -9
-#define NO_DEVICE                           -10
+#define NO_DEVICE_ERROR                     -10
+#define NO_CONTEXT_ERROR                    -11
 
 class pDevice {
     int magic;
-}
+};
 
-extern pDevice* CreateDevice(int err);
+extern pDevice* CreateDevice(int* err);
 extern int GetInfo(pDevice* device);
 extern int CreateContext(pDevice* device);
 extern int CreateBuffer(pDevice* device, void* buffer, size_t size);

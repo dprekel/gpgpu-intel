@@ -4,6 +4,11 @@
 
 #include "hwinfo.h"
 #include "gpgpu.h"
+#include "kernel.h"
+#include "context.h"
+
+class Context;
+class Kernel;
 
 struct DeviceDescriptor {
     uint16_t deviceId;
@@ -15,7 +20,7 @@ struct DeviceDescriptor {
 
 class Device {
   public:
-    Device(GPU* gpuInfo);
+    Device();
     ~Device();
     int initializeGPU();
     int openDeviceFile();
@@ -28,14 +33,19 @@ class Device {
     void checkNonPersistentContextsSupport();
     void checkPreemptionSupport();
     int enableTurboBoost();
-  private:
+    bool getNonPersistentContextsSupported();
+    DeviceDescriptor* getDeviceDescriptor();
+
+    Context* context;
+    Kernel* kernel;
     int fd;
+    int drmVmId;                            // unique identifier for ppGTT
     const char* driver_name;
     int chipset_id;
     int revision_id;
 
     void* HWConfigTable;                    // if this is nullptr, it is not supported
-    void* descriptor;
+    DeviceDescriptor* descriptor;
 
     uint16_t sliceCount;
     uint16_t subSliceCount;
@@ -47,14 +57,11 @@ class Device {
 
     void* engines;                          // list of GPU engines (command streamers)
 
-    int drmVmId;                            // unique identifier for ppGTT
     uint64_t gttSize;
     bool nonPersistentContextsSupported;
     bool preemptionSupported;
     int schedulerValue;
-
-    void* context;
-    void* kernel;
+  private:
 };
 
 

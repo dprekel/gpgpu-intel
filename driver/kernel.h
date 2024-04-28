@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "device.h"
 #include "igc_interface.h"
 #include "hwinfo.h"
 #include "gpgpu.h"
@@ -126,9 +127,11 @@ struct KernelFromPatchtokens {
 
 #pragma pack ( pop )
 
+class Device;
+
 class Kernel {
   public:
-    Kernel(GPU* gpuInfo, const char* filename, const char* options);
+    Kernel(Device* device, const char* filename, const char* options);
     ~Kernel();
     KernelFromPatchtokens* getKernelData();
     int loadProgramSource();
@@ -145,8 +148,8 @@ class Kernel {
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     int extractMetadata();
     int createSipKernel();
+    Device* device;
   private:
-    GPU* gpuInfo;
     const char* filename;
     const char* options;
     size_t optionsSize;

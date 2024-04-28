@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 
+#include "device.h"
 #include "kernel.h"
 #include "gpgpu.h"
 
@@ -31,9 +32,12 @@ struct BufferObject {
     uint32_t handle;
 };
 
+class Device;
+class Kernel;
+
 class Context {
   public:
-    Context(GPU* gpuInfo);
+    Context(Device* device);
     ~Context();
     int createDrmContext();
     BufferObject* allocateBufferObject(size_t size, uint32_t flags);
@@ -48,9 +52,9 @@ class Context {
     */
     int allocateISAMemory();
     int createCommandBuffer();
-  private:
-    GPU* gpuInfo;
+    Device* device;
     Kernel* kernel;
+  private:
     std::vector<std::unique_ptr<BufferObject>> execBuffer;
     uint32_t vmId;
     uint32_t ctxId;

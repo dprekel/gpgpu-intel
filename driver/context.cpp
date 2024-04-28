@@ -14,9 +14,9 @@
 #define PAGE_SIZE 4096
 
 
-Context::Context(GPU* gpuInfo) 
-         : gpuInfo(gpuInfo),
-           kernel(static_cast<Kernel*>(gpuInfo->kernel)),
+Context::Context(Device* device) 
+         : device(device),
+           kernel(device->kernel),
            globalOffsets{0, 0, 0},
            workItems{1, 1, 1},
            localWorkSizesIn{0, 0, 0},
@@ -46,7 +46,7 @@ BufferObject* Context::allocateBufferObject(size_t size, uint32_t flags) {
     userptr.user_size = size;
     userptr.flags = flags;
 
-    int ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr);
+    int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr);
     if (ret) {
         return nullptr;
     }
@@ -91,10 +91,10 @@ int Context::emitPinningRequest(BufferObject* bo) {
 
 int Context::createDrmContext() {
     int ret;
-    vmId = gpuInfo->drmVmId;
+    vmId = device->drmVmId;
     
     drm_i915_gem_context_create_ext gcc = {};
-    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT, &gcc);
+    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT, &gcc);
     if (ret) {
         return ret;
     }
@@ -103,7 +103,7 @@ int Context::createDrmContext() {
         param.ctx_id = gcc.ctx_id;
         param.value = vmId;
         param.param = I915_CONTEXT_PARAM_VM;
-        ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &param);
+        ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &param);
         if (ret) {
             return ret;
         }
@@ -116,7 +116,7 @@ void Context::setNonPersistentContext() {
     drm_i915_gem_context_param contextParam = {};
     contextParam.ctx_id = ctxId;
     contextParam.param = I915_CONTEXT_PARAM_PERSISTENCE;
-    ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &contextParam);
+    ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &contextParam);
 }
 
 

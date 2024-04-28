@@ -20,25 +20,21 @@ const DeviceDescriptor deviceDescriptorTable[] = {
     {0, nullptr, nullptr, GTTYPE::GTTYPE_UNDEFINED}
 };
 
-Device::Device(GPU* gpuInfo) 
-         : gpuInfo(gpuInfo) {
-}
+Device::Device() {}
 
 Device::~Device() {}
 
 int Device::initializeGPU() {
-    int ret;
-
     //TODO: Discover all devices
-    gpuInfo->fd = openDeviceFile();
+    fd = openDeviceFile();
 
     //TODO: Add checks for all ioctls
     if (!checkDriverVersion()) {
         return WRONG_DRIVER_VERSION;
     }
     // query chipset ID
-    getParamIoctl(I915_PARAM_CHIPSET_ID, &gpuInfo->chipset_id);
-    getParamIoctl(I915_PARAM_REVISION, &gpuInfo->revision_id);
+    getParamIoctl(I915_PARAM_CHIPSET_ID, &chipset_id);
+    getParamIoctl(I915_PARAM_REVISION, &revision_id);
     
     // Query hardware configuration
     // On newer architectures, the GuC controller has an internal data structure containing
@@ -63,31 +59,30 @@ int Device::initializeGPU() {
     // because I cannot test it.
     int32_t length = 0;
     void* deviceBlob = queryIoctl(DRM_I915_QUERY_HWCONFIG_TABLE, 0u, length);
-    gpuInfo->HWConfigTable = deviceBlob;
+    HWConfigTable = deviceBlob;
     if (!deviceBlob) {
         printf("Hardware configuration table could not be retrieved\n");
     }
     // setup System info from device blob
-    DeviceDescriptor* descriptor = new DeviceDescriptor();
-    gpuInfo->descriptor = static_cast<void*>(descriptor);
+    descriptor = new DeviceDescriptor();
     for (auto &d : deviceDescriptorTable) {
-        if (gpuInfo->chipset_id == d.deviceId) {
+        if (chipset_id == d.deviceId) {
             descriptor->pHwInfo = d.pHwInfo;
             descriptor->setupHardwareInfo = d.setupHardwareInfo;
-            //gpuInfo->eGtType = d.eGtType;
+            //device->eGtType = d.eGtType;
             descriptor->devName = d.devName;
             break;
         }
     }
     if (descriptor->pHwInfo) {
         descriptor->setupHardwareInfo(descriptor->pHwInfo);
-        descriptor->pHwInfo->platform->usDeviceID = gpuInfo->chipset_id;
-        descriptor->pHwInfo->platform->usRevId = gpuInfo->revision_id;
+        descriptor->pHwInfo->platform->usDeviceID = chipset_id;
+        descriptor->pHwInfo->platform->usRevId = revision_id;
     }
 
     // query topology info
     void* topology = queryIoctl(DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
-    auto data = reinterpret_cast<struct drm_i915_query_topology_info*>(topology);
+    auto data = reinterpret_cast<drm_i915_query_topology_info*>(topology);
     if (!data) {
         return QUERY_FAILED;
     }
@@ -97,13 +92,13 @@ int Device::initializeGPU() {
     free(data);
 
     // Soft-Pinning supported?
-    getParamIoctl(I915_PARAM_HAS_EXEC_SOFTPIN, &gpuInfo->supportsSoftPin);
-    if (!gpuInfo->supportsSoftPin) {
+    getParamIoctl(I915_PARAM_HAS_EXEC_SOFTPIN, &supportsSoftPin);
+    if (!supportsSoftPin) {
         return NO_SOFTPIN_SUPPORT;
     }
 
     // Enable Turbo Boost
-    ret = enableTurboBoost();
+    int ret = enableTurboBoost();
     /*
     if (ret) {
         return NO_TURBO_BOOST;
@@ -113,8 +108,8 @@ int Device::initializeGPU() {
     // query memory info here
 
     // query engine info
-    gpuInfo->engines = queryIoctl(DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
-    if (!gpuInfo->engines) {
+    engines = queryIoctl(DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
+    if (!engines) {
         return QUERY_FAILED;
     }
     
@@ -131,7 +126,7 @@ int Device::initializeGPU() {
     }
 
     // ask all engines if slice count change is supported
-    //getQueueSliceCount(gpuInfo);
+    //getQueueSliceCount(device);
 
     // check if non-persistent contexts are supported. A non-persistent context gets
     // destroyed immediately upon closure (through DRM_I915_GEM_CONTEXT_CLOSE, fd destruction 
@@ -142,73 +137,52 @@ int Device::initializeGPU() {
     
     // Initialize memory manager here
 
-    // Set up command stream receivers
-    /*
-    std::vector<struct engineInfo> engines = {0, 0, 0};
-    engines[0] = {EngineType::ENGINE_RCS, EngineUsage::Regular};
-    engines[1] = {EngineType::ENGINE_RCS, EngineUsage::LowPriority};
-    engines[2] = {defaultEngine, EngineUsage::Internal};
-    if (defaultEngine == EngineType::ENGINE_CCS) {
-        engines.push_back({EngineType::ENGINE_CCS, EngineUsage::Regular});
-    }
-    for (auto &engine : engines) {
-        
-    }
-    */
-
     return SUCCESS;
 }
 
 
 int Device::openDeviceFile() {
-    const char* fileString;
-    int fileDescriptor;
-
     //TODO: add code that reads out the string from the system
-    fileString = "/dev/dri/by-path/pci-0000:00:02.0-render";
-    fileDescriptor = open(fileString, O_RDWR);
+    const char* fileString = "/dev/dri/by-path/pci-0000:00:02.0-render";
+    int fileDescriptor = open(fileString, O_RDWR);
     //TODO: check fileDescriptor
     return fileDescriptor;
 }
 
 bool Device::checkDriverVersion() {
-    int ret;
-    struct drm_version version = {};
-
+    drm_version version = {0};
     char name[5] = {};
     version.name = name;
     version.name_len = 5;
-    ret = ioctl(gpuInfo->fd, DRM_IOCTL_VERSION, &version);
+    int ret = ioctl(fd, DRM_IOCTL_VERSION, &version);
     if (ret) {
         return false;
     }
     name[4] = '\0';
     //TODO: add driver info to gpuInfo struct
-    gpuInfo->driver_name = name;
+    driver_name = name;
     return strcmp(name, "i915") == 0;
 }
 
 int Device::getParamIoctl(int param, int* paramValue) {
-    int ret;
-    struct drm_i915_getparam getParam = {};
+    drm_i915_getparam getParam = {0};
     getParam.param = param;
     getParam.value = paramValue;
 
-    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GETPARAM, &getParam);
+    int ret = ioctl(fd, DRM_IOCTL_I915_GETPARAM, &getParam);
     return ret;
 }
 
 void* Device::queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length) {
-    int ret;
-    struct drm_i915_query query = {};
-    struct drm_i915_query_item queryItem = {};
+    drm_i915_query query = {0};
+    drm_i915_query_item queryItem = {0};
     queryItem.query_id = queryId;
     queryItem.length = 0;
     queryItem.flags = queryItemFlags;
     query.items_ptr = reinterpret_cast<uint64_t>(&queryItem);
     query.num_items = 1;
 
-    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_QUERY, &query);
+    int ret = ioctl(fd, DRM_IOCTL_I915_QUERY, &query);
     if (ret != 0 || queryItem.length <= 0) {
         return nullptr;
     }
@@ -217,7 +191,7 @@ void* Device::queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t leng
     memset(data, 0, queryItem.length);
     queryItem.data_ptr = reinterpret_cast<uint64_t>(data);
 
-    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_QUERY, &query);
+    ret = ioctl(fd, DRM_IOCTL_I915_QUERY, &query);
     if (ret != 0 || queryItem.length <= 0) {
         return nullptr;
     }
@@ -226,7 +200,7 @@ void* Device::queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t leng
     return data;
 }
 
-void Device::translateTopologyInfo(struct drm_i915_query_topology_info* topologyInfo) {
+void Device::translateTopologyInfo(drm_i915_query_topology_info* topologyInfo) {
     uint16_t sliceCount = 0;
     uint16_t subSliceCount = 0;
     uint16_t euCount = 0;
@@ -261,23 +235,21 @@ void Device::translateTopologyInfo(struct drm_i915_query_topology_info* topology
             }
         }
     }
-    gpuInfo->sliceCount = sliceCount;
-    gpuInfo->subSliceCount = subSliceCount;
-    gpuInfo->euCount = euCount;
-    gpuInfo->subSliceCountPerSlice = subSliceCountPerSlice;
-    gpuInfo->euCountPerSubSlice = euCountPerSubSlice;
+    sliceCount = sliceCount;
+    subSliceCount = subSliceCount;
+    euCount = euCount;
+    subSliceCountPerSlice = subSliceCountPerSlice;
+    euCountPerSubSlice = euCountPerSubSlice;
 }
 
 int Device::createDrmVirtualMemory() {
-    int ret;
-    struct drm_i915_gem_vm_control ctl = {0};
-    
-    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_VM_CREATE, &ctl);
+    drm_i915_gem_vm_control ctl = {0};
+    int ret = ioctl(fd, DRM_IOCTL_I915_GEM_VM_CREATE, &ctl);
     if (ret == 0) {
         if (ctl.vm_id == 0) {
             return -1;          // 0 is reserved for invalid/unassigned ppGTT
         }
-        gpuInfo->drmVmId = ctl.vm_id;
+        drmVmId = ctl.vm_id;
     }
     return ret;
 }
@@ -286,52 +258,56 @@ int Device::enableTurboBoost() {
     // Even though my test machine (Skylake) has Turbo Boost 2.0, this does not work. 
     // Do we need to specify a context id first?
     // use ftrace to see why we get EINVAL error
-    int ret;
-    struct drm_i915_gem_context_param contextParam = {};
+    drm_i915_gem_context_param contextParam = {0};
 
     contextParam.param = I915_CONTEXT_PRIVATE_PARAM_BOOST;
     contextParam.value = 1;
-    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &contextParam);
+    int ret = ioctl(fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &contextParam);
     return ret;
 }
 
 int Device::queryGttSize() {
-    int ret;
-    struct drm_i915_gem_context_param contextParam = {};
+    drm_i915_gem_context_param contextParam = {0};
     contextParam.ctx_id = 0;
     contextParam.param = I915_CONTEXT_PARAM_GTT_SIZE;
     contextParam.value = 0;
-    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &contextParam);
+    int ret = ioctl(fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &contextParam);
     if (ret == 0) {
-        gpuInfo->gttSize = contextParam.value;
+        gttSize = contextParam.value;
     }
     return ret;
 }
 
 void Device::checkNonPersistentContextsSupport() {
-    int ret;
-    struct drm_i915_gem_context_param contextParam = {};
+    drm_i915_gem_context_param contextParam = {0};
     contextParam.param = I915_CONTEXT_PARAM_PERSISTENCE;
 
-    ret = ioctl(gpuInfo->fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &contextParam);
+    int ret = ioctl(fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &contextParam);
     if (ret == 0 && contextParam.value == 1) {
-        gpuInfo->nonPersistentContextsSupported = true;
+        nonPersistentContextsSupported = true;
     }
     else {
-        gpuInfo->nonPersistentContextsSupported = false;
+        nonPersistentContextsSupported = false;
     }
+}
+
+bool Device::getNonPersistentContextsSupported() {
+    return nonPersistentContextsSupported;
+}
+
+DeviceDescriptor* Device::getDeviceDescriptor() {
+    return descriptor;
 }
 
 void Device::checkPreemptionSupport() {
-    int ret;
     int value = 0;
-    ret = getParamIoctl(I915_PARAM_HAS_SCHEDULER, &value);
-    gpuInfo->schedulerValue = value;
-    gpuInfo->preemptionSupported = ((0 == ret) && (value & I915_SCHEDULER_CAP_PREEMPTION));
+    int ret = getParamIoctl(I915_PARAM_HAS_SCHEDULER, &value);
+    schedulerValue = value;
+    preemptionSupported = ((0 == ret) && (value & I915_SCHEDULER_CAP_PREEMPTION));
 }
 
 /*
-int Device::getMaxGpuFrequency(GPU* gpuInfo) {
+int Device::getMaxGpuFrequency() {
     int ret;
     std::string path = "/sys/bus/pci/devices/" + pciPath + "/drm" + "/card";
 

@@ -14,8 +14,8 @@
 #define COMPILER_LOAD_FAILED -1
 
 
-Kernel::Kernel(GPU* gpuInfo, const char* filename, const char* options) 
-         : gpuInfo(gpuInfo),
+Kernel::Kernel(Device* device, const char* filename, const char* options) 
+         : device(device),
            filename(filename),
            options(options),
            igcName("libigc.so.1"),
@@ -132,7 +132,7 @@ FclOclTranslationCtx* Kernel::createFclTranslationCtx() {
         if (nullptr == igcPlatform) {
             return nullptr;
         }
-        DeviceDescriptor* dd = static_cast<DeviceDescriptor*>(gpuInfo->descriptor);
+        DeviceDescriptor* dd = device->getDeviceDescriptor();
         TransferPlatformInfo(igcPlatform, dd->pHwInfo->platform);
     }
     uint64_t translationCtxVersion = 1;
@@ -237,7 +237,7 @@ IgcOclTranslationCtx* Kernel::createIgcTranslationCtx() {
     if (!igcPlatform || !igcGetSystemInfo || !igcFeWa) {
         return nullptr;
     }
-    DeviceDescriptor* dd = static_cast<DeviceDescriptor*>(gpuInfo->descriptor);
+    DeviceDescriptor* dd = device->getDeviceDescriptor();
     TransferPlatformInfo(igcPlatform, dd->pHwInfo->platform);
     TransferSystemInfo(igcGetSystemInfo, dd->pHwInfo->gtSystemInfo);
     TransferFeaturesInfo(igcFeWa, dd->pHwInfo->featureTable);

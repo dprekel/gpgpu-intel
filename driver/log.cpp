@@ -7,24 +7,24 @@
 #include "log.h"
 
 
-Log::Log(GPU* gpuInfo) 
-         : gpuInfo(gpuInfo) {
+Log::Log(Device* device) 
+         : device(device) {
 }
 
 Log::~Log() {}
 
 void Log::printDeviceInfo() {
-    printf("File descriptor: %d\n", gpuInfo->fd);
-    printf("Driver version: %s\n", gpuInfo->driver_name);
-    printf("Chipset ID: %d\n", gpuInfo->chipset_id);
-    printf("Revision ID: %d\n", gpuInfo->revision_id);
-    auto descriptor = static_cast<DeviceDescriptor*>(gpuInfo->descriptor);
+    printf("File descriptor: %d\n", device->fd);
+    printf("Driver version: %s\n", device->driver_name);
+    printf("Chipset ID: %d\n", device->chipset_id);
+    printf("Revision ID: %d\n", device->revision_id);
+    auto descriptor = static_cast<DeviceDescriptor*>(device->descriptor);
     printf("Device Name: %s\n", descriptor->devName);
     printTopologyInfo();
     printf("\n");
     printf("Available Engines                         Capabilities\n");
     printf("---------------------------------------------------------------------\n");
-    auto engineData = reinterpret_cast<drm_i915_query_engine_info*>(gpuInfo->engines);
+    auto engineData = reinterpret_cast<drm_i915_query_engine_info*>(device->engines);
     for (uint32_t i = 0; i < engineData->num_engines; i++) {
         switch (engineData->engines[i].engine.engine_class) {
             case I915_ENGINE_CLASS_RENDER:
@@ -46,11 +46,11 @@ void Log::printDeviceInfo() {
 }
 
 void Log::printTopologyInfo() {
-    uint16_t sliceCount = gpuInfo->sliceCount;
-    uint16_t subSliceCount = gpuInfo->subSliceCount;
-    uint16_t euCount = gpuInfo->euCount;
-    uint16_t subSliceCountPerSlice = gpuInfo->subSliceCountPerSlice;
-    uint16_t euCountPerSubSlice = gpuInfo->euCountPerSubSlice;
+    uint16_t sliceCount = device->sliceCount;
+    uint16_t subSliceCount = device->subSliceCount;
+    uint16_t euCount = device->euCount;
+    uint16_t subSliceCountPerSlice = device->subSliceCountPerSlice;
+    uint16_t euCountPerSubSlice = device->euCountPerSubSlice;
 
     printf("\n");
     printf("Execution Units\n");
@@ -129,18 +129,18 @@ void Log::printContextInfo() {
     printf("Context Information\n");
     printf("---------------------------------------------------------------------\n");
     printf("Selected Engine:\n");
-    printf("DrmVmId: %d\n", gpuInfo->drmVmId);
-    printf("GTT size: %lu\n", gpuInfo->gttSize);
-    if (gpuInfo->nonPersistentContextsSupported) {
+    printf("DrmVmId: %d\n", device->drmVmId);
+    printf("GTT size: %lu\n", device->gttSize);
+    if (device->nonPersistentContextsSupported) {
         printf("Persistence Support: No\n");
     }
-    else if (!gpuInfo->nonPersistentContextsSupported) {
+    else if (!device->nonPersistentContextsSupported) {
         printf("Persistence Support: Yes\n");
     }
-    if (gpuInfo->preemptionSupported) {
+    if (device->preemptionSupported) {
         printf("Preemption Support: Yes\n");
     }
-    else if (!gpuInfo->preemptionSupported) {
+    else if (!device->preemptionSupported) {
         printf("Preemption Support: No\n");
     }
 }
