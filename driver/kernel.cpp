@@ -152,16 +152,16 @@ void Kernel::TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform)
     igcPlatform->SetRevId_PCH(platform->usRevId_PCH);
     //igcPlatform->SetGTType(platform->eGTType);
     igcPlatform->SetGTType(GTTYPE::GTTYPE_GT3);
-    uint64_t fam = igcPlatform->GetProductFamily();
-    uint64_t core = igcPlatform->GetRenderCoreFamily();
+    //uint64_t fam = igcPlatform->GetProductFamily();
+    //uint64_t core = igcPlatform->GetRenderCoreFamily();
     //printf("fam: %lu, %lu\n", fam, core);
 }
 
 void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo) {
     //igcGetSystemInfo->SetEuCount(gtSystemInfo->EUCount);
     igcGetSystemInfo->SetEuCount(48);
-    uint32_t EUCount = igcGetSystemInfo->GetEUCount();
-    printf("EUCount: %u\n", EUCount);
+    //uint32_t EUCount = igcGetSystemInfo->GetEUCount();
+    //printf("EUCount: %u\n", EUCount);
     //igcGetSystemInfo->SetThreadCount(gtSystemInfo->ThreadCount);
     igcGetSystemInfo->SetThreadCount(336);
     igcGetSystemInfo->SetSliceCount(gtSystemInfo->SliceCount);
@@ -187,8 +187,8 @@ void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSy
     igcGetSystemInfo->SetMaxSlicesSupported(gtSystemInfo->MaxSlicesSupported);
     igcGetSystemInfo->SetMaxSubSlicesSupported(gtSystemInfo->MaxSubSlicesSupported);
     igcGetSystemInfo->SetIsL3HashModeEnabled(gtSystemInfo->IsL3HashModeEnabled);
-    uint32_t IsL3HashModeEnabled = igcGetSystemInfo->GetIsL3HashModeEnabled();
-    printf("IsL3HashModeEnabled: %u\n", IsL3HashModeEnabled);
+    //uint32_t IsL3HashModeEnabled = igcGetSystemInfo->GetIsL3HashModeEnabled();
+    //printf("IsL3HashModeEnabled: %u\n", IsL3HashModeEnabled);
 }
 
 void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable) {
@@ -381,9 +381,9 @@ int Kernel::extractMetadata() {
 }
 
 int Kernel::createSipKernel() {
+    /*
     uint64_t interfaceID = 0x15483dac4ed88c8;
     uint64_t interfaceVersion = 2;
-    /*
     ICIF* DeviceCtx = CreateInterface(igcMain, interfaceID, interfaceVersion);
     IgcOclDeviceCtx* newDeviceCtx = static_cast<IgcOclDeviceCtx*>(DeviceCtx);
     if (newDeviceCtx == nullptr) {

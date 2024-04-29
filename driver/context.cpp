@@ -121,10 +121,6 @@ void Context::setNonPersistentContext() {
 
 
 /*
-int Context::createPreemptionAllocation() {
-    return SUCCESS;
-}
-
 void* Context::ptrOffset(void* ptrBefore, size_t offset) {
     uintptr_t addrAfter = (uintptr_t)ptrBefore + offset;
     return (void*)addrAfter;
@@ -337,6 +333,16 @@ int Context::allocateISAMemory() {
     printf("Kernel ISA Pointer: %p\n", kernelData->isa);
 
     memcpy(kernelISA->alloc, kernelData->isa, kernelISASize);
+    return SUCCESS;
+}
+
+int Context::createPreemptionAllocation() {
+    size_t preemptionSize = 8 * 1048576;
+    BufferObject* preemption = allocateBufferObject(preemptionSize, 0);
+    if (!preemption) {
+        return PREEMPTION_ALLOCATION_FAILED;
+    }
+    preemption->bufferType = BufferType::PREEMPTION;
     return SUCCESS;
 }
 

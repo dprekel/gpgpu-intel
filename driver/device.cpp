@@ -22,9 +22,11 @@ const DeviceDescriptor deviceDescriptorTable[] = {
 
 Device::Device() {}
 
-Device::~Device() {}
+Device::~Device() {
+    printf("Device destructor called!\n");
+}
 
-int Device::initializeGPU() {
+int Device::initialize() {
     //TODO: Discover all devices
     fd = openDeviceFile();
 

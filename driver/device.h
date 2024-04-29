@@ -18,11 +18,11 @@ struct DeviceDescriptor {
     const char* devName;
 };
 
-class Device {
+class Device : public pDevice {
   public:
     Device();
     ~Device();
-    int initializeGPU();
+    int initialize();
     int openDeviceFile();
     bool checkDriverVersion();
     int getParamIoctl(int param, int* paramValue);
