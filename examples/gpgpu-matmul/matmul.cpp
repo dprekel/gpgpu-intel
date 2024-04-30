@@ -19,10 +19,10 @@ int main() {
                               + " -DTILE_GROUP_M=" + std::to_string(TILE_GROUP_M)
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
-    err = BuildKernel(device, filename, build_options.c_str(), 0, false);
-    printf("Kernel build: %d\n", err);
-    err = CreateContext(device);
+    pContext* context = CreateContext(device, &err);
     printf("Context creation: %d\n", err);
+    pKernel* kernel = BuildKernel(context, filename, build_options.c_str(), 0, false, &err);
+    printf("Kernel build: %d\n", err);
     //void* ptrToBuffer = CreateBuffer(gpuInfo, 4096);
     //printf("Buffer ptr: %p\n", ptrToBuffer);
 
@@ -31,9 +31,11 @@ int main() {
     const size_t local[2] = {TILE_GROUP_M, TILE_GROUP_N};
     // total number of work items in each dimension
     const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
-    err = EnqueueNDRangeKernel(device, 2, NULL, global, local);
+    err = EnqueueNDRangeKernel(context, kernel, 2, NULL, global, local);
     printf("err: %d\n", err);
 
-    err = ReleaseObjects(device);
+    err = ReleaseKernel(kernel);
+    err = ReleaseContext(context);
+    err = ReleaseDevice(device);
     return 0;
 }
