@@ -18,7 +18,7 @@ void Log::printDeviceInfo() {
     printf("Driver version: %s\n", device->driver_name);
     printf("Chipset ID: %d\n", device->chipset_id);
     printf("Revision ID: %d\n", device->revision_id);
-    auto descriptor = static_cast<DeviceDescriptor*>(device->descriptor);
+    auto descriptor = device->descriptor.get();
     printf("Device Name: %s\n", descriptor->devName);
     printTopologyInfo();
     printf("\n");

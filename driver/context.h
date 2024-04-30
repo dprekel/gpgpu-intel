@@ -35,7 +35,7 @@ struct BufferObject {
 class Device;
 class Kernel;
 
-class Context {
+class Context : public pContext {
   public:
     Context(Device* device);
     ~Context();

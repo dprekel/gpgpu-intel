@@ -13,37 +13,41 @@
 #define INVALID_WORK_GROUP_SIZE             -10
 #define NO_DEVICE_ERROR                     -11
 #define NO_CONTEXT_ERROR                    -12
+#define NO_KERNEL_ERROR                     -13
 
 
 class pDevice {
     int magic;
 };
 
+class pContext {
+    int magic;
+};
+
+class pKernel {
+    int magic;
+};
 
 extern pDevice* CreateDevice(int* err);
-
 extern int GetInfo(pDevice* device);
-
-extern int CreateContext(pDevice* device);
-
-extern int CreateBuffer(pDevice* device,
+extern pContext* CreateContext(pDevice* device, 
+                        int* err);
+extern int CreateBuffer(pContext* context,
                         void* buffer,
                         size_t size);
-
-extern int BuildKernel(pDevice* device,
+extern pKernel* BuildKernel(pContext* context,
                         const char* filename,
                         const char* options,
-                        int architecture,
-                        bool disassemble);
-
-extern int EnqueueNDRangeKernel(pDevice* device,
+                        uint16_t chipset_id,
+                        bool enableDisassemble,
+                        int* err);
+extern int EnqueueNDRangeKernel(pContext* context,
+                        pKernel* kernel,
                         uint32_t work_dim,
                         const size_t* global_work_offset,
                         const size_t* global_work_size,
                         const size_t* local_work_size);
-
-extern int ReleaseObjects(pDevice* device);
-
-
-
+extern int ReleaseDevice(pDevice* device);
+extern int ReleaseContext(pContext* context);
+extern int ReleaseKernel(pKernel* kernel);
 

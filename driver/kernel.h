@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <memory>
 
 #include "device.h"
 #include "igc_interface.h"
@@ -9,6 +10,10 @@
 #include "gpgpu.h"
 
 #pragma pack( push, 1 )
+
+class Device;
+class Context;
+struct DeviceDescriptor;
 
 enum PATCH_TOKEN {
     PATCH_TOKEN_SAMPLER_STATE_ARRAY = 5,
@@ -127,14 +132,16 @@ struct KernelFromPatchtokens {
 
 #pragma pack ( pop )
 
-class Device;
 
-class Kernel {
+
+class Kernel : public pKernel {
   public:
-    Kernel(Device* device, const char* filename, const char* options);
+    Kernel(Context* context, const char* filename, const char* options);
     ~Kernel();
     KernelFromPatchtokens* getKernelData();
+    int initialize();
     int loadProgramSource();
+    int build(uint16_t chipset_id);
     ICIF* CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion);
     IgcBuffer* CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t size);
     int loadCompiler(const char* libName, CIFMain** cifMain);
@@ -143,23 +150,25 @@ class Kernel {
     void TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo);
     void TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable);
     IgcOclTranslationCtx* createIgcTranslationCtx();
-    int build();
-    const void* ptrOffset(const void* ptrBefore, size_t offset);
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
+    int disassembleBinary();
     int extractMetadata();
     int createSipKernel();
-    Device* device;
-  private:
-    const char* filename;
-    const char* options;
-    size_t optionsSize;
 
+    Context* context;
+  private:
+    std::unique_ptr<DeviceDescriptor> descriptor;
     const char* igcName;
     const char* fclName;
     CIFMain* igcMain;
     CIFMain* fclMain;
+
+    const char* filename;
+    const char* options;
+    size_t optionsSize;
+    
     const char* srcCode;
-    size_t srcSize;
+    uint64_t srcSize;
     uint64_t srcType;
     uint64_t intermediateType;
     uint64_t outType;
@@ -170,7 +179,6 @@ class Kernel {
     const uint8_t* kernelInfoBlob;
     KernelFromPatchtokens kernelData;
 };
-
 
 
 

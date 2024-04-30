@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <memory>
 
 #include "hwinfo.h"
 #include "gpgpu.h"
@@ -34,10 +35,10 @@ class Device : public pDevice {
     void checkPreemptionSupport();
     int enableTurboBoost();
     bool getNonPersistentContextsSupported();
+    std::unique_ptr<DeviceDescriptor> getDevInfoFromDescriptorTable(uint16_t chipset_id);
     DeviceDescriptor* getDeviceDescriptor();
 
     Context* context;
-    Kernel* kernel;
     int fd;
     int drmVmId;                            // unique identifier for ppGTT
     const char* driver_name;
@@ -45,7 +46,7 @@ class Device : public pDevice {
     int revision_id;
 
     void* HWConfigTable;                    // if this is nullptr, it is not supported
-    DeviceDescriptor* descriptor;
+    std::unique_ptr<DeviceDescriptor> descriptor;
 
     uint16_t sliceCount;
     uint16_t subSliceCount;

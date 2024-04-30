@@ -16,7 +16,6 @@
 
 Context::Context(Device* device) 
          : device(device),
-           kernel(device->kernel),
            globalOffsets{0, 0, 0},
            workItems{1, 1, 1},
            localWorkSizesIn{0, 0, 0},
@@ -96,7 +95,7 @@ int Context::createDrmContext() {
     drm_i915_gem_context_create_ext gcc = {};
     ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT, &gcc);
     if (ret) {
-        return ret;
+        return CONTEXT_CREATION_FAILED;
     }
     if (vmId > 0) {
         drm_i915_gem_context_param param = {};
@@ -105,7 +104,7 @@ int Context::createDrmContext() {
         param.param = I915_CONTEXT_PARAM_VM;
         ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &param);
         if (ret) {
-            return ret;
+            return CONTEXT_CREATION_FAILED;
         }
     }
     ctxId = gcc.ctx_id;

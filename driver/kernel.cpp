@@ -14,8 +14,8 @@
 #define COMPILER_LOAD_FAILED -1
 
 
-Kernel::Kernel(Device* device, const char* filename, const char* options) 
-         : device(device),
+Kernel::Kernel(Context* context, const char* filename, const char* options) 
+         : context(context),
            filename(filename),
            options(options),
            igcName("libigc.so.1"),
@@ -132,8 +132,7 @@ FclOclTranslationCtx* Kernel::createFclTranslationCtx() {
         if (nullptr == igcPlatform) {
             return nullptr;
         }
-        DeviceDescriptor* dd = device->getDeviceDescriptor();
-        TransferPlatformInfo(igcPlatform, dd->pHwInfo->platform);
+        TransferPlatformInfo(igcPlatform, descriptor->pHwInfo->platform);
     }
     uint64_t translationCtxVersion = 1;
     auto fclTranslationCtx = newDeviceCtx->CreateTranslationCtxImpl(translationCtxVersion, srcType, intermediateType);
@@ -237,25 +236,38 @@ IgcOclTranslationCtx* Kernel::createIgcTranslationCtx() {
     if (!igcPlatform || !igcGetSystemInfo || !igcFeWa) {
         return nullptr;
     }
-    DeviceDescriptor* dd = device->getDeviceDescriptor();
-    TransferPlatformInfo(igcPlatform, dd->pHwInfo->platform);
-    TransferSystemInfo(igcGetSystemInfo, dd->pHwInfo->gtSystemInfo);
-    TransferFeaturesInfo(igcFeWa, dd->pHwInfo->featureTable);
+    TransferPlatformInfo(igcPlatform, descriptor->pHwInfo->platform);
+    TransferSystemInfo(igcGetSystemInfo, descriptor->pHwInfo->gtSystemInfo);
+    TransferFeaturesInfo(igcFeWa, descriptor->pHwInfo->featureTable);
     
     uint64_t translationCtxVersion = 3;
     return newDeviceCtx->CreateTranslationCtxImpl(translationCtxVersion, intermediateType, outType);
 }
 
-int Kernel::build() {
+int Kernel::initialize() {
     int retFcl = loadCompiler(fclName, &fclMain);
     int retIgc = loadCompiler(igcName, &igcMain);
-    if (retFcl) {
+    if (retFcl)
         return retFcl;
-    }
-    if (retIgc) {
+    if (retIgc)
         return retIgc;
-    }
+    return SUCCESS;
+}
 
+int Kernel::build(uint16_t chipset_id) {
+    int ret = loadProgramSource();
+    if (ret)
+        return ret;
+    if (chipset_id) {
+        descriptor = context->device->getDevInfoFromDescriptorTable(chipset_id);
+    }
+    else {
+        descriptor = std::make_unique<DeviceDescriptor>();
+        DeviceDescriptor* dd = context->device->getDeviceDescriptor();
+        descriptor->pHwInfo = dd->pHwInfo;
+        descriptor->setupHardwareInfo = dd->setupHardwareInfo;
+        descriptor->devName = dd->devName;
+    }
     IgcBuffer* src = CreateIgcBuffer(igcMain, srcCode, srcSize+1);
     IgcBuffer* buildOptions = CreateIgcBuffer(igcMain, options, optionsSize+1);
     printf("options: %s\n", options);
@@ -310,7 +322,7 @@ int Kernel::build() {
         printf("%s\n", deviceBinary);
     }
 
-    return 0;
+    return SUCCESS;
 }
 
 void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData) {
@@ -399,6 +411,10 @@ int Kernel::createSipKernel() {
     bool result = DeviceCtx->GetSystemRoutine(0u, bindlessSip, systemRoutineBuffer, stateSaveAreaBuffer);    
     */
 
+    return SUCCESS;
+}
+
+int Kernel::disassembleBinary() {
     return SUCCESS;
 }
 

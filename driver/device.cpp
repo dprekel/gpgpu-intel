@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <memory>
 
 #include "device.h"
 #include "hwinfo.h"
@@ -65,17 +66,7 @@ int Device::initialize() {
     if (!deviceBlob) {
         printf("Hardware configuration table could not be retrieved\n");
     }
-    // setup System info from device blob
-    descriptor = new DeviceDescriptor();
-    for (auto &d : deviceDescriptorTable) {
-        if (chipset_id == d.deviceId) {
-            descriptor->pHwInfo = d.pHwInfo;
-            descriptor->setupHardwareInfo = d.setupHardwareInfo;
-            //device->eGtType = d.eGtType;
-            descriptor->devName = d.devName;
-            break;
-        }
-    }
+    descriptor = getDevInfoFromDescriptorTable(chipset_id);
     if (descriptor->pHwInfo) {
         descriptor->setupHardwareInfo(descriptor->pHwInfo);
         descriptor->pHwInfo->platform->usDeviceID = chipset_id;
@@ -142,6 +133,19 @@ int Device::initialize() {
     return SUCCESS;
 }
 
+std::unique_ptr<DeviceDescriptor> Device::getDevInfoFromDescriptorTable(uint16_t chipset_id) {
+    auto descriptor = std::make_unique<DeviceDescriptor>();
+    for (auto &d : deviceDescriptorTable) {
+        if (chipset_id == d.deviceId) {
+            descriptor->pHwInfo = d.pHwInfo;
+            descriptor->setupHardwareInfo = d.setupHardwareInfo;
+            //device->eGtType = d.eGtType;
+            descriptor->devName = d.devName;
+            break;
+        }
+    }
+    return std::move(descriptor);
+}
 
 int Device::openDeviceFile() {
     //TODO: add code that reads out the string from the system
@@ -298,7 +302,7 @@ bool Device::getNonPersistentContextsSupported() {
 }
 
 DeviceDescriptor* Device::getDeviceDescriptor() {
-    return descriptor;
+    return descriptor.get();
 }
 
 void Device::checkPreemptionSupport() {

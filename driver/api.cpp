@@ -22,51 +22,74 @@ pDevice API_CALL* CreateDevice(int* ret) {
 }
 
 
-int API_CALL BuildKernel(pDevice* dev, const char* filename, const char* options, int architecture, bool disassemble) {
-    if (!dev)
-        return NO_DEVICE_ERROR;
+pContext API_CALL* CreateContext(pDevice* dev, int* ret) {
+    *ret = 0;
+    if (!dev) {
+        *ret = NO_DEVICE_ERROR;
+        return nullptr;
+    }
     Device* device = static_cast<Device*>(dev);
-    Kernel* kernel = new Kernel(device, filename, options);
-    device->kernel = kernel;
-    int ret = kernel->loadProgramSource();
-    if (ret)
-        return ret;
-    ret = kernel->build();
-    if (ret)
-        return ret;
-    ret = kernel->extractMetadata();
-    if (ret)
-        return ret;
-    ret = kernel->createSipKernel();
-    if (ret)
-        return ret;
-    return SUCCESS;
-}
-
-
-int API_CALL CreateContext(pDevice* dev) {
-    if (!dev)
-        return NO_DEVICE_ERROR;
-    Device* device = static_cast<Device*>(dev);
+    if (device->context) {
+        return static_cast<pContext*>(device->context);
+    }
     Context* context = new Context(device);
     device->context = context;
-    int ret = context->createDrmContext();
+    *ret = context->createDrmContext();
+    if (*ret) {
+        return nullptr;
+    }
     if (device->getNonPersistentContextsSupported()) {
         context->setNonPersistentContext();
     }
-    if (ret)
-        return CONTEXT_CREATION_FAILED;
-    return SUCCESS;
+    pContext* cont = static_cast<pContext*>(context);
+    return cont;
 }
 
 
-int API_CALL CreateBuffer(pDevice* dev, void* buffer, size_t size) {
-    if (!dev)
-        return NO_DEVICE_ERROR;
-    Device* device = static_cast<Device*>(dev);
-    if (!device->context)
+pKernel API_CALL* BuildKernel(pContext* cont,
+                        const char* filename,
+                        const char* options,
+                        uint16_t chipset_id,
+                        bool enableDisassemble,
+                        int* ret) {
+    *ret = 0;
+    if (!cont) {
+        *ret = NO_CONTEXT_ERROR;
+        return nullptr;
+    }
+    *ret = 0;
+    Context* context = static_cast<Context*>(cont);
+    Kernel* kernel = new Kernel(context, filename, options);
+    *ret = kernel->initialize();
+    if (*ret)
+        return nullptr;
+    *ret = kernel->build(chipset_id);
+    if (*ret)
+        return nullptr;
+    if (enableDisassemble) {
+        *ret = kernel->disassembleBinary();
+        if (*ret)
+            return nullptr;
+    }
+    if (!chipset_id) {
+        *ret = kernel->extractMetadata();
+        if (*ret)
+            return nullptr;
+        *ret = kernel->createSipKernel();
+        if (*ret)
+            return nullptr;
+    }
+    pKernel* kern = static_cast<pKernel*>(kernel);
+    return kern;
+}
+
+
+int API_CALL CreateBuffer(pContext* cont,
+                        void* buffer,
+                        size_t size) {
+    if (!cont)
         return NO_CONTEXT_ERROR;
-    Context* context = device->context;
+    Context* context = static_cast<Context*>(cont);
     BufferObject* dataBuffer = context->allocateBufferObject(size, 0);
     if (!dataBuffer)
         return BUFFER_ALLOCATION_FAILED;
@@ -77,13 +100,16 @@ int API_CALL CreateBuffer(pDevice* dev, void* buffer, size_t size) {
 }
 
 
-int API_CALL EnqueueNDRangeKernel(pDevice* dev, uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size) {
-    if (!dev)
-        return NO_DEVICE_ERROR;
-    Device* device = static_cast<Device*>(dev);
-    if (!device->context)
+int API_CALL EnqueueNDRangeKernel(pContext* cont,
+                        pKernel* kern,
+                        uint32_t work_dim,
+                        const size_t* global_work_offset,
+                        const size_t* global_work_size,
+                        const size_t* local_work_size) {
+    if (!cont)
         return NO_CONTEXT_ERROR;
-    Context* context = device->context;
+    Context* context = static_cast<Context*>(cont);
+    context->kernel = static_cast<Kernel*>(kern);
     int ret = context->validateWorkGroups(work_dim, global_work_offset, global_work_size, local_work_size);
     if (ret)
         return ret;
@@ -100,6 +126,7 @@ int API_CALL EnqueueNDRangeKernel(pDevice* dev, uint32_t work_dim, const size_t*
     ret = context->createCommandBuffer();
     if (ret)
         return ret;
+    context->kernel = nullptr;
     return SUCCESS;
 }
 
@@ -115,16 +142,33 @@ int API_CALL GetInfo(pDevice* dev) {
 }
 
 
-int API_CALL ReleaseObjects(pDevice* dev) {
+int API_CALL ReleaseDevice(pDevice* dev) {
     if (!dev)
         return NO_DEVICE_ERROR;
     Device* device = static_cast<Device*>(dev);
-    delete device->kernel;
-    delete device->context;
     delete device;
-
     return SUCCESS;
 }
+
+
+int API_CALL ReleaseContext(pContext* cont) {
+    if (!cont)
+        return NO_CONTEXT_ERROR;
+    Context* context = static_cast<Context*>(cont);
+    delete context;
+    return SUCCESS;
+}
+
+
+int API_CALL ReleaseKernel(pKernel* kern) {
+    if (!kern)
+        return NO_KERNEL_ERROR;
+    Kernel* kernel = static_cast<Kernel*>(kern);
+    delete kernel;
+    return SUCCESS;
+}
+
+
 
 
 
