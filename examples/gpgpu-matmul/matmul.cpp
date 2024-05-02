@@ -14,14 +14,13 @@ int main() {
     pDevice* device = CreateDevice(&err);
     err = GetInfo(device);
 
-    const char* filename = "matmul.cl";
     std::string build_options = "-DTILE_SIZE_M=" + std::to_string(TILE_SIZE_M)
                               + " -DTILE_GROUP_M=" + std::to_string(TILE_GROUP_M)
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
     pContext* context = CreateContext(device, &err);
     printf("Context creation: %d\n", err);
-    pKernel* kernel = BuildKernel(context, filename, build_options.c_str(), 0, false, &err);
+    pKernel* kernel = BuildKernel(context, "matmul.cl", build_options.c_str(), 0, false, &err);
     printf("Kernel build: %d\n", err);
     //void* ptrToBuffer = CreateBuffer(gpuInfo, 4096);
     //printf("Buffer ptr: %p\n", ptrToBuffer);

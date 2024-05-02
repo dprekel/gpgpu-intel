@@ -81,12 +81,10 @@ sendIndirectState()  hardware_commands_helper_base.inl  (fill dsh, ioh, ssh)
 - Support kernel compilation for all other architectures
 - Improve data buffer allocation
 - Get rid of all memory leaks
-- Think about how the API should look like
 - Kernel binary encoding to ELF format
 - Disassemble the ELF binary by linking to IGA library
-- Add Release() function that destroys all heap objects
+- Release() functions: Free buffer object memory and memory allocated by compiler
 - Add clFinish functionality
-- Merge gpuInfo and Device classes
 - Use new for aligned malloc
 - Make sure all API functions can only be called in correct order
 - Add aligned free for buffer objects
