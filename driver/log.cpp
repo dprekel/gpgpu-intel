@@ -3,7 +3,7 @@
 
 #include "gpgpu.h"
 #include "device.h"
-#include "drm_structs.h"
+#include "ioctl.h"
 #include "log.h"
 
 

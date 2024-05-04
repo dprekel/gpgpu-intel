@@ -12,6 +12,10 @@ class Context;
 class Kernel;
 
 struct DeviceDescriptor {
+    DeviceDescriptor() {};
+    ~DeviceDescriptor() {
+        printf("DeviceDescriptor destructor called!\n");
+    }
     uint16_t deviceId;
     const HardwareInfo* pHwInfo;
     void (*setupHardwareInfo)(const HardwareInfo*);
@@ -28,7 +32,7 @@ class Device : public pDevice {
     bool checkDriverVersion();
     int getParamIoctl(int param, int* paramValue);
     void* queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length);
-    void translateTopologyInfo(struct drm_i915_query_topology_info* topologyInfo);
+    void translateTopologyInfo(drm_i915_query_topology_info* topologyInfo);
     int createDrmVirtualMemory();
     int queryGttSize();
     void checkNonPersistentContextsSupport();

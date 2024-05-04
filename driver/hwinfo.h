@@ -4,6 +4,112 @@
 
 #include "hwinfo.h"
 
+
+
+struct PVC {
+    static Platform platform;
+    static FeatureTable featureTable;
+    static const uint32_t threadsPerEu = ;
+    static const uint32_t maxEuPerSubSlice = 8;
+    static const uint32_t maxSlicesSupported = 8;
+    static const uint32_t maxSubSlicesSupported = 64;
+    static const uint32_t maxDualSubslicesSupported = 64;
+    static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
+};
+class PvcHwConfig : public PVC {
+  public:
+    static void setupHardwareInfo(const HardwareInfo* hwInfo);
+    static const HardwareInfo hwInfo;
+  private:
+    static SystemInfo gtSystemInfo;
+};
+
+
+
+struct DG1 {
+    static Platform platform;
+    static FeatureTable featureTable;
+    static const uint32_t threadsPerEu = ;
+    static const uint32_t maxEuPerSubSlice = 16;
+    static const uint32_t maxSlicesSupported = 1;
+    static const uint32_t maxSubSlicesSupported = 6;
+    static const uint32_t maxDualSubslicesSupported = 6;
+    static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
+};
+class Dg1HwConfig : public DG1 {
+  public:
+    static void setupHardwareInfo(const HardwareInfo* hwInfo);
+    static const HardwareInfo hwInfo;
+  private:
+    static SystemInfo gtSystemInfo;
+};
+
+
+// Alchemist
+struct DG2 {
+    static Platform platform;
+    static FeatureTable featureTable;
+    static const uint32_t threadsPerEu = ;
+    static const uint32_t maxEuPerSubSlice = 16;
+    static const uint32_t maxSlicesSupported = 8;
+    static const uint32_t maxSubSlicesSupported = 32;
+    static const uint32_t maxDualSubslicesSupported = 32;
+    static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
+};
+class Dg2HwConfig : public DG2 {
+  public:
+    static void setupHardwareInfo(const HardwareInfo* hwInfo);
+    static const HardwareInfo hwInfo;
+  private:
+    static SystemInfo gtSystemInfo;
+};
+
+
+
+
+// Meteorlake
+struct MTL {
+    static Platform platform;
+    static FeatureTable featureTable;
+    static const uint32_t threadsPerEu = ;
+    static const uint32_t maxEuPerSubSlice = 16;
+    static const uint32_t maxSlicesSupported = 8;
+    static const uint32_t maxSubSlicesSupported = 32;
+    static const uint32_t maxDualSubslicesSupported = 32;
+    static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
+};
+class MtlHwConfig : public MTL {
+  public:
+    static void setupHardwareInfo(const HardwareInfo* hwInfo);
+    static const HardwareInfo hwInfo;
+  private:
+    static SystemInfo gtSystemInfo;
+};
+
+
+
+
+struct ARL {
+    static Platform platform;
+    static FeatureTable featureTable;
+    static const uint32_t threadsPerEu = ;
+    static const uint32_t maxEuPerSubSlice = ;
+    static const uint32_t maxSlicesSupported = ;
+    static const uint32_t maxSubSlicesSupported = ;
+    static const uint32_t maxDualSubslicesSupported = ;
+    static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
+};
+class ArlHwConfig : public ARL {
+  public:
+    static void setupHardwareInfo(const HardwareInfo* hwInfo);
+    static const HardwareInfo hwInfo;
+  private:
+    static SystemInfo gtSystemInfo;
+};
+
+
+
+
 // AlderlakeS (GEN12LP)
 struct ADLS {
     static Platform platform;
@@ -14,7 +120,7 @@ struct ADLS {
     static const uint32_t maxSubslicesSupported = 8;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
-class ADLS_HW_CONFIG : public ADLS {
+class AdlsHwConfig : public ADLS {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
@@ -35,21 +141,21 @@ struct ICLLP {
     static const uint32_t maxSubslicesSupported = 8;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
-class ICLLP_1x8x8 : public ICLLP {
+class IcllpHw1x8x8 : public ICLLP {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class ICLLP_1x4x8 : public ICLLP {
+class IcllpHw1x4x8 : public ICLLP {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class ICLLP_1x6x8 : public ICLLP {
+class IcllpHw1x6x8 : public ICLLP {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
@@ -69,7 +175,7 @@ struct LKF {
     static const uint32_t maxSubslicesSupported = 8;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
-class LKF_1x8x8 : public LKF {
+class LkfHw1x8x8 : public LKF {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
@@ -88,7 +194,7 @@ struct EHL {
     static const uint32_t maxSubslicesSupported = 4;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
-class EHL_HW_CONFIG : public EHL {
+class EhlHwConfig : public EHL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
@@ -109,35 +215,35 @@ struct SKL {
     static const uint32_t maxSubslicesSupported = 9;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
-class SKL_1x2x6 : public SKL {
+class SklHw1x2x6 : public SKL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class SKL_1x3x6 : public SKL {
+class SklHw1x3x6 : public SKL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class SKL_1x3x8 : public SKL {
+class SklHw1x3x8 : public SKL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class SKL_2x3x8 : public SKL {
+class SklHw2x3x8 : public SKL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class SKL_3x3x8 : public SKL {
+class SklHw3x3x8 : public SKL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
@@ -158,35 +264,35 @@ struct KBL {
     static const uint32_t maxSubslicesSupported = 9;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
-class KBL_1x2x6 : public KBL {
+class KblHw1x2x6 : public KBL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class KBL_1x3x6 : public KBL {
+class KblHw1x3x6 : public KBL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class KBL_1x3x8 : public KBL {
+class KblHw1x3x8 : public KBL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class KBL_2x3x8 : public KBL {
+class KblHw2x3x8 : public KBL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class KBL_3x3x8 : public KBL {
+class KblHw3x3x8 : public KBL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
@@ -207,35 +313,35 @@ struct CFL {
     static const uint32_t maxSubslicesSupported = 9;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
-class CFL_1x2x6 : public CFL {
+class CflHw1x2x6 : public CFL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class CFL_1x3x6 : public CFL {
+class CflHw1x3x6 : public CFL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class CFL_1x3x8 : public CFL {
+class CflHw1x3x8 : public CFL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class CFL_2x3x8 : public CFL {
+class CflHw2x3x8 : public CFL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class CFL_3x3x8 : public CFL {
+class CflHw3x3x8 : public CFL {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
@@ -256,14 +362,14 @@ struct GLK {
     static const uint32_t maxSubslicesSupported = 3;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
-class GLK_1x2x6 : public GLK {
+class GlkHw1x2x6 : public GLK {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class GLK_1x3x6 : public GLK {
+class GlkHw1x3x6 : public GLK {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
@@ -284,14 +390,14 @@ struct BXT {
     static const uint32_t maxSubslicesSupported = 3;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
-class BXT_1x2x6 : public BXT {
+class BxtHw1x2x6 : public BXT {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class BXT_1x3x6 : public BXT {
+class BxtHw1x3x6 : public BXT {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
@@ -312,28 +418,28 @@ struct BDW {
     static const uint32_t maxSubslicesSupported = 6;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
-class BDW_1x2x6 : public BDW {
+class BdwHw1x2x6 : public BDW {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class BDW_1x3x6 : public BDW {
+class BdwHw1x3x6 : public BDW {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class BDW_1x3x8 : public BDW {
+class BdwHw1x3x8 : public BDW {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;
   private:
     static SystemInfo gtSystemInfo;
 };
-class BDW_2x3x8 : public BDW {
+class BdwHw2x3x8 : public BDW {
   public:
     static void setupHardwareInfo(const HardwareInfo* hwInfo);
     static const HardwareInfo hwInfo;

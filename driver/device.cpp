@@ -10,7 +10,7 @@
 #include "hwinfo.h"
 #include "skl_info.h"
 #include "gpgpu.h"
-#include "drm_structs.h"
+#include "ioctl.h"
 
 const DeviceDescriptor deviceDescriptorTable[] = {
 #define NAMEDDEVICE(devId, gt, gtType, devName) {devId, &gt::hwInfo, &gt::setupHardwareInfo, gtType, devName},

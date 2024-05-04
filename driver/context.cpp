@@ -7,7 +7,7 @@
 
 #include "gpgpu.h"
 #include "context.h"
-#include "drm_structs.h"
+#include "ioctl.h"
 #include "utils.h"
 #include "commands_gen9.h"
 
