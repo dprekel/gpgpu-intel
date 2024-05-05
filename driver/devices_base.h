@@ -58,13 +58,12 @@ NAMEDDEVICE(0x7D55, MtlHwConfig, "Intel(R) Arc(TM) Graphics")
 NAMEDDEVICE(0x7DD5, MtlHwConfig, "Intel(R) Graphics")
 DEVICE(0x7D45, MtlHwConfig)
 DEVICE(0x7D60, MtlHwConfig)
-#endif
-#ifdef SUPPORT_ARL
+
+// Arrowlake
 DEVICE(0x7D67, ArlHwConfig)
 DEVICE(0x7D51, ArlHwConfig)
 DEVICE(0x7DD1, ArlHwConfig)
 DEVICE(0x7D41, ArlHwConfig)
-#endif
 
 // Tigerlake
 DEVICE(0xFF20, TgllpHw1x6x16)

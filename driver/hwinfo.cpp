@@ -1,4 +1,3 @@
-#include "kbl_info.h"
 #include "hwinfo.h"
 
 
@@ -224,6 +223,66 @@ const HardwareInfo MtlHwConfig::hwInfo = {
 
 
 
+// ------------------------------------------------------------------------------------------
+// ARROWLAKE (GEN12LP)
+// ------------------------------------------------------------------------------------------
+Platform ARL::platform = {
+    PRODUCT_FAMILY::IGFX_ARROWLAKE,
+    PCH_PRODUCT_FAMILY::PCH_UNKNOWN,
+    GFX_CORE_FAMILY::IGFX_XE_HPG_CORE,
+    GFX_CORE_FAMILY::IGFX_XE_HPG_CORE,
+    PLATFORM_TYPE::PLATFORM_NONE,
+    0,
+    0,
+    0,
+    0,
+    GTTYPE::GTTYPE_UNDEFINED
+};
+FeatureTable ARL::featureTable = {0};
+void ARL::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
+    FeatureTable* featureTable = hwInfo->featureTable;
+    featureTable->flags.ftrL3IACoherency = true;
+    featureTable->flags.ftrPPGTT = true;
+    featureTable->flags.ftrSVM = true;
+    featureTable->flags.ftrIA32eGfxPTEs = true;
+    featureTable->flags.ftrStandardMipTailFormat = true;
+    featureTable->flags.ftrTranslationTable = true;
+    featureTable->flags.ftrUserModeTranslationTable = true;
+    featureTable->flags.ftrTileMappedResource = true;
+    featureTable->flags.ftrFbc = true;
+    featureTable->flags.ftrTileY = true;
+    featureTable->flags.ftrAstcHdr2D = true;
+    featureTable->flags.ftrAstcLdr2D = true;
+    featureTable->flags.ftrGpGpuMidBatchPreempt = true;
+    featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
+}
+SystemInfo ArlHwConfig::gtSystemInfo = {0};
+void ArlHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
+    gtSysInfo->ThreadCount = gtSysInfo->EUCount * ARL::threadsPerEu;
+    gtSysInfo->L3CacheSizeInKb = 1;
+    gtSysInfo->L3BankCount = 1;
+    gtSysInfo->TotalPsThreadsWindowerRange = 64;
+    gtSysInfo->CsrSizeInMb = 8;
+    gtSysInfo->TotalVsThreads = 336;
+    gtSysInfo->TotalHsThreads = 336;
+    gtSysInfo->TotalDsThreads = 336;
+    gtSysInfo->TotalGsThreads = 336;
+    gtSysInfo->IsL3HashModeEnabled = false;
+    gtSysInfo->IsDynamicallyPopulated = false;
+    gtSysInfo->CCSInfo.IsValid = true;
+    gtSysInfo->CCSInfo.NumberOfCCSEnabled = 1;
+    gtSysInfo->CCSInfo.Instances.CCSEnableMask = 0b1;
+    setupFeatureAndWorkaroundTable(hwInfo);
+}
+const HardwareInfo ArlHwConfig::hwInfo = {
+    &ARL::platform,
+    &ARL::featureTable,
+    &ArlHwConfig::gtSystemInfo
+};
+
+
+
 
 // ------------------------------------------------------------------------------------------
 // Tigerlake (GEN12LP)
@@ -264,8 +323,8 @@ void TGLLP::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
     featureTable->flags.ftrPerCtxtPreemptionGranularityControl = true;
 }
-SystemInfo TGLLP_1x6x16::gtSystemInfo = {0};
-void TGLLP_1x6x16::setupHardwareInfo(const HardwareInfo* hwInfo) {
+SystemInfo TglHw1x6x16::gtSystemInfo = {0};
+void TglHw1x6x16::setupHardwareInfo(const HardwareInfo* hwInfo) {
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * TGLLP::threadsPerEu;
     gtSysInfo->SliceCount = 1;
@@ -290,13 +349,13 @@ void TGLLP_1x6x16::setupHardwareInfo(const HardwareInfo* hwInfo) {
     gtSysInfo->CCSInfo.Instances.CCSEnableMask = 0b1;
     setupFeatureAndWorkaroundTable(hwInfo);
 }
-const HardwareInfo TGLLP_1x6x16::hwInfo = {
+const HardwareInfo TglHw1x6x16::hwInfo = {
     &TGLLP::platform,
     &TGLLP::featureTable,
-    &TGLLP_1x1x16::gtSystemInfo
+    &TglHw1x1x16::gtSystemInfo
 };
-SystemInfo TGLLP_1x2x16::gtSystemInfo = {0};
-void TGLLP_1x2x16::setupHardwareInfo(const HardwareInfo* hwInfo) {
+SystemInfo TglHw1x2x16::gtSystemInfo = {0};
+void TglHw1x2x16::setupHardwareInfo(const HardwareInfo* hwInfo) {
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * TGLLP::threadsPerEu;
     gtSysInfo->SliceCount = 1;
@@ -324,7 +383,7 @@ void TGLLP_1x2x16::setupHardwareInfo(const HardwareInfo* hwInfo) {
 const HardwareInfo TGLLP_1x2x16::hwInfo = {
     &TGLLP::platform,
     &TGLLP::featureTable,
-    &TGLLP_1x2x16::gtSystemInfo
+    &TglHw1x2x16::gtSystemInfo
 };
 
 
@@ -504,18 +563,12 @@ void ADLS::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrTranslationTable = true;
     featureTable->flags.ftrUserModeTranslationTable = true;
     featureTable->flags.ftrTileMappedResource = true;
-    featureTable->flags.ftrEnableGuC = true;
     featureTable->flags.ftrFbc = true;
-    featureTable->flags.ftrFbc2AddressTranslation = true;
-    featureTable->flags.ftrFbcBlitterTracking = true;
-    featureTable->flags.ftrFbcCpuTracking = true;
     featureTable->flags.ftrTileY = true;
     featureTable->flags.ftrAstcHdr2D = true;
     featureTable->flags.ftrAstcLdr2D = true;
-    featureTable->flags.ftr3dMidBatchPreempt = true;
     featureTable->flags.ftrGpGpuMidBatchPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
-    featureTable->flags.ftrPerCtxtPreemptionGranularityControl = true;
 }
 SystemInfo AdlsHwConfig::gtSystemInfo = {0};
 void AdlsHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -546,6 +599,129 @@ const HardwareInfo AdlsHwConfig::hwInfo = {
     &ADLS::platform,
     &ADLS::featureTable,
     &AdlsHwConfig::gtSystemInfo
+};
+
+
+
+
+// ------------------------------------------------------------------------------------------
+// Alderlake_N (GEN12LP)
+// ------------------------------------------------------------------------------------------
+Platform ADLN::platform = {
+    PRODUCT_FAMILY::IGFX_ALDERLAKE_N,
+    PCH_PRODUCT_FAMILY::PCH_UNKNOWN,
+    GFX_CORE_FAMILY::IGFX_GEN12LP_CORE,
+    GFX_CORE_FAMILY::IGFX_GEN12LP_CORE,
+    PLATFORM_TYPE::PLATFORM_NONE,
+    0,
+    0,
+    0,
+    0,
+    GTTYPE::GTTYPE_UNDEFINED
+};
+FeatureTable ADLN::featureTable = {0};
+void ADLN::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
+    FeatureTable* featureTable = hwInfo->featureTable;
+    featureTable->flags.ftrL3IACoherency = true;
+    featureTable->flags.ftrPPGTT = true;
+    featureTable->flags.ftrSVM = true;
+    featureTable->flags.ftrIA32eGfxPTEs = true;
+    featureTable->flags.ftrStandardMipTailFormat = true;
+    featureTable->flags.ftrTranslationTable = true;
+    featureTable->flags.ftrUserModeTranslationTable = true;
+    featureTable->flags.ftrTileMappedResource = true;
+    featureTable->flags.ftrFbc = true;
+    featureTable->flags.ftrTileY = true;
+    featureTable->flags.ftrAstcHdr2D = true;
+    featureTable->flags.ftrAstcLdr2D = true;
+    featureTable->flags.ftrGpGpuMidBatchPreempt = true;
+    featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
+}
+SystemInfo AdlnHwConfig::gtSystemInfo = {0};
+void AdlnHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
+    gtSysInfo->ThreadCount = gtSysInfo->EUCount * ADLN::threadsPerEu;
+    gtSysInfo->L3CacheSizeInKb = 1920;
+    gtSysInfo->L3BankCount = 4;
+    gtSysInfo->MaxFillRate = 8;
+    gtSysInfo->TotalPsThreadsWindowerRange = 64;
+    gtSysInfo->CsrSizeInMb = 8;
+    gtSysInfo->MaxEuPerSubSlice = ADLN::maxEuPerSubSlice;
+    gtSysInfo->MaxSlicesSupported = ADLN::maxSlicesSupported;
+    gtSysInfo->MaxSubSlicesSupported = ADLN::maxSubslicesSupported;
+    gtSysInfo->MaxDualSubSlicesSupported = ADLN::maxDualSubslicesSupported;
+    gtSysInfo->IsL3HashModeEnabled = false;
+    gtSysInfo->IsDynamicallyPopulated = false;
+    gtSysInfo->CCSInfo.IsValid = true;
+    gtSysInfo->CCSInfo.NumberOfCCSEnabled = 1;
+    gtSysInfo->CCSInfo.Instances.CCSEnableMask = 0b1;
+    setupFeatureAndWorkaroundTable(hwInfo);
+}
+const HardwareInfo AdlnHwConfig::hwInfo = {
+    &ADLN::platform,
+    &ADLN::featureTable,
+    &AdlnHwConfig::gtSystemInfo
+};
+
+
+
+
+// ------------------------------------------------------------------------------------------
+// Alderlake_P (GEN12LP)
+// ------------------------------------------------------------------------------------------
+Platform ADLP::platform = {
+    PRODUCT_FAMILY::IGFX_ALDERLAKE_P,
+    PCH_PRODUCT_FAMILY::PCH_UNKNOWN,
+    GFX_CORE_FAMILY::IGFX_GEN12LP_CORE,
+    GFX_CORE_FAMILY::IGFX_GEN12LP_CORE,
+    PLATFORM_TYPE::PLATFORM_NONE,
+    0,
+    0,
+    0,
+    0,
+    GTTYPE::GTTYPE_UNDEFINED
+};
+FeatureTable ADLP::featureTable = {0};
+void ADLP::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
+    FeatureTable* featureTable = hwInfo->featureTable;
+    featureTable->flags.ftrL3IACoherency = true;
+    featureTable->flags.ftrPPGTT = true;
+    featureTable->flags.ftrSVM = true;
+    featureTable->flags.ftrIA32eGfxPTEs = true;
+    featureTable->flags.ftrStandardMipTailFormat = true;
+    featureTable->flags.ftrTranslationTable = true;
+    featureTable->flags.ftrUserModeTranslationTable = true;
+    featureTable->flags.ftrTileMappedResource = true;
+    featureTable->flags.ftrFbc = true;
+    featureTable->flags.ftrTileY = true;
+    featureTable->flags.ftrAstcHdr2D = true;
+    featureTable->flags.ftrAstcLdr2D = true;
+    featureTable->flags.ftrGpGpuMidBatchPreempt = true;
+    featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
+}
+SystemInfo AdlpHwConfig::gtSystemInfo = {0};
+void AdlpHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
+    gtSysInfo->ThreadCount = gtSysInfo->EUCount * ADLP::threadsPerEu;
+    gtSysInfo->L3CacheSizeInKb = 1;
+    gtSysInfo->L3BankCount = 1;
+    gtSysInfo->TotalPsThreadsWindowerRange = 64;
+    gtSysInfo->CsrSizeInMb = 8;
+    gtSysInfo->MaxEuPerSubSlice = ADLP::maxEuPerSubSlice;
+    gtSysInfo->MaxSlicesSupported = ADLP::maxSlicesSupported;
+    gtSysInfo->MaxSubSlicesSupported = ADLP::maxSubslicesSupported;
+    gtSysInfo->MaxDualSubSlicesSupported = ADLP::maxDualSubslicesSupported;
+    gtSysInfo->IsL3HashModeEnabled = false;
+    gtSysInfo->IsDynamicallyPopulated = false;
+    gtSysInfo->CCSInfo.IsValid = true;
+    gtSysInfo->CCSInfo.NumberOfCCSEnabled = 1;
+    gtSysInfo->CCSInfo.Instances.CCSEnableMask = 0b1;
+    setupFeatureAndWorkaroundTable(hwInfo);
+}
+const HardwareInfo AdlpHwConfig::hwInfo = {
+    &ADLP::platform,
+    &ADLP::featureTable,
+    &AdlpHwConfig::gtSystemInfo
 };
 
 
@@ -607,21 +783,23 @@ void ICLLP::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
     gtSysInfo->IsDynamicallyPopulated = false;
     setupFeatureAndWorkaroundTable(hwInfo);
 }
-SystemInfo IcllpHw_1x4x8::gtSystemInfo = {0};
-void IcllpHw_1x4x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+SystemInfo IcllpHw1x4x8::gtSystemInfo = {0};
+void IcllpHw1x4x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 2304;
     gtSysInfo->L3BankCount = 6;
     gtSysInfo->MaxFillRate = 8;
 }
-const HardwareInfo IcllpHw_1x4x8::hwInfo = {
+const HardwareInfo IcllpHw1x4x8::hwInfo = {
     &ICLLP::platform,
     &ICLLP::featureTable,
-    &IcllpHw_1x4x8::gtSystemInfo
+    &IcllpHw1x4x8::gtSystemInfo
 };
-SystemInfo IcllpHw_1x6x8::gtSystemInfo = {0};
-void IcllpHw_1x6x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+SystemInfo IcllpHw1x6x8::gtSystemInfo = {0};
+void IcllpHw1x6x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * ICLLP::threadsPerEu;
     gtSysInfo->SliceCount = 1;
@@ -632,10 +810,11 @@ void IcllpHw_1x6x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
 const HardwareInfo IcllpHw_1x6x8::hwInfo = {
     &ICLLP::platform,
     &ICLLP::featureTable,
-    &IcllpHw_1x6x8::gtSystemInfo
+    &IcllpHw1x6x8::gtSystemInfo
 };
-SystemInfo IcllpHw_1x8x8::gtSystemInfo = {0};
-void IcllpHw_1x8x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+SystemInfo IcllpHw1x8x8::gtSystemInfo = {0};
+void IcllpHw1x8x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * ICLLP::threadsPerEu;
     gtSysInfo->SliceCount = 1;
@@ -643,10 +822,10 @@ void IcllpHw_1x8x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
     gtSysInfo->L3BankCount = 8;
     gtSysInfo->MaxFillRate = 16;
 }
-const HardwareInfo IcllpHw_1x8x8::hwInfo = {
+const HardwareInfo IcllpHw1x8x8::hwInfo = {
     &ICLLP::platform,
     &ICLLP::featureTable,
-    &IcllpHw_1x8x8::gtSystemInfo
+    &IcllpHw1x8x8::gtSystemInfo
 };
 
 
@@ -843,7 +1022,7 @@ void SKL::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrSingleVeboxSlice = featureTable->flags.ftrGT1 || featureTable->flags.ftrGT2;
     featureTable->flags.ftrTileY = true;
 }
-void KBL::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
+void SKL::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * SKL::threadsPerEu;
     gtSysInfo->TotalVsThreads = 336;
@@ -859,47 +1038,51 @@ void KBL::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
     gtSysInfo->IsDynamicallyPopulated = false;
     setupFeatureAndWorkaroundTable(hwInfo);
 }
-SystemInfo SKL_1x2x6::gtSystemInfo = {0};
-void SKL_1x2x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+SystemInfo SklHw1x2x6::gtSystemInfo = {0};
+void SklHw1x2x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 384;
     gtSysInfo->L3BankCount = 2;
     gtSysInfo->MaxFillRate = 8;
 }
-const HardwareInfo SKL_1x2x6::hwInfo = {
+const HardwareInfo SklHw1x2x6::hwInfo = {
     &SKL::platform,
     &SKL::featureTable,
-    &SKL_1x2x6::gtSystemInfo
+    &SklHw1x2x6::gtSystemInfo
 };
-SystemInfo SKL_1x3x6::gtSystemInfo = {0};
-void SKL_1x3x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+SystemInfo SklHw1x3x6::gtSystemInfo = {0};
+void SklHw1x3x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 768;
     gtSysInfo->L3BankCount = 4;
     gtSysInfo->MaxFillRate = 8;
 }
-const HardwareInfo SKL_1x3x6::hwInfo = {
+const HardwareInfo SklHw1x3x6::hwInfo = {
     &SKL::platform,
     &SKL::featureTable,
-    &SKL_1x3x6::gtSystemInfo,
+    &SklHw1x3x6::gtSystemInfo,
 };
-SystemInfo SKL_1x3x8::gtSystemInfo = {0};
-void SKL_1x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+SystemInfo SklHw1x3x8::gtSystemInfo = {0};
+void SklHw1x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 768;
     gtSysInfo->L3BankCount = 4;
     gtSysInfo->MaxFillRate = 8;
 }
-const HardwareInfo SKL_1x3x8::hwInfo = {
+const HardwareInfo SklHw1x3x8::hwInfo = {
     &SKL::platform,
     &SKL::featureTable,
-    &SKL_1x3x8::gtSystemInfo,
+    &SklHw1x3x8::gtSystemInfo,
 };
-SystemInfo SKL_2x3x8::gtSystemInfo = {0};
-void SKL_2x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+SystemInfo SklHw2x3x8::gtSystemInfo = {0};
+void SklHw2x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * SKL::threadsPerEu;
     gtSysInfo->SliceCount = 2;
@@ -907,23 +1090,24 @@ void SKL_2x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
     gtSysInfo->L3BankCount = 8;
     gtSysInfo->MaxFillRate = 16;
 }
-const HardwareInfo SKL_2x3x8::hwInfo = {
+const HardwareInfo SklHw2x3x8::hwInfo = {
     &SKL::platform,
     &SKL::featureTable,
-    &SKL_2x3x8::gtSystemInfo,
+    &SklHw2x3x8::gtSystemInfo,
 };
-SystemInfo SKL_3x3x8::gtSystemInfo = {0};
-void SKL_3x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+SystemInfo SklHw3x3x8::gtSystemInfo = {0};
+void SklHw3x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 3;
     gtSysInfo->L3CacheSizeInKb = 2304;
     gtSysInfo->L3BankCount = 12;
     gtSysInfo->MaxFillRate = 24;
 }
-const HardwareInfo SKL_3x3x8::hwInfo = {
+const HardwareInfo SklHw3x3x8::hwInfo = {
     &SKL::platform,
     &SKL::featureTable,
-    &SKL_3x3x8::gtSystemInfo,
+    &SklHw3x3x8::gtSystemInfo,
 };
 
 
@@ -984,6 +1168,7 @@ void KBL::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
 }
 SystemInfo KblHw1x2x6::gtSystemInfo = {0};
 void KblHw1x2x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 384;
@@ -997,6 +1182,7 @@ const HardwareInfo KblHw1x2x6::hwInfo = {
 };
 SystemInfo KblHw1x3x6::gtSystemInfo = {0};
 void KblHw1x3x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 768;
@@ -1010,6 +1196,7 @@ const HardwareInfo KblHw1x3x6::hwInfo = {
 };
 SystemInfo KblHw1x3x8::gtSystemInfo = {0};
 void KblHw1x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 768;
@@ -1023,6 +1210,7 @@ const HardwareInfo KblHw1x3x8::hwInfo = {
 };
 SystemInfo KblHw2x3x8::gtSystemInfo = {0};
 void KblHw2x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 2;
     gtSysInfo->L3CacheSizeInKb = 1536;
@@ -1095,6 +1283,7 @@ void CFL::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
 }
 SystemInfo CflHw1x2x6::gtSystemInfo = {0};
 void CflHw1x2x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 384;
@@ -1108,6 +1297,7 @@ const HardwareInfo CflHw1x2x6::hwInfo = {
 };
 SystemInfo CflHw1x3x6::gtSystemInfo = {0};
 void CflHw1x3x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 768;
@@ -1121,6 +1311,7 @@ const HardwareInfo CflHw1x3x6::hwInfo = {
 };
 SystemInfo CflHw1x3x8::gtSystemInfo = {0};
 void CflHw1x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * CFL::threadsPerEu;
     gtSysInfo->SliceCount = 1;
@@ -1135,6 +1326,7 @@ const HardwareInfo CflHw1x3x8::hwInfo = {
 };
 SystemInfo CflHw2x3x8::gtSystemInfo = {0};
 void CflHw2x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->ThreadCount = gtSysInfo->EUCount * CFL::threadsPerEu;
     gtSysInfo->SliceCount = 1;
@@ -1205,6 +1397,7 @@ void GLK::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
 }
 SystemInfo GlkHw1x2x6::gtSystemInfo = {0};
 void GlkHw1x2x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 384;
@@ -1218,6 +1411,7 @@ const HardwareInfo GlkHw1x2x6::hwInfo = {
 };
 SystemInfo GlkHw1x3x6::gtSystemInfo = {0};
 void GlkHw1x3x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 384;
@@ -1290,6 +1484,7 @@ void BXT::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
 }
 SystemInfo BxtHw1x2x6::gtSystemInfo = {0};
 void BxtHw1x2x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 384;
@@ -1303,6 +1498,7 @@ const HardwareInfo BxtHw1x2x6::hwInfo = {
 };
 SystemInfo BxtHw1x3x6::gtSystemInfo = {0};
 void BxtHw1x3x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 384;
@@ -1363,6 +1559,7 @@ void BDW::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
 }
 SystemInfo BdwHw1x2x6::gtSystemInfo = {0};
 void BdwHw1x2x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 384;
@@ -1376,6 +1573,7 @@ const HardwareInfo BdwHw1x2x6::hwInfo = {
 };
 SystemInfo BdwHw1x3x6::gtSystemInfo = {0};
 void BdwHw1x3x6::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 768;
@@ -1389,6 +1587,7 @@ const HardwareInfo BdwHw1x3x6::hwInfo = {
 };
 SystemInfo BdwHw1x3x8::gtSystemInfo = {0};
 void BdwHw1x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 1;
     gtSysInfo->L3CacheSizeInKb = 384;
@@ -1402,6 +1601,7 @@ const HardwareInfo BdwHw1x3x8::hwInfo = {
 };
 SystemInfo BdwHw2x3x8::gtSystemInfo = {0};
 void BdwHw2x3x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
+    setupHardwareInfoBase(hwInfo);
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
     gtSysInfo->SliceCount = 2;
     gtSysInfo->L3CacheSizeInKb = 1536;

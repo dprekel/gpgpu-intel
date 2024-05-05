@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "hwinfo.h"
+#include "ioctl.h"
 #include "gpgpu.h"
 #include "kernel.h"
 #include "context.h"
@@ -12,14 +13,15 @@ class Context;
 class Kernel;
 
 struct DeviceDescriptor {
+    /*
     DeviceDescriptor() {};
     ~DeviceDescriptor() {
         printf("DeviceDescriptor destructor called!\n");
     }
+    */
     uint16_t deviceId;
     const HardwareInfo* pHwInfo;
     void (*setupHardwareInfo)(const HardwareInfo*);
-    GTTYPE eGtType;
     const char* devName;
 };
 

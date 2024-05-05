@@ -8,17 +8,16 @@
 
 #include "device.h"
 #include "hwinfo.h"
-#include "skl_info.h"
 #include "gpgpu.h"
 #include "ioctl.h"
 
 const DeviceDescriptor deviceDescriptorTable[] = {
-#define NAMEDDEVICE(devId, gt, gtType, devName) {devId, &gt::hwInfo, &gt::setupHardwareInfo, gtType, devName},
-#define DEVICE(devId, gt, gtType) {devId, &gt::hwInfo, &gt::setupHardwareInfo, gtType, ""},
+#define NAMEDDEVICE(devId, gt, devName) {devId, &gt::hwInfo, &gt::setupHardwareInfo, devName},
+#define DEVICE(devId, gt) {devId, &gt::hwInfo, &gt::setupHardwareInfo, ""},
 #include "devices_base.h"
 #undef DEVICE
 #undef NAMEDDEVICE
-    {0, nullptr, nullptr, GTTYPE::GTTYPE_UNDEFINED}
+    {0, nullptr, nullptr}
 };
 
 Device::Device() {}
