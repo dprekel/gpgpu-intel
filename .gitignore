@@ -1,9 +1,7 @@
 *.o
 *.i
-*.so
 *.txt
 *.pdf
-gpgpu
 lkernel
 cif
 a.out

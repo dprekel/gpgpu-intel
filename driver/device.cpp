@@ -71,6 +71,7 @@ int Device::initialize() {
         descriptor->pHwInfo->platform->usDeviceID = chipset_id;
         descriptor->pHwInfo->platform->usRevId = revision_id;
     }
+    SystemInfo* sysInfo = descriptor->pHwInfo->gtSystemInfo;
 
     // query topology info
     void* topology = queryIoctl(DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
@@ -80,8 +81,9 @@ int Device::initialize() {
     }
 
     //TODO: Add checks for topology info
-    translateTopologyInfo(data);
+    translateTopologyInfo(data, sysInfo);
     free(data);
+    sysInfo->ThreadCount = sysInfo->EUCount * sysInfo->NumThreadsPerEu;
 
     // Soft-Pinning supported?
     getParamIoctl(I915_PARAM_HAS_EXEC_SOFTPIN, &supportsSoftPin);
@@ -165,7 +167,7 @@ bool Device::checkDriverVersion() {
     }
     name[4] = '\0';
     //TODO: add driver info to gpuInfo struct
-    driver_name = name;
+    strncpy(driver_name, name, 5);
     return strcmp(name, "i915") == 0;
 }
 
@@ -200,12 +202,12 @@ void* Device::queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t leng
     if (ret != 0 || queryItem.length <= 0) {
         return nullptr;
     }
-    printf("length: %d\n", queryItem.length);
+    //printf("length: %d\n", queryItem.length);
     length = queryItem.length;
     return data;
 }
 
-void Device::translateTopologyInfo(drm_i915_query_topology_info* topologyInfo) {
+void Device::translateTopologyInfo(drm_i915_query_topology_info* topologyInfo, SystemInfo* sysInfo) {
     uint16_t sliceCount = 0;
     uint16_t subSliceCount = 0;
     uint16_t euCount = 0;
@@ -240,11 +242,11 @@ void Device::translateTopologyInfo(drm_i915_query_topology_info* topologyInfo) {
             }
         }
     }
-    sliceCount = sliceCount;
-    subSliceCount = subSliceCount;
-    euCount = euCount;
-    subSliceCountPerSlice = subSliceCountPerSlice;
-    euCountPerSubSlice = euCountPerSubSlice;
+    this->euCount = sysInfo->EUCount = euCount;
+    this->subSliceCount = sysInfo->SubSliceCount = subSliceCount;
+    this->sliceCount = sysInfo->SliceCount = sliceCount;
+    this->subSliceCountPerSlice = subSliceCountPerSlice;
+    this->euCountPerSubSlice = euCountPerSubSlice;
 }
 
 int Device::createDrmVirtualMemory() {

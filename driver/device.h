@@ -34,7 +34,7 @@ class Device : public pDevice {
     bool checkDriverVersion();
     int getParamIoctl(int param, int* paramValue);
     void* queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length);
-    void translateTopologyInfo(drm_i915_query_topology_info* topologyInfo);
+    void translateTopologyInfo(drm_i915_query_topology_info* topologyInfo, SystemInfo* sysInfo);
     int createDrmVirtualMemory();
     int queryGttSize();
     void checkNonPersistentContextsSupport();
@@ -47,7 +47,7 @@ class Device : public pDevice {
     Context* context;
     int fd;
     int drmVmId;                            // unique identifier for ppGTT
-    const char* driver_name;
+    char driver_name[5];
     int chipset_id;
     int revision_id;
 

@@ -9,11 +9,11 @@
 struct PVC {
     static Platform platform;
     static FeatureTable featureTable;
-    // has Release Helper for thread count
+    static const uint32_t threadsPerEu = 8;
     static const uint32_t maxEuPerSubSlice = 8;
     static const uint32_t maxSlicesSupported = 8;
     static const uint32_t maxSubSlicesSupported = 64;
-    static const uint32_t maxDualSubslicesSupported = 64;
+    static const uint32_t maxDualSubSlicesSupported = 64;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
 class PvcHwConfig : public PVC {
@@ -35,7 +35,7 @@ struct DG1 {
     static const uint32_t maxEuPerSubSlice = 16;
     static const uint32_t maxSlicesSupported = 1;
     static const uint32_t maxSubSlicesSupported = 6;
-    static const uint32_t maxDualSubslicesSupported = 6;
+    static const uint32_t maxDualSubSlicesSupported = 6;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
 class Dg1HwConfig : public DG1 {
@@ -53,11 +53,11 @@ class Dg1HwConfig : public DG1 {
 struct DG2 {
     static Platform platform;
     static FeatureTable featureTable;
-    // has Release Helper for thread count
+    static const uint32_t threadsPerEu = 8;
     static const uint32_t maxEuPerSubSlice = 16;
     static const uint32_t maxSlicesSupported = 8;
     static const uint32_t maxSubSlicesSupported = 32;
-    static const uint32_t maxDualSubslicesSupported = 32;
+    static const uint32_t maxDualSubSlicesSupported = 32;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
 class Dg2HwConfig : public DG2 {
@@ -75,11 +75,11 @@ class Dg2HwConfig : public DG2 {
 struct MTL {
     static Platform platform;
     static FeatureTable featureTable;
-    // has Release Helper for thread count
+    static const uint32_t threadsPerEu = 8;
     static const uint32_t maxEuPerSubSlice = 16;
     static const uint32_t maxSlicesSupported = 8;
     static const uint32_t maxSubSlicesSupported = 32;
-    static const uint32_t maxDualSubslicesSupported = 32;
+    static const uint32_t maxDualSubSlicesSupported = 32;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
 class MtlHwConfig : public MTL {
@@ -97,7 +97,7 @@ class MtlHwConfig : public MTL {
 struct ARL {
     static Platform platform;
     static FeatureTable featureTable;
-    // has Release Helper for thread count
+    static const uint32_t threadsPerEu = 8;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
 class ArlHwConfig : public ARL {
@@ -138,7 +138,7 @@ struct ADLS {
     static const uint32_t threadsPerEu = 7;
     static const uint32_t maxEuPerSubSlice = 8;
     static const uint32_t maxSlicesSupported = 1;
-    static const uint32_t maxSubslicesSupported = 8;
+    static const uint32_t maxSubSlicesSupported = 8;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
 class AdlsHwConfig : public ADLS {
@@ -159,8 +159,8 @@ struct ADLN {
     static const uint32_t threadsPerEu = 7;
     static const uint32_t maxEuPerSubSlice = 16;
     static const uint32_t maxSlicesSupported = 1;
-    static const uint32_t maxSubslicesSupported = 6;
-    static const uint32_t maxDualSubslicesSupported = 12;
+    static const uint32_t maxSubSlicesSupported = 6;
+    static const uint32_t maxDualSubSlicesSupported = 12;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
 class AdlnHwConfig : public ADLN {
@@ -181,8 +181,8 @@ struct ADLP {
     static const uint32_t threadsPerEu = 7;
     static const uint32_t maxEuPerSubSlice = 16;
     static const uint32_t maxSlicesSupported = 1;
-    static const uint32_t maxSubslicesSupported = 6;
-    static const uint32_t maxDualSubslicesSupported = 12;
+    static const uint32_t maxSubSlicesSupported = 6;
+    static const uint32_t maxDualSubSlicesSupported = 12;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
 class AdlpHwConfig : public ADLP {
@@ -203,8 +203,8 @@ struct TGLLP {
     static const uint32_t threadsPerEu = 7;
     static const uint32_t maxEuPerSubSlice = 16;
     static const uint32_t maxSlicesSupported = 1;
-    static const uint32_t maxSubslicesSupported = 6;
-    static const uint32_t maxDualSubslicesSupported = 6;
+    static const uint32_t maxSubSlicesSupported = 6;
+    static const uint32_t maxDualSubSlicesSupported = 6;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
 class TgllpHw1x2x16: public TGLLP {
@@ -232,7 +232,7 @@ struct ICLLP {
     static const uint32_t threadsPerEu = 7;
     static const uint32_t maxEuPerSubSlice = 8;
     static const uint32_t maxSlicesSupported = 1;
-    static const uint32_t maxSubslicesSupported = 8;
+    static const uint32_t maxSubSlicesSupported = 8;
     static void setupHardwareInfoBase(const HardwareInfo* hwInfo);
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
@@ -268,7 +268,7 @@ struct LKF {
     static const uint32_t threadsPerEu = 7;
     static const uint32_t maxEuPerSubSlice = 8;
     static const uint32_t maxSlicesSupported = 1;
-    static const uint32_t maxSubslicesSupported = 8;
+    static const uint32_t maxSubSlicesSupported = 8;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
 class LkfHw1x8x8 : public LKF {
@@ -289,7 +289,7 @@ struct EHL {
     static const uint32_t threadsPerEu = 7;
     static const uint32_t maxEuPerSubSlice = 8;
     static const uint32_t maxSlicesSupported = 1;
-    static const uint32_t maxSubslicesSupported = 4;
+    static const uint32_t maxSubSlicesSupported = 4;
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
 class EhlHwConfig : public EHL {
@@ -310,7 +310,7 @@ struct SKL {
     static const uint32_t threadsPerEu = 7;
     static const uint32_t maxEuPerSubSlice = 8;
     static const uint32_t maxSlicesSupported = 3;
-    static const uint32_t maxSubslicesSupported = 9;
+    static const uint32_t maxSubSlicesSupported = 9;
     static void setupHardwareInfoBase(const HardwareInfo* hwInfo);
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
@@ -358,9 +358,9 @@ struct KBL {
     static Platform platform;
     static FeatureTable featureTable;
     static const uint32_t threadsPerEu = 7;
-    static const uint32_t maxEuPerSubslice = 8;
+    static const uint32_t maxEuPerSubSlice = 8;
     static const uint32_t maxSlicesSupported = 3;
-    static const uint32_t maxSubslicesSupported = 9;
+    static const uint32_t maxSubSlicesSupported = 9;
     static void setupHardwareInfoBase(const HardwareInfo* hwInfo);
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
@@ -408,9 +408,9 @@ struct CFL {
     static Platform platform;
     static FeatureTable featureTable;
     static const uint32_t threadsPerEu = 7;
-    static const uint32_t maxEuPerSubslice = 8;
+    static const uint32_t maxEuPerSubSlice = 8;
     static const uint32_t maxSlicesSupported = 3;
-    static const uint32_t maxSubslicesSupported = 9;
+    static const uint32_t maxSubSlicesSupported = 9;
     static void setupHardwareInfoBase(const HardwareInfo* hwInfo);
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
@@ -458,9 +458,9 @@ struct GLK {
     static Platform platform;
     static FeatureTable featureTable;
     static const uint32_t threadsPerEu = 6;
-    static const uint32_t maxEuPerSubslice = 6;
+    static const uint32_t maxEuPerSubSlice = 6;
     static const uint32_t maxSlicesSupported = 1;
-    static const uint32_t maxSubslicesSupported = 3;
+    static const uint32_t maxSubSlicesSupported = 3;
     static void setupHardwareInfoBase(const HardwareInfo* hwInfo);
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
@@ -487,9 +487,9 @@ struct BXT {
     static Platform platform;
     static FeatureTable featureTable;
     static const uint32_t threadsPerEu = 6;
-    static const uint32_t maxEuPerSubslice = 6;
+    static const uint32_t maxEuPerSubSlice = 6;
     static const uint32_t maxSlicesSupported = 1;
-    static const uint32_t maxSubslicesSupported = 3;
+    static const uint32_t maxSubSlicesSupported = 3;
     static void setupHardwareInfoBase(const HardwareInfo* hwInfo);
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };
@@ -516,9 +516,9 @@ struct BDW {
     static Platform platform;
     static FeatureTable featureTable;
     static const uint32_t threadsPerEu = 7;
-    static const uint32_t maxEuPerSubslice = 8;
+    static const uint32_t maxEuPerSubSlice = 8;
     static const uint32_t maxSlicesSupported = 2;
-    static const uint32_t maxSubslicesSupported = 6;
+    static const uint32_t maxSubSlicesSupported = 6;
     static void setupHardwareInfoBase(const HardwareInfo* hwInfo);
     static void setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo);
 };

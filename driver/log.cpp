@@ -14,12 +14,12 @@ Log::Log(Device* device)
 Log::~Log() {}
 
 void Log::printDeviceInfo() {
-    printf("File descriptor: %d\n", device->fd);
-    printf("Driver version: %s\n", device->driver_name);
-    printf("Chipset ID: %d\n", device->chipset_id);
-    printf("Revision ID: %d\n", device->revision_id);
+    printf("File descriptor: \t%d\n", device->fd);
+    printf("Kernel driver: \t\t%s\n", device->driver_name);
+    printf("Chipset ID: \t\t0x%X\n", device->chipset_id);
+    printf("Revision ID: \t\t%d\n", device->revision_id);
     auto descriptor = device->descriptor.get();
-    printf("Device Name: %s\n", descriptor->devName);
+    printf("Device Name: \t\t%s\n", descriptor->devName);
     printTopologyInfo();
     printf("\n");
     printf("Available Engines                         Capabilities\n");

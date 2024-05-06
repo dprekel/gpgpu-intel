@@ -157,25 +157,18 @@ void Kernel::TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform)
 }
 
 void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo) {
-    //igcGetSystemInfo->SetEuCount(gtSystemInfo->EUCount);
-    igcGetSystemInfo->SetEuCount(48);
-    //uint32_t EUCount = igcGetSystemInfo->GetEUCount();
-    //printf("EUCount: %u\n", EUCount);
-    //igcGetSystemInfo->SetThreadCount(gtSystemInfo->ThreadCount);
-    igcGetSystemInfo->SetThreadCount(336);
+    igcGetSystemInfo->SetEuCount(gtSystemInfo->EUCount);
+    igcGetSystemInfo->SetThreadCount(gtSystemInfo->ThreadCount);
     igcGetSystemInfo->SetSliceCount(gtSystemInfo->SliceCount);
-    //igcGetSystemInfo->SetSubSliceCount(gtSystemInfo->SubSliceCount);
-    igcGetSystemInfo->SetSubSliceCount(6);
+    igcGetSystemInfo->SetSubSliceCount(gtSystemInfo->SubSliceCount);
     igcGetSystemInfo->SetL3CacheSizeInKb(gtSystemInfo->L3CacheSizeInKb);
     igcGetSystemInfo->SetLLCCacheSizeInKb(gtSystemInfo->LLCCacheSizeInKb);
     //igcGetSystemInfo->SetEdramSizeInKb(gtSystemInfo->EdramSizeInKb);
     igcGetSystemInfo->SetEdramSizeInKb(65536);
     igcGetSystemInfo->SetL3BankCount(gtSystemInfo->L3BankCount);
     igcGetSystemInfo->SetMaxFillRate(gtSystemInfo->MaxFillRate);
-    //igcGetSystemInfo->SetEuCountPerPoolMax(gtSystemInfo->EuCountPerPoolMax);
-    igcGetSystemInfo->SetEuCountPerPoolMax(0);
-    //igcGetSystemInfo->SetEuCountPerPoolMin(gtSystemInfo->EuCountPerPoolMin);
-    igcGetSystemInfo->SetEuCountPerPoolMin(0);
+    igcGetSystemInfo->SetEuCountPerPoolMax(gtSystemInfo->EuCountPerPoolMax);
+    igcGetSystemInfo->SetEuCountPerPoolMin(gtSystemInfo->EuCountPerPoolMin);
     igcGetSystemInfo->SetTotalVsThreads(gtSystemInfo->TotalVsThreads);
     igcGetSystemInfo->SetTotalHsThreads(gtSystemInfo->TotalHsThreads);
     igcGetSystemInfo->SetTotalDsThreads(gtSystemInfo->TotalDsThreads);
@@ -186,11 +179,11 @@ void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSy
     igcGetSystemInfo->SetMaxSlicesSupported(gtSystemInfo->MaxSlicesSupported);
     igcGetSystemInfo->SetMaxSubSlicesSupported(gtSystemInfo->MaxSubSlicesSupported);
     igcGetSystemInfo->SetIsL3HashModeEnabled(gtSystemInfo->IsL3HashModeEnabled);
-    //uint32_t IsL3HashModeEnabled = igcGetSystemInfo->GetIsL3HashModeEnabled();
-    //printf("IsL3HashModeEnabled: %u\n", IsL3HashModeEnabled);
+    igcGetSystemInfo->SetIsDynamicallyPopulated(gtSystemInfo->IsDynamicallyPopulated);
 }
 
 void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable) {
+    /*
     igcFeWa->SetFtrDesktop(featureTable->flags.ftrDesktop);
     igcFeWa->SetFtrChannelSwizzlingXOREnabled(featureTable->flags.ftrChannelSwizzlingXOREnabled);
     igcFeWa->SetFtrGtBigDie(featureTable->flags.ftrGtBigDie);
@@ -210,11 +203,12 @@ void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTab
     igcFeWa->SetFtrGTC(featureTable->flags.ftrGTC);
     igcFeWa->SetFtrGTX(featureTable->flags.ftrGTX);
     igcFeWa->SetFtr5Slice(featureTable->flags.ftr5Slice);
+    */
     igcFeWa->SetFtrGpGpuMidThreadLevelPreempt(featureTable->flags.ftrGpGpuMidThreadLevelPreempt);
-    igcFeWa->SetFtrIoMmuPageFaulting(featureTable->flags.ftrIoMmuPageFaulting);
+    //igcFeWa->SetFtrIoMmuPageFaulting(featureTable->flags.ftrIoMmuPageFaulting);
     igcFeWa->SetFtrWddm2Svm(featureTable->flags.ftrWddm2Svm);
     igcFeWa->SetFtrPooledEuEnabled(featureTable->flags.ftrPooledEuEnabled);
-    igcFeWa->SetFtrResourceStreamer(featureTable->flags.ftrResourceStreamer);
+    //igcFeWa->SetFtrResourceStreamer(featureTable->flags.ftrResourceStreamer);
 }
 
 IgcOclTranslationCtx* Kernel::createIgcTranslationCtx() {
