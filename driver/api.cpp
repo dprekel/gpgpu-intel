@@ -78,6 +78,7 @@ pKernel API_CALL* BuildKernel(pContext* cont,
         *ret = kernel->createSipKernel();
         if (*ret)
             return nullptr;
+        // Set kernelBuildSuccessful to true
     }
     pKernel* kern = static_cast<pKernel*>(kernel);
     return kern;

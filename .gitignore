@@ -1,8 +1,10 @@
 *.o
 *.i
+*.so
 *.txt
 *.pdf
 lkernel
 cif
+gpgpu
 a.out
 test

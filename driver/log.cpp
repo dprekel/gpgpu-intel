@@ -16,8 +16,7 @@ Log::~Log() {}
 void Log::printDeviceInfo() {
     printf("File descriptor: \t%d\n", device->fd);
     printf("Kernel driver: \t\t%s\n", device->driver_name);
-    printf("Chipset ID: \t\t0x%X\n", device->chipset_id);
-    printf("Revision ID: \t\t%d\n", device->revision_id);
+    printf("Device ID: \t\t0x%X [%d]\n", device->chipset_id, device->revision_id);
     auto descriptor = device->descriptor.get();
     printf("Device Name: \t\t%s\n", descriptor->devName);
     printTopologyInfo();
