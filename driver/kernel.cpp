@@ -409,10 +409,63 @@ int Kernel::createSipKernel() {
 }
 
 int Kernel::disassembleBinary() {
+    packDeviceBinary();
     return SUCCESS;
 }
 
+struct ElfSectionHeader {
+    uint32_t name = 0u;
+    uint32_t type = SHT_NULL;
+    uint64_t flags = SHF_NONE;
+    uint64_t addr = 0u;
+    uint64_t offset = 0u;
+    uint64_t size = 0u;
+    uint32_t link = SHN_UNDEF;
+    uint32_t info = 0u;
+    uint64_t addralign = 0u;
+    uint64_t entsize = 0u;
+};
+
+struct ElfFileHeader {
+    uint16_t type = ET_NONE;
+    uint16_t machine = EM_NONE;
+    uint32_t version = 1u;
+    uint64_t entry = 0u;
+    uint64_t phOff = 0u;
+    uint64_t shOff = 0u;
+    uint32_t flags = 0u;
+    uint16_t ehSize = sizeof(ElfFileHeader);
+    uint16_t phEntSize = sizeof(ElfProgramHeader);
+    uint16_t phNum = 0u;
+    uint16_t shEntSize = sizeof(ElfSectionHeader);
+    uint16_t shNum = 0u;
+    uint16_t shStrNdx = SHN_UNDEF;
+};
+
+struct ElfProgramHeader {
+    uint32_t type = PT_NULL;
+    uint32_t flags = PF_NONE;
+    uint64_t offset = 0u;
+    uint64_t vAddr = 0u;
+    uint64_t pAddr = 0u;
+    uint64_t fileSz = 0u;
+    uint64_t memSz = 0u;
+    uint64_t align = 1u;
+};
+
 /*
+this->elfFileHeader
+this->programHeaders
+this->sectionHeaders
+data
+defaultDataAlignment
+stringTable
+specialStringsOffsets
+maxDataAlignmentNeeded
+programSectionLookupTable
+*/
+
+
 // elf_encoder.cpp
 std::vector<uint8_t> Kernel::encodeElf() {
     ElfFileHeader elfFileHeader = this->elfFileHeader;
@@ -426,23 +479,25 @@ std::vector<uint8_t> Kernel::encodeElf() {
     dataPaddingBeforeSectionNames = alignedDataSize - data.size();
     sectionHeaderNamesSection.type = 3u;
     sectionHeaderNamesSection.name = specialStringsOffsets.shStrTab;
-    sectionHeaderNamesSection.offset = static_cast<decltype(sectionHeaderNamesSection.offset)>(alignedDataSize);
-    sectionHeaderNamesSection.size = static_cast<decltype(sectionHeaderNamesSection.size)>(stringTable.size());
-    sectionHeaderNamesSection.addralign = static_cast<decltype(sectionHeaderNamesSection.addralign)>(defaultDataAlignment);
-    elfFileHeader.shStrNdx = static_cast<decltype(elfFileHeader.shStrNdx)>(sectionHeaders.size());
+    sectionHeaderNamesSection.offset = static_cast<uint64_t>(alignedDataSize);
+    sectionHeaderNamesSection.size = static_cast<uint64_t>(stringTable.size());
+    sectionHeaderNamesSection.addralign = static_cast<uint64_t>(defaultDataAlignment);
+    elfFileHeader.shStrNdx = static_cast<uint16_t>(sectionHeaders.size());
     sectionHeaders[0] = sectionHeaderNamesSection;
     alignedSectionNamesDataSize = alignUp(stringTable.size(), static_cast<size_t>(sectionHeaderNamesSection.addralign));
 
-    elfFileHeader.phNum = static_cast<decltype(elfFileHeader.phNum)>(programHeaders.size());
-    elfFileHeader.shNum = static_cast<decltype(elfFileHeader.shNum)>(sectionHeaders.size());
+    elfFileHeader.phNum = static_cast<uint16_t>(programHeaders.size());
+    elfFileHeader.shNum = static_cast<uint16_t>(sectionHeaders.size());
 
     auto programHeadersOffset = elfFileHeader.ehSize;
     auto sectionHeadersOffset = programHeadersOffset + elfFileHeader.phEntSize * elfFileHeader.phNum;
-    elfFileHeader.phOff = static_cast<decltype(elfFileHeader.phOff)>(programHeadersOffset);
-    elfFileHeader.shOff = static_cast<decltype(elfFileHeader.shOff)>(sectionHeadersOffset);
+    elfFileHeader.phOff = static_cast<uint64_t>(programHeadersOffset);
+    elfFileHeader.shOff = static_cast<uint64_t>(sectionHeadersOffset);
     auto dataOffset = alignUp(sectionHeadersOffset + elfFileHeader.shEntSize * elfFileHeader.shNum, static_cast<size_t>(maxDataAlignmentNeeded));
     auto stringTabOffset = dataOffset + data.size();
 
+
+    // construct the ELF file
     std::vector<uint8_t> ret;
     ret.reserve(stringTabOffset + alignedSectionNamesDataSize);
     ret.reserve(ret.end(), reinterpret_cast<uint8_t>(&elfFileHeader), reinterpret_cast<uint8_t*>(&elfFileHeader + 1));
@@ -455,7 +510,7 @@ std::vector<uint8_t> Kernel::encodeElf() {
 
     for (auto &programHeader : programHeaders) {
         if (0 != programHeader.fileSz) {
-            programHeader.offset = static_cast<decltype(programHeader.offset)>(programHeader.offset + dataOffset);
+            programHeader.offset = static_cast<uint64_t>(programHeader.offset + dataOffset);
         }
         ret.insert(ret.end(), reinterpret_cast<uint8_t*>(&programHeader), reinterpret_cast<uint8_t*>(&programHeader + 1));
         ret.resize(ret.size() + elfFileHeader.phEntSize - sizeof(programHeader), 0u);
@@ -463,7 +518,7 @@ std::vector<uint8_t> Kernel::encodeElf() {
 
     for (auto &sectionHeader : sectionHeaders) {
         if ((8 != sectionHeader.type) && (0 != sectionHeader.size)) {
-            sectionHeader.offset = static_cast<decltype(sectionHeader.offset)>(sectionHeader.offset + dataOffset);
+            sectionHeader.offset = static_cast<uint64_t>(sectionHeader.offset + dataOffset);
         }
         ret.insert(ret.end(), reinterpret_cast<uint8_t*>(&sectionHeader), reinterpret_cast<uint8_t*>(&sectionHeader + 1));
         ret.resize(ret.size() + elfFileHeader.shEntSize - sizeof(sectionHeader), 0u);
@@ -477,7 +532,6 @@ std::vector<uint8_t> Kernel::encodeElf() {
 
     return ret;
 }
-*/
 
 
 
