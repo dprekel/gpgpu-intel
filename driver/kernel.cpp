@@ -413,46 +413,6 @@ int Kernel::disassembleBinary() {
     return SUCCESS;
 }
 
-struct ElfSectionHeader {
-    uint32_t name = 0u;
-    uint32_t type = SHT_NULL;
-    uint64_t flags = SHF_NONE;
-    uint64_t addr = 0u;
-    uint64_t offset = 0u;
-    uint64_t size = 0u;
-    uint32_t link = SHN_UNDEF;
-    uint32_t info = 0u;
-    uint64_t addralign = 0u;
-    uint64_t entsize = 0u;
-};
-
-struct ElfFileHeader {
-    uint16_t type = ET_NONE;
-    uint16_t machine = EM_NONE;
-    uint32_t version = 1u;
-    uint64_t entry = 0u;
-    uint64_t phOff = 0u;
-    uint64_t shOff = 0u;
-    uint32_t flags = 0u;
-    uint16_t ehSize = sizeof(ElfFileHeader);
-    uint16_t phEntSize = sizeof(ElfProgramHeader);
-    uint16_t phNum = 0u;
-    uint16_t shEntSize = sizeof(ElfSectionHeader);
-    uint16_t shNum = 0u;
-    uint16_t shStrNdx = SHN_UNDEF;
-};
-
-struct ElfProgramHeader {
-    uint32_t type = PT_NULL;
-    uint32_t flags = PF_NONE;
-    uint64_t offset = 0u;
-    uint64_t vAddr = 0u;
-    uint64_t pAddr = 0u;
-    uint64_t fileSz = 0u;
-    uint64_t memSz = 0u;
-    uint64_t align = 1u;
-};
-
 /*
 this->elfFileHeader
 this->programHeaders
@@ -465,16 +425,51 @@ maxDataAlignmentNeeded
 programSectionLookupTable
 */
 
+void Kernel::appendSection(SECTION_HEADER_TYPE sectionType, char* sectionLabel, std::vector<ElfSectionHeader>& sectionHeaders, sectionData, data, std::vector<char>& stringTable) {
+    uint32_t offset = static_cast<uint32_t>(stringTable.size());
+    stringTable.insert(stringTable.end(), sectionLabel.begin(), sectionLabel.end());
+
+    ElfSectionHeader section = {};
+    section.type = static_cast<uint32_t>(sectionType);
+    section.flags = static_cast<uint64_t>(SHF_NONE);
+    section.offset = 0u;
+    section.name = offset;
+    section.addralign = 8u;
+
+    auto sectionDataAlignment = std::min<uint64_t>(defaultDataAlignment, 8u);
+    auto alignedOffset = alignUp(data.size(), static_cast<size_t>(sectionDataAlignment));
+    auto alignedSize = alignUp(sectionData.size(), static_cast<size_t>(sectionDataAlignment));
+    data.reserve(alignedOffset + alignedSize);
+    data.resize(alignedOffset, 0u);
+    data.insert(data.end(), sectionData.begin(), sectionData.end());
+    data.resize(alignedOffset + alignedSize, 0u);
+
+    section.offset = alignedOffset;
+    section.size = sectionData.size();
+
+    sectionHeaders.push_back(section);
+}
+
 
 // elf_encoder.cpp
-std::vector<uint8_t> Kernel::encodeElf() {
-    ElfFileHeader elfFileHeader = this->elfFileHeader;
-    ElfProgramHeader programHeaders[32] = this->programHeaders;
-    ElfSectionHeader sectionHeaders[32] = this->sectionHeaders;
+std::vector<uint8_t> Kernel::packDeviceBinary() {
+    std::vector<char> stringTable;
+    std::vector<uint8_t> data;
+    ElfFileHeader elfFileHeader;
+    elfFileHeader.type = ET_OPENCL_EXECUTABLE;
+    std::vector<ElfSectionHeader> sectionHeaders;
+    std::vector<ElfProgramHeaders> programHeaders;
+
+    char buildOptions[13] = "BuildOptions";
+    appendSection(SHT_OPENCL_OPTIONS, &buildOptions, sectionHeaders, buildOptionsData, data, stringTable); 
+    char spirvObject[13] = "SPIRV Object";
+    appendSection(SHT_OPENCL_SPIRV, &spirvObject, sectionHeaders, intermediateData, data, stringTable);
+    char binaryObject[30] = "Intel(R) OpenCL Device Binary";
+    appendSection(SHT_OPENCL_DEV_BINARY, &binaryObject, sectionsHeaders, deviceBinary, data, stringTable);
+
     ElfSectionHeader sectionHeaderNamesSection;
     size_t alignedSectionNamesDataSize = 0u;
     size_t dataPaddingBeforeSectionNames = 0u;
-    
     auto alignedDataSize = alignUp(data.size(), static_cast<size_t>(defaultDataAlignment));
     dataPaddingBeforeSectionNames = alignedDataSize - data.size();
     sectionHeaderNamesSection.type = 3u;
@@ -500,8 +495,8 @@ std::vector<uint8_t> Kernel::encodeElf() {
     // construct the ELF file
     std::vector<uint8_t> ret;
     ret.reserve(stringTabOffset + alignedSectionNamesDataSize);
-    ret.reserve(ret.end(), reinterpret_cast<uint8_t>(&elfFileHeader), reinterpret_cast<uint8_t*>(&elfFileHeader + 1));
-    ret.resize(programheadersOffset, 0u);
+    ret.insert(ret.end(), reinterpret_cast<uint8_t>(&elfFileHeader), reinterpret_cast<uint8_t*>(&elfFileHeader + 1));
+    ret.resize(programHeadersOffset, 0u);
 
     for (auto &progSecLookup : programSectionLookupTable) {
         programHeaders[progSecLookup.programId].offset = sectionHeaders[progSecLookup.sectionId].offset;

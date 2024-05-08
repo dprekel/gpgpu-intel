@@ -9,11 +9,11 @@
 #include "hwinfo.h"
 #include "gpgpu.h"
 
-#pragma pack( push, 1 )
-
 class Device;
 class Context;
 struct DeviceDescriptor;
+
+#pragma pack( push, 1 )
 
 enum PATCH_TOKEN {
     PATCH_TOKEN_SAMPLER_STATE_ARRAY = 5,
@@ -132,6 +132,53 @@ struct KernelFromPatchtokens {
 
 #pragma pack ( pop )
 
+struct ElfFileHeader {
+    char magic[4]        = {0x7f, 'E', 'L', 'F'};
+    uint8_t eClass       = EI_CLASS_NONE;
+    uint8_t data         = EI_CLASS_LITTLE_ENDIAN;
+    uint8_t version      = EV_CURRENT;
+    uint8_t osAbi        = 0u;
+    uint8_t abiVersion   = 0u;
+    char padding[7]      = {};
+
+    uint16_t type        = ET_NONE;
+    uint16_t machine     = EM_NONE;
+    uint32_t version     = 1u;
+    uint64_t entry       = 0u;
+    uint64_t phOff       = 0u;
+    uint64_t shOff       = 0u;
+    uint32_t flags       = 0u;
+    uint16_t ehSize      = sizeof(ElfFileHeader);
+    uint16_t phEntSize   = sizeof(ElfProgramHeader);
+    uint16_t phNum       = 0u;
+    uint16_t shEntSize   = sizeof(ElfSectionHeader);
+    uint16_t shNum       = 0u;
+    uint16_t shStrNdx    = SHN_UNDEF;
+};
+
+struct ElfSectionHeader {
+    uint32_t name        = 0u;
+    uint32_t type        = SHT_NULL;
+    uint64_t flags       = SHF_NONE;
+    uint64_t addr        = 0u;
+    uint64_t offset      = 0u;
+    uint64_t size        = 0u;
+    uint32_t link        = SHN_UNDEF;
+    uint32_t info        = 0u;
+    uint64_t addralign   = 0u;
+    uint64_t entsize     = 0u;
+};
+
+struct ElfProgramHeader {
+    uint32_t type        = PT_NULL;
+    uint32_t flags       = PF_NONE;
+    uint64_t offset      = 0u;
+    uint64_t vAddr       = 0u;
+    uint64_t pAddr       = 0u;
+    uint64_t fileSz      = 0u;
+    uint64_t memSz       = 0u;
+    uint64_t align       = 1u;
+};
 
 
 class Kernel : public pKernel {
@@ -152,6 +199,7 @@ class Kernel : public pKernel {
     IgcOclTranslationCtx* createIgcTranslationCtx();
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     int disassembleBinary();
+    std::vector<uint8_t> packDeviceBinary();
     int extractMetadata();
     int createSipKernel();
 
