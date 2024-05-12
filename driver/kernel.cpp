@@ -10,6 +10,7 @@
 #include "hwinfo.h"
 #include "gpgpu.h"
 #include "device.h"
+#include "utils.h"
 
 #define COMPILER_LOAD_FAILED -1
 
@@ -17,13 +18,13 @@
 Kernel::Kernel(Context* context, const char* filename, const char* options) 
          : context(context),
            filename(filename),
-           options(options),
            igcName("libigc.so.1"),
            fclName("libigdfcl.so.1"), 
            srcType(2305843009183132750),            // oclC
            intermediateType(2305843009202725362),   // spirV
            outType(18425635491780865102) {          // oclGenBin
-    this->optionsSize = strlen(options);
+    this->options.data = options;
+    this->options.dataLength = strlen(options);
 }
 
 Kernel::~Kernel() {
@@ -37,7 +38,7 @@ KernelFromPatchtokens* Kernel::getKernelData() {
 int Kernel::loadProgramSource() {
     FILE* file = fopen(filename, "r");
     if (!file) {
-        return -1;
+        return LOAD_SOURCE_FAILED;
     }
     fseek(file, 0, SEEK_END);
     uint64_t size = ftell(file);
@@ -48,10 +49,10 @@ int Kernel::loadProgramSource() {
     source[size] = '\0';
     fclose(file);
 
-    this->srcCode = static_cast<const char*>(source);
-    this->srcSize = strlen(source+1);
+    sourceCode.data = static_cast<const char*>(source);
+    sourceCode.dataLength = strlen(source + 1);
     //printf("%s\n", srcCode);
-    return 0;
+    return SUCCESS;
 }
 
 ICIF* Kernel::CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion) {
@@ -262,9 +263,9 @@ int Kernel::build(uint16_t chipset_id) {
         descriptor->setupHardwareInfo = dd->setupHardwareInfo;
         descriptor->devName = dd->devName;
     }
-    IgcBuffer* src = CreateIgcBuffer(igcMain, srcCode, srcSize+1);
-    IgcBuffer* buildOptions = CreateIgcBuffer(igcMain, options, optionsSize+1);
-    printf("options: %s\n", options);
+    IgcBuffer* src = CreateIgcBuffer(igcMain, sourceCode.data, sourceCode.dataLength + 1);
+    IgcBuffer* buildOptions = CreateIgcBuffer(igcMain, options.data, options.dataLength + 1);
+    printf("options: %s\n", options.data);
 
     const char* internal_options = "-ocl-version=300 -cl-disable-zebin -cl-intel-has-buffer-offset-arg -D__IMAGE_SUPPORT__=1 -fpreserve-vec3-type -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_fp16,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_icd,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_intel_command_queue_families,+cl_intel_subgroups,+cl_intel_required_subgroup_size,+cl_intel_subgroups_short,+cl_khr_spir,+cl_intel_accelerator,+cl_intel_driver_diagnostics,+cl_khr_priority_hints,+cl_khr_throttle_hints,+cl_khr_create_command_queue,+cl_intel_subgroups_char,+cl_intel_subgroups_long,+cl_khr_il_program,+cl_intel_mem_force_host_memory,+cl_khr_subgroup_extended_types,+cl_khr_subgroup_non_uniform_vote,+cl_khr_subgroup_ballot,+cl_khr_subgroup_non_uniform_arithmetic,+cl_khr_subgroup_shuffle,+cl_khr_subgroup_shuffle_relative,+cl_khr_subgroup_clustered_reduce,+cl_intel_device_attribute_query,+cl_khr_suggested_local_work_size,+cl_khr_fp64,+cl_khr_subgroups,+cl_intel_spirv_device_side_avc_motion_estimation,+cl_intel_spirv_media_block_io,+cl_intel_spirv_subgroups,+cl_khr_spirv_no_integer_wrap_decoration,+cl_intel_unified_shared_memory_preview,+cl_khr_mipmap_image,+cl_khr_mipmap_image_writes,+cl_intel_planar_yuv,+cl_intel_packed_yuv,+cl_intel_motion_estimation,+cl_intel_device_side_avc_motion_estimation,+cl_intel_advanced_motion_estimation,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_khr_image2d_from_buffer,+cl_khr_depth_images,+cl_khr_3d_image_writes,+cl_intel_media_block_io,+cl_intel_va_api_media_sharing,+cl_intel_sharing_format_query,+cl_khr_pci_bus_info";
     size_t internalOptionsSize = strlen(internal_options)+1;
@@ -273,14 +274,17 @@ int Kernel::build(uint16_t chipset_id) {
     IgcBuffer* idsBuffer = CreateIgcBuffer(igcMain, nullptr, 0);
     IgcBuffer* valuesBuffer = CreateIgcBuffer(igcMain, nullptr, 0);
 
+    // Frontend Compilation
     FclOclTranslationCtx* fclTranslationCtx = createFclTranslationCtx();
-    auto fclOutput = fclTranslationCtx->TranslateImpl(1, src, buildOptions, internalOptions, nullptr, 0);
-    if (fclOutput == nullptr) {
-        printf("FCL Compiler error!\n");
-        return -1;
+    if (!fclTranslationCtx) {
+        return FRONTEND_BUILD_ERROR;
     }
-    if (fclOutput->Successful() == true) {
-        printf("Frontend build success!\n");
+    auto fclOutput = fclTranslationCtx->TranslateImpl(1, src, buildOptions, internalOptions, nullptr, 0);
+    if (!fclOutput) {
+        return FRONTEND_BUILD_ERROR;
+    }
+    if (fclOutput->Successful() == false) {
+        return FRONTEND_BUILD_ERROR;
     }
     IgcBuffer* fclBuildLog = fclOutput->GetBuildLogImpl(1);
     const char* fclBuildLogMem = reinterpret_cast<const char*>(fclBuildLog->GetMemoryRaw());
@@ -288,22 +292,25 @@ int Kernel::build(uint16_t chipset_id) {
         printf("%s\n", fclBuildLogMem);
     }
     IgcBuffer* fclBuildOutput = fclOutput->GetOutputImpl(1);
-    const char* fclBuildOutputMem = reinterpret_cast<const char*>(fclBuildOutput->GetMemoryRaw());
-    if (fclBuildOutputMem) {
-        printf("%s\n", fclBuildOutputMem);
+    intermediateRepresentation.data = reinterpret_cast<const char*>(fclBuildOutput->GetMemoryRaw());
+    intermediateRepresentation.dataLength = fclBuildOutput->GetSizeRaw();
+    if (!intermediateRepresentation.data) {
+        return FRONTEND_BUILD_ERROR; 
     }
+    printf("%s\n", intermediateRepresentation.data);
     fclBuildOutput->Retain();
+
+    // Backend Compilation
     IgcOclTranslationCtx* igcTranslationCtx = createIgcTranslationCtx();
-    if (igcTranslationCtx) {
-        printf("igcTranslationCtx creation successful!\n");
+    if (!igcTranslationCtx) {
+        return BACKEND_BUILD_ERROR;
     }
-    void* gtpinInit = nullptr;
-    auto igcOutput = igcTranslationCtx->TranslateImpl(1, fclBuildOutput, idsBuffer, valuesBuffer, buildOptions, internalOptions, nullptr, 0, gtpinInit);
-    if (igcOutput == nullptr) {
-        printf("IGC Compiler error!\n");
+    auto igcOutput = igcTranslationCtx->TranslateImpl(1, fclBuildOutput, idsBuffer, valuesBuffer, buildOptions, internalOptions, nullptr, 0, nullptr);
+    if (!igcOutput) {
+        return BACKEND_BUILD_ERROR;
     }
-    if (igcOutput->Successful() == true) {
-        printf("Backend build successful!\n");
+    if (igcOutput->Successful() == false) {
+        return BACKEND_BUILD_ERROR;
     }
     IgcBuffer* igcBuildLog = igcOutput->GetBuildLogImpl(1);
     const char* igcBuildLogMem = reinterpret_cast<const char*>(igcBuildLog->GetMemoryRaw());
@@ -311,11 +318,12 @@ int Kernel::build(uint16_t chipset_id) {
         printf("%s\n", igcBuildLogMem);
     }
     IgcBuffer* igcBuildOutput = igcOutput->GetOutputImpl(1);
-    deviceBinary = reinterpret_cast<const char*>(igcBuildOutput->GetMemoryRaw());
-    if (deviceBinary) {
-        printf("%s\n", deviceBinary);
+    deviceBinary.data = reinterpret_cast<const char*>(igcBuildOutput->GetMemoryRaw());
+    deviceBinary.dataLength = igcBuildOutput->GetSizeRaw();
+    if (!deviceBinary.data) {
+        return BACKEND_BUILD_ERROR;
     }
-
+    printf("%s\n", deviceBinary.data);
     return SUCCESS;
 }
 
@@ -347,7 +355,7 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
 int Kernel::extractMetadata() {
     // The following usage of reinterpret_cast could lead to undefined behaviour. Checking the header magic
     // makes sure that the reinterpreted memory has the correct format
-    const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary);
+    const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary.data);
     if (binHeader->Magic != 0x494E5443) {
         printf("Binary header is wrong!\n");
         return -1;
@@ -409,43 +417,32 @@ int Kernel::createSipKernel() {
 }
 
 int Kernel::disassembleBinary() {
-    packDeviceBinary();
+    std::vector<uint8_t> elf = packDeviceBinary();
     return SUCCESS;
 }
 
-/*
-this->elfFileHeader
-this->programHeaders
-this->sectionHeaders
-data
-defaultDataAlignment
-stringTable
-specialStringsOffsets
-maxDataAlignmentNeeded
-programSectionLookupTable
-*/
 
-void Kernel::appendSection(SECTION_HEADER_TYPE sectionType, char* sectionLabel, std::vector<ElfSectionHeader>& sectionHeaders, sectionData, data, std::vector<char>& stringTable) {
+void Kernel::appendSection(uint32_t sectionType, const char* sectionLabel, std::vector<ElfSectionHeader>& sectionHeaders, DataStruct& sectionData, std::vector<uint8_t>& data, std::vector<char>& stringTable) {
     uint32_t offset = static_cast<uint32_t>(stringTable.size());
-    stringTable.insert(stringTable.end(), sectionLabel.begin(), sectionLabel.end());
+    stringTable.insert(stringTable.end(), &sectionLabel[0], &sectionLabel[strlen(sectionLabel) + 1]);
 
     ElfSectionHeader section = {};
     section.type = static_cast<uint32_t>(sectionType);
-    section.flags = static_cast<uint64_t>(SHF_NONE);
+    section.flags = 0u; //SHF_NONE
     section.offset = 0u;
     section.name = offset;
     section.addralign = 8u;
 
-    auto sectionDataAlignment = std::min<uint64_t>(defaultDataAlignment, 8u);
+    auto sectionDataAlignment = std::min<uint64_t>(this->defaultDataAlignment, 8u);
     auto alignedOffset = alignUp(data.size(), static_cast<size_t>(sectionDataAlignment));
-    auto alignedSize = alignUp(sectionData.size(), static_cast<size_t>(sectionDataAlignment));
+    auto alignedSize = alignUp(sectionData.dataLength, static_cast<size_t>(sectionDataAlignment));
     data.reserve(alignedOffset + alignedSize);
     data.resize(alignedOffset, 0u);
-    data.insert(data.end(), sectionData.begin(), sectionData.end());
+    data.insert(data.end(), &sectionData.data[0], &sectionData.data[sectionData.dataLength]);
     data.resize(alignedOffset + alignedSize, 0u);
 
     section.offset = alignedOffset;
-    section.size = sectionData.size();
+    section.size = sectionData.dataLength;
 
     sectionHeaders.push_back(section);
 }
@@ -456,24 +453,29 @@ std::vector<uint8_t> Kernel::packDeviceBinary() {
     std::vector<char> stringTable;
     std::vector<uint8_t> data;
     ElfFileHeader elfFileHeader;
-    elfFileHeader.type = ET_OPENCL_EXECUTABLE;
+    elfFileHeader.type = 0xff04; // ET_OPENCL_EXECUTABLE;
     std::vector<ElfSectionHeader> sectionHeaders;
-    std::vector<ElfProgramHeaders> programHeaders;
+    std::vector<ElfProgramHeader> programHeaders;
+    this->defaultDataAlignment = 8u;
+    const char* sectionName = ".shstrtab";
+    uint32_t specialStringsOffset = static_cast<uint32_t>(stringTable.size());
+    stringTable.push_back('\0');
+    stringTable.insert(stringTable.end(), &sectionName[0], &sectionName[strlen(sectionName) + 1]);
 
-    char buildOptions[13] = "BuildOptions";
-    appendSection(SHT_OPENCL_OPTIONS, &buildOptions, sectionHeaders, buildOptionsData, data, stringTable); 
-    char spirvObject[13] = "SPIRV Object";
-    appendSection(SHT_OPENCL_SPIRV, &spirvObject, sectionHeaders, intermediateData, data, stringTable);
-    char binaryObject[30] = "Intel(R) OpenCL Device Binary";
-    appendSection(SHT_OPENCL_DEV_BINARY, &binaryObject, sectionsHeaders, deviceBinary, data, stringTable);
+    const char* buildOptions = "BuildOptions";
+    appendSection(SHT_OPENCL_OPTIONS, buildOptions, sectionHeaders, options, data, stringTable); 
+    const char* spirvObject = "SPIRV Object";
+    appendSection(SHT_OPENCL_SPIRV, spirvObject, sectionHeaders, intermediateRepresentation, data, stringTable);
+    const char* binaryObject = "Intel(R) OpenCL Device Binary";
+    appendSection(SHT_OPENCL_DEV_BINARY, binaryObject, sectionHeaders, deviceBinary, data, stringTable);
 
     ElfSectionHeader sectionHeaderNamesSection;
     size_t alignedSectionNamesDataSize = 0u;
     size_t dataPaddingBeforeSectionNames = 0u;
-    auto alignedDataSize = alignUp(data.size(), static_cast<size_t>(defaultDataAlignment));
+    auto alignedDataSize = alignUp(data.size(), static_cast<size_t>(this->defaultDataAlignment));
     dataPaddingBeforeSectionNames = alignedDataSize - data.size();
     sectionHeaderNamesSection.type = 3u;
-    sectionHeaderNamesSection.name = specialStringsOffsets.shStrTab;
+    sectionHeaderNamesSection.name = specialStringsOffset;
     sectionHeaderNamesSection.offset = static_cast<uint64_t>(alignedDataSize);
     sectionHeaderNamesSection.size = static_cast<uint64_t>(stringTable.size());
     sectionHeaderNamesSection.addralign = static_cast<uint64_t>(defaultDataAlignment);
@@ -488,6 +490,7 @@ std::vector<uint8_t> Kernel::packDeviceBinary() {
     auto sectionHeadersOffset = programHeadersOffset + elfFileHeader.phEntSize * elfFileHeader.phNum;
     elfFileHeader.phOff = static_cast<uint64_t>(programHeadersOffset);
     elfFileHeader.shOff = static_cast<uint64_t>(sectionHeadersOffset);
+    uint64_t maxDataAlignmentNeeded = 1u;
     auto dataOffset = alignUp(sectionHeadersOffset + elfFileHeader.shEntSize * elfFileHeader.shNum, static_cast<size_t>(maxDataAlignmentNeeded));
     auto stringTabOffset = dataOffset + data.size();
 
@@ -495,13 +498,8 @@ std::vector<uint8_t> Kernel::packDeviceBinary() {
     // construct the ELF file
     std::vector<uint8_t> ret;
     ret.reserve(stringTabOffset + alignedSectionNamesDataSize);
-    ret.insert(ret.end(), reinterpret_cast<uint8_t>(&elfFileHeader), reinterpret_cast<uint8_t*>(&elfFileHeader + 1));
+    ret.insert(ret.end(), reinterpret_cast<uint8_t*>(&elfFileHeader), reinterpret_cast<uint8_t*>(&elfFileHeader + 1));
     ret.resize(programHeadersOffset, 0u);
-
-    for (auto &progSecLookup : programSectionLookupTable) {
-        programHeaders[progSecLookup.programId].offset = sectionHeaders[progSecLookup.sectionId].offset;
-        programHeaders[progSecLookup.programId].fileSz = sectionHeaders[progSecLookup.sectionId].size;
-    }
 
     for (auto &programHeader : programHeaders) {
         if (0 != programHeader.fileSz) {
@@ -525,6 +523,7 @@ std::vector<uint8_t> Kernel::packDeviceBinary() {
     ret.insert(ret.end(), reinterpret_cast<const uint8_t*>(stringTable.data()), reinterpret_cast<const uint8_t*>(stringTable.data() + static_cast<size_t>(sectionHeaderNamesSection.size)));
     ret.resize(ret.size() + alignedSectionNamesDataSize - static_cast<size_t>(sectionHeaderNamesSection.size), 0u);
 
+    printf("Elf construction successful!\n");
     return ret;
 }
 

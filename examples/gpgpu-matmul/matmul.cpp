@@ -20,7 +20,7 @@ int main() {
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
     pContext* context = CreateContext(device, &err);
     printf("Context creation: %d\n", err);
-    pKernel* kernel = BuildKernel(context, "matmul.cl", build_options.c_str(), 0, false, &err);
+    pKernel* kernel = BuildKernel(context, "matmul.cl", build_options.c_str(), 0, true, &err);
     printf("Kernel build: %d\n", err);
     //void* ptrToBuffer = CreateBuffer(gpuInfo, 4096);
     //printf("Buffer ptr: %p\n", ptrToBuffer);

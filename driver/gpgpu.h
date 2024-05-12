@@ -14,6 +14,9 @@
 #define NO_DEVICE_ERROR                     -11
 #define NO_CONTEXT_ERROR                    -12
 #define NO_KERNEL_ERROR                     -13
+#define FRONTEND_BUILD_ERROR                -14
+#define BACKEND_BUILD_ERROR                 -15
+#define LOAD_SOURCE_FAILED                  -16
 
 
 class pDevice {
