@@ -416,119 +416,38 @@ int Kernel::createSipKernel() {
     return SUCCESS;
 }
 
+inline void Kernel::setOptBit(uint32_t& opts, uint32_t bit, bool isSet) {
+    if (isSet) {
+        opts |= bit;
+    }
+    else {
+        opts &= ~bit;
+    }
+}
+
 int Kernel::disassembleBinary() {
-    std::vector<uint8_t> elf = packDeviceBinary();
+    iga_disassemble_options_t dopts = {sizeof(iga_disassemble_options_t), IGA_FORMATTING_OPTS_DEFAULT, 0, 0, IGA_DECODING_OPTS_DEFAULT};
+    uint32_t fmtOpts = 0;
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_NUMERIC_LABELS, false);
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_SYNTAX_EXTS, false);
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_HEX_FLOATS, false);
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_PC, false);
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_BITS, false);
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_DEFS, false);
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_DEPS, false);
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_LDST, false);
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_BFNEXPRS, true);
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_ANSI, true);
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_JSON, false);
+    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_JSON_V1, false);
+    dopts.formatting_opts = fmtopts;
+    dopts.base_pc_offset = pcOffset;
+    setOptBit(dopts.decoder_opts, IGA_DECODING_OPT_NATIVE, useNativeEncoder);
+
+    char* text;
+    int status = iga_disassemble(context, &dopts, kernelData.isa, kernelData.header->KernelHeapSize, nullptr, nullptr, &text);
     return SUCCESS;
 }
-
-
-void Kernel::appendSection(uint32_t sectionType, const char* sectionLabel, std::vector<ElfSectionHeader>& sectionHeaders, DataStruct& sectionData, std::vector<uint8_t>& data, std::vector<char>& stringTable) {
-    uint32_t offset = static_cast<uint32_t>(stringTable.size());
-    stringTable.insert(stringTable.end(), &sectionLabel[0], &sectionLabel[strlen(sectionLabel) + 1]);
-
-    ElfSectionHeader section = {};
-    section.type = static_cast<uint32_t>(sectionType);
-    section.flags = 0u; //SHF_NONE
-    section.offset = 0u;
-    section.name = offset;
-    section.addralign = 8u;
-
-    auto sectionDataAlignment = std::min<uint64_t>(this->defaultDataAlignment, 8u);
-    auto alignedOffset = alignUp(data.size(), static_cast<size_t>(sectionDataAlignment));
-    auto alignedSize = alignUp(sectionData.dataLength, static_cast<size_t>(sectionDataAlignment));
-    data.reserve(alignedOffset + alignedSize);
-    data.resize(alignedOffset, 0u);
-    data.insert(data.end(), &sectionData.data[0], &sectionData.data[sectionData.dataLength]);
-    data.resize(alignedOffset + alignedSize, 0u);
-
-    section.offset = alignedOffset;
-    section.size = sectionData.dataLength;
-
-    sectionHeaders.push_back(section);
-}
-
-
-// elf_encoder.cpp
-std::vector<uint8_t> Kernel::packDeviceBinary() {
-    std::vector<char> stringTable;
-    std::vector<uint8_t> data;
-    ElfFileHeader elfFileHeader;
-    elfFileHeader.type = 0xff04; // ET_OPENCL_EXECUTABLE;
-    std::vector<ElfSectionHeader> sectionHeaders;
-    std::vector<ElfProgramHeader> programHeaders;
-    this->defaultDataAlignment = 8u;
-    const char* sectionName = ".shstrtab";
-    uint32_t specialStringsOffset = static_cast<uint32_t>(stringTable.size());
-    stringTable.push_back('\0');
-    stringTable.insert(stringTable.end(), &sectionName[0], &sectionName[strlen(sectionName) + 1]);
-
-    const char* buildOptions = "BuildOptions";
-    appendSection(SHT_OPENCL_OPTIONS, buildOptions, sectionHeaders, options, data, stringTable); 
-    const char* spirvObject = "SPIRV Object";
-    appendSection(SHT_OPENCL_SPIRV, spirvObject, sectionHeaders, intermediateRepresentation, data, stringTable);
-    const char* binaryObject = "Intel(R) OpenCL Device Binary";
-    appendSection(SHT_OPENCL_DEV_BINARY, binaryObject, sectionHeaders, deviceBinary, data, stringTable);
-
-    ElfSectionHeader sectionHeaderNamesSection;
-    size_t alignedSectionNamesDataSize = 0u;
-    size_t dataPaddingBeforeSectionNames = 0u;
-    auto alignedDataSize = alignUp(data.size(), static_cast<size_t>(this->defaultDataAlignment));
-    dataPaddingBeforeSectionNames = alignedDataSize - data.size();
-    sectionHeaderNamesSection.type = 3u;
-    sectionHeaderNamesSection.name = specialStringsOffset;
-    sectionHeaderNamesSection.offset = static_cast<uint64_t>(alignedDataSize);
-    sectionHeaderNamesSection.size = static_cast<uint64_t>(stringTable.size());
-    sectionHeaderNamesSection.addralign = static_cast<uint64_t>(defaultDataAlignment);
-    elfFileHeader.shStrNdx = static_cast<uint16_t>(sectionHeaders.size());
-    sectionHeaders[0] = sectionHeaderNamesSection;
-    alignedSectionNamesDataSize = alignUp(stringTable.size(), static_cast<size_t>(sectionHeaderNamesSection.addralign));
-
-    elfFileHeader.phNum = static_cast<uint16_t>(programHeaders.size());
-    elfFileHeader.shNum = static_cast<uint16_t>(sectionHeaders.size());
-
-    auto programHeadersOffset = elfFileHeader.ehSize;
-    auto sectionHeadersOffset = programHeadersOffset + elfFileHeader.phEntSize * elfFileHeader.phNum;
-    elfFileHeader.phOff = static_cast<uint64_t>(programHeadersOffset);
-    elfFileHeader.shOff = static_cast<uint64_t>(sectionHeadersOffset);
-    uint64_t maxDataAlignmentNeeded = 1u;
-    auto dataOffset = alignUp(sectionHeadersOffset + elfFileHeader.shEntSize * elfFileHeader.shNum, static_cast<size_t>(maxDataAlignmentNeeded));
-    auto stringTabOffset = dataOffset + data.size();
-
-
-    // construct the ELF file
-    std::vector<uint8_t> ret;
-    ret.reserve(stringTabOffset + alignedSectionNamesDataSize);
-    ret.insert(ret.end(), reinterpret_cast<uint8_t*>(&elfFileHeader), reinterpret_cast<uint8_t*>(&elfFileHeader + 1));
-    ret.resize(programHeadersOffset, 0u);
-
-    for (auto &programHeader : programHeaders) {
-        if (0 != programHeader.fileSz) {
-            programHeader.offset = static_cast<uint64_t>(programHeader.offset + dataOffset);
-        }
-        ret.insert(ret.end(), reinterpret_cast<uint8_t*>(&programHeader), reinterpret_cast<uint8_t*>(&programHeader + 1));
-        ret.resize(ret.size() + elfFileHeader.phEntSize - sizeof(programHeader), 0u);
-    }
-
-    for (auto &sectionHeader : sectionHeaders) {
-        if ((8 != sectionHeader.type) && (0 != sectionHeader.size)) {
-            sectionHeader.offset = static_cast<uint64_t>(sectionHeader.offset + dataOffset);
-        }
-        ret.insert(ret.end(), reinterpret_cast<uint8_t*>(&sectionHeader), reinterpret_cast<uint8_t*>(&sectionHeader + 1));
-        ret.resize(ret.size() + elfFileHeader.shEntSize - sizeof(sectionHeader), 0u);
-    }
-
-    ret.resize(dataOffset, 0u);
-    ret.insert(ret.end(), data.begin(), data.end());
-    ret.resize(ret.size() + dataPaddingBeforeSectionNames, 0u);
-    ret.insert(ret.end(), reinterpret_cast<const uint8_t*>(stringTable.data()), reinterpret_cast<const uint8_t*>(stringTable.data() + static_cast<size_t>(sectionHeaderNamesSection.size)));
-    ret.resize(ret.size() + alignedSectionNamesDataSize - static_cast<size_t>(sectionHeaderNamesSection.size), 0u);
-
-    printf("Elf construction successful!\n");
-    return ret;
-}
-
-
-
 
 
 

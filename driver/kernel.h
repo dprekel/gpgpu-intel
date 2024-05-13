@@ -133,85 +133,6 @@ struct KernelFromPatchtokens {
 
 #pragma pack ( pop )
 
-enum SECTION_HEADER_TYPE : uint32_t {
-    SHT_NULL = 0,                           // inactive section header
-    SHT_PROGBITS = 1,                       // program data
-    SHT_SYMTAB = 2,                         // symbol table
-    SHT_STRTAB = 3,                         // string table
-    SHT_RELA = 4,                           // relocation entries with add
-    SHT_HASH = 5,                           // symbol hash table
-    SHT_DYNAMIC = 6,                        // dynamic linking info
-    SHT_NOTE = 7,                           // notes
-    SHT_NOBITS = 8,                         // program "no data" space (bss)
-    SHT_REL = 9,                            // relocation entries (without add)
-    SHT_SHLIB = 10,                         // reserved
-    SHT_DYNSYM = 11,                        // dynamic linker symbol table
-    SHT_INIT_ARRAY = 14,                    // array of constructors
-    SHT_FINI_ARRAY = 15,                    // array of destructors
-    SHT_PREINIT_ARRAY = 16,                 // aaray of pre-constructors
-    SHT_GROUP = 17,                         // section group
-    SHT_SYMTAB_SHNDX = 18,                  // extended section indices
-    SHT_NUM = 19,                           // number of defined types
-    SHT_LOOS = 0x60000000,                  // start of os-specifc
-    SHT_OPENCL_RESERVED_START = 0xff000000, // start of Intel OCL SHT_TYPES
-    SHT_OPENCL_RESERVED_END = 0xff00000c    // end of Intel OCL SHT_TYPES
-};
-
-enum SHT_OPENCL : uint32_t {
-    SHT_OPENCL_DEV_BINARY = 0xff000005,
-    SHT_OPENCL_OPTIONS = 0xff000006,
-    SHT_OPENCL_SPIRV = 0xff000009
-};
-
-struct ElfSectionHeader {
-    uint32_t name        = 0u;
-    uint32_t type        = 0u; //SHT_NULL;
-    uint64_t flags       = 0u; //SHF_NONE;
-    uint64_t addr        = 0u;
-    uint64_t offset      = 0u;
-    uint64_t size        = 0u;
-    uint32_t link        = 0u; //SHN_UNDEF;
-    uint32_t info        = 0u;
-    uint64_t addralign   = 0u;
-    uint64_t entsize     = 0u;
-};
-
-struct ElfProgramHeader {
-    uint32_t type        = 0u; //PT_NULL;
-    uint32_t flags       = 0u; //PF_NONE;
-    uint64_t offset      = 0u;
-    uint64_t vAddr       = 0u;
-    uint64_t pAddr       = 0u;
-    uint64_t fileSz      = 0u;
-    uint64_t memSz       = 0u;
-    uint64_t align       = 1u;
-};
-
-struct ElfFileHeader {
-    char magic[4]        = {0x7f, 'E', 'L', 'F'};
-    uint8_t eClass       = 0u; //EI_CLASS_NONE;
-    uint8_t data         = 1u; //EI_DATA_LITTLE_ENDIAN;
-    uint8_t Version      = 1u; //EV_CURRENT;
-    uint8_t osAbi        = 0u;
-    uint8_t abiVersion   = 0u;
-    char padding[7]      = {};
-
-    uint16_t type        = 0u; //ET_NONE;
-    uint16_t machine     = 0u; //EM_NONE;
-    uint32_t version     = 1u;
-    uint64_t entry       = 0u;
-    uint64_t phOff       = 0u;
-    uint64_t shOff       = 0u;
-    uint32_t flags       = 0u;
-    uint16_t ehSize      = sizeof(ElfFileHeader);
-    uint16_t phEntSize   = sizeof(ElfProgramHeader);
-    uint16_t phNum       = 0u;
-    uint16_t shEntSize   = sizeof(ElfSectionHeader);
-    uint16_t shNum       = 0u;
-    uint16_t shStrNdx    = 0u; //SHN_UNDEF;
-};
-
-
 struct DataStruct {
     const char* data;
     size_t dataLength;
@@ -236,8 +157,7 @@ class Kernel : public pKernel {
     IgcOclTranslationCtx* createIgcTranslationCtx();
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     int disassembleBinary();
-    void appendSection(uint32_t sectionType, const char* sectionLabel, std::vector<ElfSectionHeader>& sectionHeaders, DataStruct& sectionData, std::vector<uint8_t>& data, std::vector<char>& stringTable);
-    std::vector<uint8_t> packDeviceBinary();
+    void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
     int extractMetadata();
     int createSipKernel();
 
@@ -263,8 +183,6 @@ class Kernel : public pKernel {
     const uint8_t* patchListBlob;
     const uint8_t* kernelInfoBlob;
     KernelFromPatchtokens kernelData;
-
-    uint64_t defaultDataAlignment;
 };
 
 
