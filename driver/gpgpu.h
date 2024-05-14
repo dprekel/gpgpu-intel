@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #define SUCCESS                               0
 #define WRONG_DRIVER_VERSION                 -1
 #define QUERY_FAILED                         -2
@@ -17,21 +19,25 @@
 #define FRONTEND_BUILD_ERROR                -14
 #define BACKEND_BUILD_ERROR                 -15
 #define LOAD_SOURCE_FAILED                  -16
+#define NO_DEVICES_FOUND                    -17
 
 
 class pDevice {
-    int magic;
+  public:
+    const char* devName;
 };
 
 class pContext {
+  public:
     int magic;
 };
 
 class pKernel {
+  public:
     int magic;
 };
 
-extern pDevice* CreateDevice(int* err);
+extern std::vector<pDevice*> CreateDevices(int* err);
 extern int GetInfo(pDevice* device);
 extern pContext* CreateContext(pDevice* device, 
                         int* err);

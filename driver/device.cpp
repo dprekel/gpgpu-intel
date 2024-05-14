@@ -1,10 +1,13 @@
+#include <dirent.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <fcntl.h>
+#include <sys/types.h>
 #include <memory>
+#include <string>
 
 #include "device.h"
 #include "hwinfo.h"
@@ -20,17 +23,14 @@ const DeviceDescriptor deviceDescriptorTable[] = {
     {0, nullptr, nullptr}
 };
 
-Device::Device() {}
+Device::Device(int fd) : fd(fd) {}
 
 Device::~Device() {
     printf("Device destructor called!\n");
 }
 
 int Device::initialize() {
-    //TODO: Discover all devices
-    fd = openDeviceFile();
 
-    //TODO: Add checks for all ioctls
     if (!checkDriverVersion()) {
         return WRONG_DRIVER_VERSION;
     }
@@ -71,6 +71,7 @@ int Device::initialize() {
         descriptor->pHwInfo->platform->usDeviceID = chipset_id;
         descriptor->pHwInfo->platform->usRevId = revision_id;
     }
+    this->devName = descriptor->devName;
     SystemInfo* sysInfo = descriptor->pHwInfo->gtSystemInfo;
 
     // query topology info
@@ -148,13 +149,6 @@ std::unique_ptr<DeviceDescriptor> Device::getDevInfoFromDescriptorTable(uint16_t
     return std::move(descriptor);
 }
 
-int Device::openDeviceFile() {
-    //TODO: add code that reads out the string from the system
-    const char* fileString = "/dev/dri/by-path/pci-0000:00:02.0-render";
-    int fileDescriptor = open(fileString, O_RDWR);
-    //TODO: check fileDescriptor
-    return fileDescriptor;
-}
 
 bool Device::checkDriverVersion() {
     drm_version version = {0};
@@ -313,13 +307,52 @@ void Device::checkPreemptionSupport() {
     preemptionSupported = ((0 == ret) && (value & I915_SCHEDULER_CAP_PREEMPTION));
 }
 
-/*
-int Device::getMaxGpuFrequency() {
-    int ret;
-    std::string path = "/sys/bus/pci/devices/" + pciPath + "/drm" + "/card";
 
+
+std::vector<int> openDevices(int* err) {
+    const char* pciDevicesDirectory = "/dev/dri/by-path";
+    std::vector<std::string> files;
+    std::vector<int> deviceIDs;
+    DIR* dir = opendir(pciDevicesDirectory);
+    if (!dir) {
+        *err = NO_DEVICES_FOUND;
+        return deviceIDs;
+    }
+    dirent* entry = nullptr;
+    while((entry = readdir(dir)) != nullptr) {
+        if (entry->d_name[0] == '.')
+            continue;
+        std::string fullPath = pciDevicesDirectory;
+        fullPath += "/";
+        fullPath += entry->d_name;
+        files.push_back(fullPath);
+    }
+    closedir(dir);
+    const char* renderSuffix = "-render";
+    for (auto& file : files) {
+        const char* path = file.c_str();
+        const char* pos = strstr(path, renderSuffix);
+        if (!pos)
+            continue;
+        uint32_t offset = pos - path;
+        if (offset < strlen(path) - strlen(renderSuffix))
+            continue;
+        if (offset < 33 || path[offset - 13] != '-')
+            continue;
+        int fileDescriptor = open(path, O_RDWR | O_CLOEXEC);
+        if (fileDescriptor == -1)
+            continue;
+        deviceIDs.push_back(fileDescriptor);
+    }
+    *err = SUCCESS;
+    return deviceIDs;
 }
-*/
+
+
+
+
+
+
 
 
 

@@ -184,7 +184,6 @@ void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSy
 }
 
 void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable) {
-    /*
     igcFeWa->SetFtrDesktop(featureTable->flags.ftrDesktop);
     igcFeWa->SetFtrChannelSwizzlingXOREnabled(featureTable->flags.ftrChannelSwizzlingXOREnabled);
     igcFeWa->SetFtrGtBigDie(featureTable->flags.ftrGtBigDie);
@@ -204,12 +203,9 @@ void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTab
     igcFeWa->SetFtrGTC(featureTable->flags.ftrGTC);
     igcFeWa->SetFtrGTX(featureTable->flags.ftrGTX);
     igcFeWa->SetFtr5Slice(featureTable->flags.ftr5Slice);
-    */
     igcFeWa->SetFtrGpGpuMidThreadLevelPreempt(featureTable->flags.ftrGpGpuMidThreadLevelPreempt);
-    //igcFeWa->SetFtrIoMmuPageFaulting(featureTable->flags.ftrIoMmuPageFaulting);
     igcFeWa->SetFtrWddm2Svm(featureTable->flags.ftrWddm2Svm);
     igcFeWa->SetFtrPooledEuEnabled(featureTable->flags.ftrPooledEuEnabled);
-    //igcFeWa->SetFtrResourceStreamer(featureTable->flags.ftrResourceStreamer);
 }
 
 IgcOclTranslationCtx* Kernel::createIgcTranslationCtx() {
@@ -268,7 +264,7 @@ int Kernel::build(uint16_t chipset_id) {
     printf("options: %s\n", options.data);
 
     const char* internal_options = "-ocl-version=300 -cl-disable-zebin -cl-intel-has-buffer-offset-arg -D__IMAGE_SUPPORT__=1 -fpreserve-vec3-type -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_fp16,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_icd,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_intel_command_queue_families,+cl_intel_subgroups,+cl_intel_required_subgroup_size,+cl_intel_subgroups_short,+cl_khr_spir,+cl_intel_accelerator,+cl_intel_driver_diagnostics,+cl_khr_priority_hints,+cl_khr_throttle_hints,+cl_khr_create_command_queue,+cl_intel_subgroups_char,+cl_intel_subgroups_long,+cl_khr_il_program,+cl_intel_mem_force_host_memory,+cl_khr_subgroup_extended_types,+cl_khr_subgroup_non_uniform_vote,+cl_khr_subgroup_ballot,+cl_khr_subgroup_non_uniform_arithmetic,+cl_khr_subgroup_shuffle,+cl_khr_subgroup_shuffle_relative,+cl_khr_subgroup_clustered_reduce,+cl_intel_device_attribute_query,+cl_khr_suggested_local_work_size,+cl_khr_fp64,+cl_khr_subgroups,+cl_intel_spirv_device_side_avc_motion_estimation,+cl_intel_spirv_media_block_io,+cl_intel_spirv_subgroups,+cl_khr_spirv_no_integer_wrap_decoration,+cl_intel_unified_shared_memory_preview,+cl_khr_mipmap_image,+cl_khr_mipmap_image_writes,+cl_intel_planar_yuv,+cl_intel_packed_yuv,+cl_intel_motion_estimation,+cl_intel_device_side_avc_motion_estimation,+cl_intel_advanced_motion_estimation,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_khr_image2d_from_buffer,+cl_khr_depth_images,+cl_khr_3d_image_writes,+cl_intel_media_block_io,+cl_intel_va_api_media_sharing,+cl_intel_sharing_format_query,+cl_khr_pci_bus_info";
-    size_t internalOptionsSize = strlen(internal_options)+1;
+    size_t internalOptionsSize = strlen(internal_options) + 1;
     IgcBuffer* internalOptions = CreateIgcBuffer(igcMain, internal_options, internalOptionsSize);
     printf("internalOptionsSize: %lu\n", internalOptionsSize);
     IgcBuffer* idsBuffer = CreateIgcBuffer(igcMain, nullptr, 0);
@@ -426,6 +422,7 @@ inline void Kernel::setOptBit(uint32_t& opts, uint32_t bit, bool isSet) {
 }
 
 int Kernel::disassembleBinary() {
+    /*
     iga_disassemble_options_t dopts = {sizeof(iga_disassemble_options_t), IGA_FORMATTING_OPTS_DEFAULT, 0, 0, IGA_DECODING_OPTS_DEFAULT};
     uint32_t fmtOpts = 0;
     setOptBit(fmtOpts, IGA_FORMATTING_OPT_NUMERIC_LABELS, false);
@@ -446,6 +443,7 @@ int Kernel::disassembleBinary() {
 
     char* text;
     int status = iga_disassemble(context, &dopts, kernelData.isa, kernelData.header->KernelHeapSize, nullptr, nullptr, &text);
+    */
     return SUCCESS;
 }
 

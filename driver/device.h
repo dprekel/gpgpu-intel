@@ -25,9 +25,11 @@ struct DeviceDescriptor {
     const char* devName;
 };
 
+std::vector<int> openDevices(int* err);
+
 class Device : public pDevice {
   public:
-    Device();
+    Device(int fd);
     ~Device();
     int initialize();
     int openDeviceFile();

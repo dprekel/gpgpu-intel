@@ -11,14 +11,20 @@
 #define API_CALL __attribute__((visibility("default")))
 
 
-pDevice API_CALL* CreateDevice(int* ret) {
-    Device* device = new Device();
-    int err = device->initialize();
-    *ret = err;
-    if (err)
-        return nullptr;
-    pDevice* dev = static_cast<pDevice*>(device);
-    return dev;
+std::vector<pDevice*> API_CALL CreateDevices(int* ret) {
+    std::vector<int> devIDs = openDevices(ret);
+    std::vector<pDevice*> devices;
+    if (*ret || devIDs.size() == 0)
+        return devices;
+    for (auto& ID : devIDs) {
+        Device* device = new Device(ID);
+        *ret = device->initialize();
+        if (*ret)
+            return devices;     // problem: information loss if previous return value is overwritten
+        pDevice* dev = static_cast<pDevice*>(device);
+        devices.push_back(dev);
+    }
+    return devices;
 }
 
 
