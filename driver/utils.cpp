@@ -1,4 +1,5 @@
 #include <stdio.h>
+
 #include "utils.h"
 
 __m256i _mm256_set_epi16(short w15, short w14, short w13, short w12,

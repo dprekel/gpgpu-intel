@@ -1,25 +1,24 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <dlfcn.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <algorithm>
 #include <cstring>
 
-#include "kernel.h"
-#include "igc_interface.h"
-#include "hwinfo.h"
-#include "gpgpu.h"
 #include "device.h"
+#include "gpgpu.h"
+#include "hwinfo.h"
+#include "igc_interface.h"
+#include "kernel.h"
 #include "utils.h"
-
-#define COMPILER_LOAD_FAILED -1
 
 
 Kernel::Kernel(Context* context, const char* filename, const char* options) 
          : context(context),
-           filename(filename),
            igcName("libigc.so.1"),
            fclName("libigdfcl.so.1"), 
+           filename(filename),
            srcType(2305843009183132750),            // oclC
            intermediateType(2305843009202725362),   // spirV
            outType(18425635491780865102) {          // oclGenBin
@@ -69,7 +68,7 @@ ICIF* Kernel::CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t i
     if ((interfaceVersion < minVerSupported) || (interfaceVersion > maxVerSupported)) {
         return nullptr;
     }
-    printf("Versions are ok\n");
+    //printf("Versions are ok\n");
     chosenVersion = std::min(maxVerSupported, interfaceVersion);
     
     ICIF* deviceCtx = cifMain->CreateInterfaceImpl(interfaceID, chosenVersion);

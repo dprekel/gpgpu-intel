@@ -14,7 +14,6 @@ int main() {
     int err = 0;
     std::vector<pDevice*> devices = CreateDevices(&err);
     printf("err: %d\n", err);
-    err = GetInfo(devices[0]);
 
     std::string build_options = "-DTILE_SIZE_M=" + std::to_string(TILE_SIZE_M)
                               + " -DTILE_GROUP_M=" + std::to_string(TILE_GROUP_M)

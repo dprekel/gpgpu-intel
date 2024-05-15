@@ -2,18 +2,20 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <vector>
+
 #include <memory>
+#include <vector>
 
 #include "device.h"
-#include "kernel.h"
 #include "gpgpu.h"
+#include "kernel.h"
 
 
 enum BufferType {
     BUFFER_HOST_MEMORY,
     KERNEL_ISA,
     KERNEL_ISA_INTERNAL,
+    SCRATCH_SURFACE,
     PREEMPTION,
     TAG_BUFFER,
     INTERNAL_HEAP,
@@ -50,10 +52,11 @@ class Context : public pContext {
     int createSurfaceStateHeap();
     */
     int allocateISAMemory();
+    int createScratchAllocation();
     int createPreemptionAllocation();
     int createCommandBuffer();
     Device* device;
-    Kernel* kernel;
+    Kernel* kernel = nullptr;
   private:
     std::vector<std::unique_ptr<BufferObject>> execBuffer;
     uint32_t vmId;

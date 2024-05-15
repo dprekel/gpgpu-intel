@@ -20,6 +20,7 @@
 #define BACKEND_BUILD_ERROR                 -15
 #define LOAD_SOURCE_FAILED                  -16
 #define NO_DEVICES_FOUND                    -17
+#define COMPILER_LOAD_FAILED                -18
 
 
 class pDevice {

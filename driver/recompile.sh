@@ -1,5 +1,5 @@
 #!/bin/bash
 
 make clean
-make
+make DEBUG=1 WARNINGS=0
 make install

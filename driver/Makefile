@@ -1,7 +1,13 @@
 CC = g++
-CFLAGS = -g -Wall -fPIC -fvisibility=hidden -mavx2
+CFLAGS = -Wall -fPIC -fvisibility=hidden -mavx2
 LDFLAGS = -shared
 PREFIX = /usr/local
+ifeq ($(DEBUG), 1)
+	CFLAGS += -g -DDEBUG
+endif
+ifeq ($(WARNINGS), 1)
+	CFLAGS += -pedantic -Wextra -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wnoexcept -Wold-style-cast -Woverloaded-virtual -Wredundant-decls -Wshadow -Wsign-conversion -Wsign-promo -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unused
+endif
 
 .PHONY: default all clean install
 

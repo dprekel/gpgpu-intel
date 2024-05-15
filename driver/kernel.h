@@ -1,14 +1,15 @@
 #pragma once
 
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
+
 #include <memory>
 #include <vector>
 
 #include "device.h"
-#include "igc_interface.h"
-#include "hwinfo.h"
 #include "gpgpu.h"
+#include "hwinfo.h"
+#include "igc_interface.h"
 
 class Device;
 class Context;
@@ -114,15 +115,15 @@ struct PatchKernelAttributesInfo : PatchItemHeader {
 };
 
 struct KernelFromPatchtokens {
-    const KernelBinaryHeader* header;
-    const uint8_t* name;
-    const uint8_t* isa;
-    const uint8_t* generalState;
-    const uint8_t* dynamicState;
-    const uint8_t* surfaceState;
-    const uint8_t* kernelInfo;
-    const uint8_t* patchList;
-    const uint8_t* patchListEnd;
+    const KernelBinaryHeader* header = nullptr;
+    const uint8_t* name = nullptr;
+    const uint8_t* isa = nullptr;
+    const uint8_t* generalState = nullptr;
+    const uint8_t* dynamicState = nullptr;
+    const uint8_t* surfaceState = nullptr;
+    const uint8_t* kernelInfo = nullptr;
+    const uint8_t* patchList = nullptr;
+    const uint8_t* patchListEnd = nullptr;
     const PatchSamplerStateArray* samplerStateArray = nullptr;
     const PatchBindingTableState* bindingTableState = nullptr;
     const PatchMediaInterfaceDescriptorLoad* mediaInterfaceDescriptorLoad = nullptr;
@@ -134,7 +135,7 @@ struct KernelFromPatchtokens {
 #pragma pack ( pop )
 
 struct DataStruct {
-    const char* data;
+    const char* data = nullptr;
     size_t dataLength;
 };
 
@@ -166,8 +167,8 @@ class Kernel : public pKernel {
     std::unique_ptr<DeviceDescriptor> descriptor;
     const char* igcName;
     const char* fclName;
-    CIFMain* igcMain;
-    CIFMain* fclMain;
+    CIFMain* igcMain = nullptr;
+    CIFMain* fclMain = nullptr;
 
     const char* filename;
     DataStruct options;    
@@ -179,9 +180,9 @@ class Kernel : public pKernel {
     uint64_t intermediateType;
     uint64_t outType;
 
-    const uint8_t* header;
-    const uint8_t* patchListBlob;
-    const uint8_t* kernelInfoBlob;
+    const uint8_t* header = nullptr;
+    const uint8_t* patchListBlob = nullptr;
+    const uint8_t* kernelInfoBlob = nullptr;
     KernelFromPatchtokens kernelData;
 };
 

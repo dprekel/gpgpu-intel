@@ -1,17 +1,18 @@
 #include <dirent.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
+
 #include <memory>
 #include <string>
 
 #include "device.h"
-#include "hwinfo.h"
 #include "gpgpu.h"
+#include "hwinfo.h"
 #include "ioctl.h"
 
 const DeviceDescriptor deviceDescriptorTable[] = {
@@ -23,16 +24,19 @@ const DeviceDescriptor deviceDescriptorTable[] = {
     {0, nullptr, nullptr}
 };
 
-Device::Device(int fd) : fd(fd) {}
+Device::Device(int fd) : fd(fd)
+                         {}
 
 Device::~Device() {
     printf("Device destructor called!\n");
 }
 
 int Device::initialize() {
-
-    if (!checkDriverVersion()) {
-        return WRONG_DRIVER_VERSION;
+    numDevices += 1;
+    if (numDevices == 1) {
+        bool isi915 = checkDriverVersion();
+        if (isi915 == false)
+            return WRONG_DRIVER_VERSION;
     }
     // query chipset ID
     getParamIoctl(I915_PARAM_CHIPSET_ID, &chipset_id);
@@ -62,8 +66,8 @@ int Device::initialize() {
     int32_t length = 0;
     void* deviceBlob = queryIoctl(DRM_I915_QUERY_HWCONFIG_TABLE, 0u, length);
     HWConfigTable = deviceBlob;
-    if (!deviceBlob) {
-        printf("Hardware configuration table could not be retrieved\n");
+    if (deviceBlob) {
+        printf("We have a hardware configuration table!\n");
     }
     descriptor = getDevInfoFromDescriptorTable(chipset_id);
     if (descriptor->pHwInfo) {
@@ -73,6 +77,12 @@ int Device::initialize() {
     }
     this->devName = descriptor->devName;
     SystemInfo* sysInfo = descriptor->pHwInfo->gtSystemInfo;
+
+    LOG("\n");
+    LOG("GPU %d\n", numDevices);
+    LOG("------------------------------------------------------------------\n");
+    LOG("Device ID: \t\t0x%X [%d]\n", this->chipset_id, this->revision_id);
+    LOG("Device Name: \t\t%s\n", this->devName);
 
     // query topology info
     void* topology = queryIoctl(DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
@@ -132,6 +142,7 @@ int Device::initialize() {
     
     // Initialize memory manager here
 
+    LOG("\n");
     return SUCCESS;
 }
 
@@ -162,6 +173,7 @@ bool Device::checkDriverVersion() {
     name[4] = '\0';
     //TODO: add driver info to gpuInfo struct
     strncpy(driver_name, name, 5);
+    LOG("Kernel driver: \t\t%s\n", this->driver_name);
     return strcmp(name, "i915") == 0;
 }
 
@@ -236,9 +248,13 @@ void Device::translateTopologyInfo(drm_i915_query_topology_info* topologyInfo, S
             }
         }
     }
-    this->euCount = sysInfo->EUCount = euCount;
-    this->subSliceCount = sysInfo->SubSliceCount = subSliceCount;
-    this->sliceCount = sysInfo->SliceCount = sliceCount;
+    LOG("Execution Units: \t%d\n", euCount);
+    LOG("Slices: \t\t%d\n", sliceCount);
+    LOG("Subslices per Slice: \t%d\n", subSliceCountPerSlice);
+    LOG("EUs per Subslice: \t%d\n", euCountPerSubSlice);
+    sysInfo->EUCount = euCount;
+    sysInfo->SubSliceCount = subSliceCount;
+    sysInfo->SliceCount = sliceCount;
     this->subSliceCountPerSlice = subSliceCountPerSlice;
     this->euCountPerSubSlice = euCountPerSubSlice;
 }

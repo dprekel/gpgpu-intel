@@ -1,15 +1,16 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
-#include <vector>
-#include <memory>
 
-#include "gpgpu.h"
+#include <memory>
+#include <vector>
+
+#include "commands_gen9.h"
 #include "context.h"
+#include "gpgpu.h"
 #include "ioctl.h"
 #include "utils.h"
-#include "commands_gen9.h"
 
 #define PAGE_SIZE 4096
 
@@ -332,6 +333,36 @@ int Context::allocateISAMemory() {
     printf("Kernel ISA Pointer: %p\n", kernelData->isa);
 
     memcpy(kernelISA->alloc, kernelData->isa, kernelISASize);
+    return SUCCESS;
+}
+
+// requiredPerThreadScratchSize / requiredScratchSize     (member variable of CommandStreamReceiver) 
+// computeUnitsUsedForScratch = 504 (why?) (member variable of ScratchSpaceController)
+// scratchSizeBytes     (member variable of ScratchSpaceController)
+// ScratchSpaceController variables are set in CommandStreamReceiver constructor
+
+/*
+void CommandStreamReceiver::setRequiredScratchSizes(uint32_t newRequiredScratchSize, uint32_t newRequiredPrivateScratchSize) {
+    if (newRequiredScratchSize > requiredScratchSize) {
+        requiredScratchSize = newRequiredScratchSize;
+    }
+    if (newRequiredPrivateScratchSize > requiredPrivateScratchSize) {
+        requiredPrivateScratchSize = newRequiredPrivateScratchSize;
+    }
+}
+*/
+// MultiDispatchInfo::getRequiredScratchSize() && MultiDispatchInfo::getRequiredPrivateScratchSize()
+// We need kernelInfo.kernelDescriptor.kernelAttributes.perThreadScratchSize[0]
+// We need kernelInfo.kernelDescriptor.kernelAttributes.perThreadScratchSize[1]
+
+int Context::createScratchAllocation() {
+    /*
+    size_t scratchSize = ;
+    BufferObject* scratch = allocateBufferObject(scratchSize, 0);
+    if (!scratch)
+        return BUFFER_ALLOCATION_FAILED;
+    scratch->bufferType = BufferType::SCRATCH_SURFACE;
+    */
     return SUCCESS;
 }
 

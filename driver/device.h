@@ -1,24 +1,25 @@
 #pragma once
 
 #include <stdint.h>
+
 #include <memory>
 
+#include "context.h"
+#include "gpgpu.h"
 #include "hwinfo.h"
 #include "ioctl.h"
-#include "gpgpu.h"
 #include "kernel.h"
-#include "context.h"
+
+#ifdef DEBUG
+#define LOG(...) printf(__VA_ARGS__)
+#else
+#define LOG(...) do {} while (0)
+#endif
 
 class Context;
 class Kernel;
 
 struct DeviceDescriptor {
-    /*
-    DeviceDescriptor() {};
-    ~DeviceDescriptor() {
-        printf("DeviceDescriptor destructor called!\n");
-    }
-    */
     uint16_t deviceId;
     const HardwareInfo* pHwInfo;
     void (*setupHardwareInfo)(const HardwareInfo*);
@@ -46,25 +47,23 @@ class Device : public pDevice {
     std::unique_ptr<DeviceDescriptor> getDevInfoFromDescriptorTable(uint16_t chipset_id);
     DeviceDescriptor* getDeviceDescriptor();
 
-    Context* context;
+    Context* context = nullptr;
+    uint32_t numDevices = 0;
     int fd;
     int drmVmId;                            // unique identifier for ppGTT
     char driver_name[5];
     int chipset_id;
     int revision_id;
 
-    void* HWConfigTable;                    // if this is nullptr, it is not supported
+    void* HWConfigTable = nullptr;                  // if this is nullptr, it is not supported
     std::unique_ptr<DeviceDescriptor> descriptor;
 
-    uint16_t sliceCount;
-    uint16_t subSliceCount;
-    uint16_t euCount;
     uint16_t subSliceCountPerSlice;
     uint16_t euCountPerSubSlice;
 
     int supportsSoftPin;
 
-    void* engines;                          // list of GPU engines (command streamers)
+    void* engines = nullptr;                        // list of GPU engines (command streamers)
 
     uint64_t gttSize;
     bool nonPersistentContextsSupported;

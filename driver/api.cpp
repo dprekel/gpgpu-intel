@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <stdint.h>
+
 #include <vector>
 
-#include "gpgpu.h"
-#include "device.h"
 #include "context.h"
+#include "device.h"
+#include "gpgpu.h"
 #include "kernel.h"
-#include "log.h"
 
 #define API_CALL __attribute__((visibility("default")))
 
@@ -134,17 +134,6 @@ int API_CALL EnqueueNDRangeKernel(pContext* cont,
     if (ret)
         return ret;
     context->kernel = nullptr;
-    return SUCCESS;
-}
-
-
-int API_CALL GetInfo(pDevice* dev) {
-    if (!dev)
-        return NO_DEVICE_ERROR;
-    Device* device = static_cast<Device*>(dev);
-    Log* info = new Log(device);
-    info->printDeviceInfo();
-    info->printContextInfo();
     return SUCCESS;
 }
 

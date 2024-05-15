@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdint.h>
 #include <asm/ioctl.h>
+#include <stdint.h>
 
 #define __user
 struct drm_version {
