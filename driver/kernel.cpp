@@ -330,6 +330,12 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
         case PATCH_TOKEN_BINDING_TABLE_STATE:
             kernelData->bindingTableState = reinterpret_cast<const PatchBindingTableState*>(token);
             break;
+        case PATCH_TOKEN_MEDIA_VFE_STATE:
+            kernelData->mediaVfeState[0] = reinterpret_cast<const PatchMediaVfeState*>(token);
+            break;
+        case PATH_TOKEN_MEDIA_VFE_STATE_SLOT1:
+            kernelData->mediaVfeState[1] = reinterpret_cast<const PatchMediaVfeState*>(token);
+            break;
         case PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD:
             kernelData->mediaInterfaceDescriptorLoad = reinterpret_cast<const PatchMediaInterfaceDescriptorLoad*>(token);
             break;
@@ -411,7 +417,7 @@ int Kernel::createSipKernel() {
     return SUCCESS;
 }
 
-inline void Kernel::setOptBit(uint32_t& opts, uint32_t bit, bool isSet) {
+void Kernel::setOptBit(uint32_t& opts, uint32_t bit, bool isSet) {
     if (isSet) {
         opts |= bit;
     }

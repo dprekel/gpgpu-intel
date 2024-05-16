@@ -15,16 +15,18 @@ class Device;
 class Context;
 struct DeviceDescriptor;
 
-#pragma pack( push, 1 )
-
 enum PATCH_TOKEN {
     PATCH_TOKEN_SAMPLER_STATE_ARRAY = 5,
     PATCH_TOKEN_BINDING_TABLE_STATE = 8,
+    PATCH_TOKEN_MEDIA_VFE_STATE = 18,
     PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD = 19,
     PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA = 21,
     PATCH_TOKEN_EXECUTION_ENVIRONMENT = 23,
-    PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO = 27
+    PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO = 27,
+    PATCH_TOKEN_MEDIA_VFE_STATE_SLOT1 = 55
 };
+
+#pragma pack( push, 1 )
 
 struct ProgramBinaryHeader {
     uint32_t Magic;
@@ -48,6 +50,7 @@ struct KernelBinaryHeader {
     uint32_t KernelUnpaddedSize;
 };
 
+
 struct PatchItemHeader {
     uint32_t Token;
     uint32_t Size;
@@ -58,24 +61,24 @@ struct PatchSamplerStateArray : PatchItemHeader {
     uint32_t Count;
     uint32_t BorderColorOffset;
 };
-
 struct PatchBindingTableState : PatchItemHeader {
     uint32_t Offset;
     uint32_t Count;
     uint32_t SurfaceStateOffset;
 };
-
+struct PatchMediaVFEState : PatchItemHeader {
+    uint32_t ScratchSpaceOffset;
+    uint32_t PerThreadScratchSpace;
+};
 struct PatchMediaInterfaceDescriptorLoad : PatchItemHeader {
     uint32_t InterfaceDescriptorDataOffset;
 };
-
 struct PatchInterfaceDescriptorData : PatchItemHeader {
     uint32_t Offset;
     uint32_t SamplerStateOffset;
     uint32_t KernelOffset;
     uint32_t BindingTableOffset;
 };
-
 struct PatchExecutionEnvironment : PatchItemHeader {
     uint32_t RequiredWorkGroupSizeX;
     uint32_t RequiredWorkGroupSizeY;
@@ -109,10 +112,10 @@ struct PatchExecutionEnvironment : PatchItemHeader {
     uint32_t HasStackCalls;
     uint64_t SIMDInfo;
 };
-
 struct PatchKernelAttributesInfo : PatchItemHeader {
     uint32_t AttributesSize;
 };
+
 
 struct KernelFromPatchtokens {
     const KernelBinaryHeader* header = nullptr;
@@ -126,6 +129,7 @@ struct KernelFromPatchtokens {
     const uint8_t* patchListEnd = nullptr;
     const PatchSamplerStateArray* samplerStateArray = nullptr;
     const PatchBindingTableState* bindingTableState = nullptr;
+    const PatchMediaVfeState* mediaVfeState[2] = {nullptr, nullptr};
     const PatchMediaInterfaceDescriptorLoad* mediaInterfaceDescriptorLoad = nullptr;
     const PatchInterfaceDescriptorData* interfaceDescriptorData = nullptr;
     const PatchExecutionEnvironment* executionEnvironment = nullptr;

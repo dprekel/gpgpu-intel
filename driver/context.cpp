@@ -341,7 +341,6 @@ int Context::allocateISAMemory() {
 // scratchSizeBytes     (member variable of ScratchSpaceController)
 // ScratchSpaceController variables are set in CommandStreamReceiver constructor
 
-/*
 void CommandStreamReceiver::setRequiredScratchSizes(uint32_t newRequiredScratchSize, uint32_t newRequiredPrivateScratchSize) {
     if (newRequiredScratchSize > requiredScratchSize) {
         requiredScratchSize = newRequiredScratchSize;
@@ -350,19 +349,33 @@ void CommandStreamReceiver::setRequiredScratchSizes(uint32_t newRequiredScratchS
         requiredPrivateScratchSize = newRequiredPrivateScratchSize;
     }
 }
-*/
 // MultiDispatchInfo::getRequiredScratchSize() && MultiDispatchInfo::getRequiredPrivateScratchSize()
 // We need kernelInfo.kernelDescriptor.kernelAttributes.perThreadScratchSize[0]
 // We need kernelInfo.kernelDescriptor.kernelAttributes.perThreadScratchSize[1]
 
+
+//TODO: Check why Intels GEMM uses no Scratch Space
+//TODO: Check necessary alignment size
+//TODO: Make sure that mediaVfeState[0] is never nullptr
+//TODO: Make hwInfo and kernelData members of Context class
+//TODO: Do we ever need flags argument in allocateBufferObject()?
+//TODO: Unify BUFFER_ALLOCATION_FAILED like macros
 int Context::createScratchAllocation() {
-    /*
-    size_t scratchSize = ;
-    BufferObject* scratch = allocateBufferObject(scratchSize, 0);
-    if (!scratch)
-        return BUFFER_ALLOCATION_FAILED;
-    scratch->bufferType = BufferType::SCRATCH_SURFACE;
-    */
+    HardwareInfo* hwInfo = device->descriptor->pHwInfo;
+    uint32_t computeUnitsUsedForScratch = hwInfo->gtSystemInfo->MaxSubSlicesSupported
+                                        * hwInfo->gtSystemInfo->MaxEuPerSubSlice
+                                        * hwInfo->gtSystemInfo->ThreadCount
+                                        / hwInfo->gtSystemInfo->EUCount;
+    auto kernelData = kernel->getKernelData();
+    uint32_t requiredScratchSize = kernelData->mediaVfeState[0]->PerThreadScratchSpace;
+    size_t requiredScratchSizeInBytes = requiredScratchSize * computeUnitsUsedForScratch;
+    if (requiredScratchSize) {
+        size_t alignedAllocationSize = alignUp(requiredScratchSize, PAGE_SIZE);
+        BufferObject* scratch = allocateBufferObject(alignedAllocationSize, 0);
+        if (!scratch)
+            return BUFFER_ALLOCATION_FAILED;
+        scratch->bufferType = BufferType::SCRATCH_SURFACE;
+    }
     return SUCCESS;
 }
 
