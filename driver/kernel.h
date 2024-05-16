@@ -129,7 +129,7 @@ struct KernelFromPatchtokens {
     const uint8_t* patchListEnd = nullptr;
     const PatchSamplerStateArray* samplerStateArray = nullptr;
     const PatchBindingTableState* bindingTableState = nullptr;
-    const PatchMediaVfeState* mediaVfeState[2] = {nullptr, nullptr};
+    const PatchMediaVFEState* mediaVfeState[2] = {nullptr, nullptr};
     const PatchMediaInterfaceDescriptorLoad* mediaInterfaceDescriptorLoad = nullptr;
     const PatchInterfaceDescriptorData* interfaceDescriptorData = nullptr;
     const PatchExecutionEnvironment* executionEnvironment = nullptr;

@@ -123,12 +123,17 @@ int API_CALL EnqueueNDRangeKernel(pContext* cont,
     ret = context->allocateISAMemory();
     if (ret)
         return ret;
+    ret = context->createScratchAllocation();
+    if (ret)
+        return ret;
     ret = context->createPreemptionAllocation();
+    if (ret)
+        return ret;
+    ret = context->createSurfaceStateHeap();
     if (ret)
         return ret;
     //ret = context->createIndirectObjectHeap();
     //ret = context->createDynamicStateHeap();
-    //ret = context->createSurfaceStateHeap();
     
     ret = context->createCommandBuffer();
     if (ret)

@@ -331,10 +331,10 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
             kernelData->bindingTableState = reinterpret_cast<const PatchBindingTableState*>(token);
             break;
         case PATCH_TOKEN_MEDIA_VFE_STATE:
-            kernelData->mediaVfeState[0] = reinterpret_cast<const PatchMediaVfeState*>(token);
+            kernelData->mediaVfeState[0] = reinterpret_cast<const PatchMediaVFEState*>(token);
             break;
-        case PATH_TOKEN_MEDIA_VFE_STATE_SLOT1:
-            kernelData->mediaVfeState[1] = reinterpret_cast<const PatchMediaVfeState*>(token);
+        case PATCH_TOKEN_MEDIA_VFE_STATE_SLOT1:
+            kernelData->mediaVfeState[1] = reinterpret_cast<const PatchMediaVFEState*>(token);
             break;
         case PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD:
             kernelData->mediaInterfaceDescriptorLoad = reinterpret_cast<const PatchMediaInterfaceDescriptorLoad*>(token);

@@ -21,6 +21,7 @@ Context::Context(Device* device)
            workItems{1, 1, 1},
            localWorkSizesIn{0, 0, 0},
            enqueuedWorkSizes{0, 0, 0} {
+    this->hwInfo = device->descriptor->pHwInfo;
 }
 
 Context::~Context() {
@@ -41,7 +42,7 @@ BufferObject* Context::allocateBufferObject(size_t size, uint32_t flags) {
     else {
         return nullptr;
     }
-    drm_i915_gem_userptr userptr = {};
+    drm_i915_gem_userptr userptr = {0};
     userptr.user_ptr = pAlignedMemory;
     userptr.user_size = size;
     userptr.flags = flags;
@@ -240,19 +241,6 @@ int Context::createIndirectObjectHeap() {
 }
 
 
-data needed:- ssh pointer
-            - kernel.kernelInfo.kernelDescriptor.payloadMappings.bindingTable.numEntries
-            - kernel.pSshLocal
-            - kernel.sshLocalSize
-            - kernel.numberOfBindingTableStates (from kernel.kernelInfo.kernelDescriptor.payloadMappings.bindingTable.numEntries)
-            - kernel.localBindingTableOffset (from kernel.kernelDescriptor.payloadMappings.bindingTable.tableOffset)
-- populateKernelDescriptor() in kernel_descriptor_from_patchtokens.cpp copies data from src.tokens to kernel.kernelDescriptor
-- IMPORTANT: file patchtokens_decoder.cpp
-
-int Context::createSurfaceStateHeap() {
-    BINDING_TABLE_STATE bti = {0};
-
-}
 
 int Context::createDynamicStateHeap() {
     INTERFACE_DESCRIPTOR_DATA interfaceDescriptor = {0};
@@ -268,6 +256,9 @@ int Context::createDynamicStateHeap() {
     interfaceDescriptor.BarrierEnable = barrierCount;       // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.barrierCount
 }
 */
+
+
+
 
 int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size) {
     workDim = work_dim;
@@ -336,22 +327,6 @@ int Context::allocateISAMemory() {
     return SUCCESS;
 }
 
-// requiredPerThreadScratchSize / requiredScratchSize     (member variable of CommandStreamReceiver) 
-// computeUnitsUsedForScratch = 504 (why?) (member variable of ScratchSpaceController)
-// scratchSizeBytes     (member variable of ScratchSpaceController)
-// ScratchSpaceController variables are set in CommandStreamReceiver constructor
-
-void CommandStreamReceiver::setRequiredScratchSizes(uint32_t newRequiredScratchSize, uint32_t newRequiredPrivateScratchSize) {
-    if (newRequiredScratchSize > requiredScratchSize) {
-        requiredScratchSize = newRequiredScratchSize;
-    }
-    if (newRequiredPrivateScratchSize > requiredPrivateScratchSize) {
-        requiredPrivateScratchSize = newRequiredPrivateScratchSize;
-    }
-}
-// MultiDispatchInfo::getRequiredScratchSize() && MultiDispatchInfo::getRequiredPrivateScratchSize()
-// We need kernelInfo.kernelDescriptor.kernelAttributes.perThreadScratchSize[0]
-// We need kernelInfo.kernelDescriptor.kernelAttributes.perThreadScratchSize[1]
 
 
 //TODO: Check why Intels GEMM uses no Scratch Space
@@ -361,7 +336,6 @@ void CommandStreamReceiver::setRequiredScratchSizes(uint32_t newRequiredScratchS
 //TODO: Do we ever need flags argument in allocateBufferObject()?
 //TODO: Unify BUFFER_ALLOCATION_FAILED like macros
 int Context::createScratchAllocation() {
-    HardwareInfo* hwInfo = device->descriptor->pHwInfo;
     uint32_t computeUnitsUsedForScratch = hwInfo->gtSystemInfo->MaxSubSlicesSupported
                                         * hwInfo->gtSystemInfo->MaxEuPerSubSlice
                                         * hwInfo->gtSystemInfo->ThreadCount
@@ -370,7 +344,7 @@ int Context::createScratchAllocation() {
     uint32_t requiredScratchSize = kernelData->mediaVfeState[0]->PerThreadScratchSpace;
     size_t requiredScratchSizeInBytes = requiredScratchSize * computeUnitsUsedForScratch;
     if (requiredScratchSize) {
-        size_t alignedAllocationSize = alignUp(requiredScratchSize, PAGE_SIZE);
+        size_t alignedAllocationSize = alignUp(requiredScratchSizeInBytes, PAGE_SIZE);
         BufferObject* scratch = allocateBufferObject(alignedAllocationSize, 0);
         if (!scratch)
             return BUFFER_ALLOCATION_FAILED;
@@ -378,6 +352,42 @@ int Context::createScratchAllocation() {
     }
     return SUCCESS;
 }
+
+
+
+
+
+/*
+data needed:- ssh pointer
+            - kernel.kernelInfo.kernelDescriptor.payloadMappings.bindingTable.numEntries
+            - kernel.pSshLocal
+            - kernel.sshLocalSize
+            - kernel.numberOfBindingTableStates (from kernel.kernelInfo.kernelDescriptor.payloadMappings.bindingTable.numEntries)
+            - kernel.localBindingTableOffset (from kernel.kernelDescriptor.payloadMappings.bindingTable.tableOffset)
+- populateKernelDescriptor() in kernel_descriptor_from_patchtokens.cpp copies data from src.tokens to kernel.kernelDescriptor
+- IMPORTANT: file patchtokens_decoder.cpp
+- KEY FILE: hardware_commands_helper_base.inl
+*/
+
+int Context::createSurfaceStateHeap() {
+    //TODO: Create allocation here
+    size_t sshSize = ;
+    size_t alignedAllocationSize = alignUp(sshSize, PAGE_SIZE);
+    BufferObject* ssh = allocateBufferObject(alignedAllocationSize, 0);
+    if (!ssh)
+        return BUFFER_ALLOCATION_FAILED;
+    ssh->bufferType = BufferType::LINEAR_STREAM;
+
+    BINDING_TABLE_STATE bti = {0};
+    return SUCCESS;
+}
+
+
+
+
+
+
+
 
 int Context::createPreemptionAllocation() {
     size_t preemptionSize = 8 * 1048576;

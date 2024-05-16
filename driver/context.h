@@ -49,8 +49,8 @@ class Context : public pContext {
     void generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16_t threadsPerWorkGroup, uint8_t* dimensionsOrder, uint32_t simdSize) {
     int createDynamicStateHeap();
     int createIndirectObjectHeap();
-    int createSurfaceStateHeap();
     */
+    int createSurfaceStateHeap();
     int allocateISAMemory();
     int createScratchAllocation();
     int createPreemptionAllocation();
@@ -58,6 +58,8 @@ class Context : public pContext {
     Device* device;
     Kernel* kernel = nullptr;
   private:
+    const HardwareInfo* hwInfo = nullptr;
+    KernelFromPatchtokens* kernelData = nullptr;
     std::vector<std::unique_ptr<BufferObject>> execBuffer;
     uint32_t vmId;
     uint32_t ctxId;
