@@ -106,6 +106,12 @@ int API_CALL CreateBuffer(pContext* cont,
     return SUCCESS;
 }
 
+int API_CALL SetKernelArg(pKernel* kern,
+                        uint32_t arg_index,
+                        void* arg_value) {
+    return SUCCESS;
+}
+
 
 int API_CALL EnqueueNDRangeKernel(pContext* cont,
                         pKernel* kern,

@@ -58,7 +58,7 @@ EnqueueNDRangeKernel:
 
 
 
-- GEN9 commands (which ones are important?):
+- GEN9 commands (hardware_cmds_generated_gen9.inl, which ones are important?):
     - BINDING_TABLE_STATE
     - GPGPU_WALKER
     - INTERFACE_DESCRIPTOR_DATA

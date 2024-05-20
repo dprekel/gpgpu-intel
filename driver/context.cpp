@@ -367,8 +367,11 @@ data needed:- ssh pointer
 - populateKernelDescriptor() in kernel_descriptor_from_patchtokens.cpp copies data from src.tokens to kernel.kernelDescriptor
 - IMPORTANT: file patchtokens_decoder.cpp
 - KEY FILE: hardware_commands_helper_base.inl
+            command_encoder.inl
 */
-
+//TODO: Check number of binding table entries in GROMACS
+//TODO: Check if ssh contains pointers by printing the binding table
+//TODO: Check clSetKernelArg
 int Context::createSurfaceStateHeap() {
     //TODO: Create allocation here
     size_t sshSize = ;
@@ -381,7 +384,8 @@ int Context::createSurfaceStateHeap() {
     BINDING_TABLE_STATE bti = {0};
     return SUCCESS;
 }
-
+// Kernel::setArgBuffer, kernel.cpp, 1377
+// Kernel::setArgument calls Kernel::setArg, kernel.cpp, 822
 
 
 

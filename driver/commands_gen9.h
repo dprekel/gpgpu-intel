@@ -8,11 +8,13 @@
 
 struct MEDIA_STATE_FLUSH {
     struct TheStructure {
+        //DW0
         uint32_t DwordLength : BITFIELD_RANGE(0, 15);
         uint32_t Subopcode : BITFIELD_RANGE(16, 23);
         uint32_t MediaCommandOpcode : BITFIELD_RANGE(24, 26);
         uint32_t Pipeline : BITFIELD_RANGE(27, 28);
         uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        //DW1
         uint32_t InterfaceDescriptorOffset : BITFIELD_RANGE(0, 5);
         uint32_t WatermarkRequired : BITFIELD_RANGE(6, 6);
         uint32_t FlushToGo : BITFIELD_RANGE(7, 7);
@@ -39,14 +41,18 @@ struct MEDIA_STATE_FLUSH {
 
 struct MEDIA_INTERFACE_DESCRIPTOR_LOAD {
     struct TheStructure {
+        //DW0
         uint32_t DwordLength : BITFIELD_RANGE(0, 15);
         uint32_t Subopcode : BITFIELD_RANGE(16, 23);
         uint32_t MediaCommandOpcode : BITFIELD_RANGE(24, 26);
         uint32_t Pipeline : BITFIELD_RANGE(27, 28);
         uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        //DW1
         uint32_t Reserved_32;
+        //DW2
         uint32_t InterfaceDescriptorTotalLength : BITFIELD_RANGE(0, 16);
         uint32_t Reserved_81 : BITFIELD_RANGE(17, 31);
+        //DW3
         uint32_t InterfaceDescriptorDataStartAddress;
     } Bitfield;
     enum Codes {
@@ -72,6 +78,7 @@ struct MEDIA_INTERFACE_DESCRIPTOR_LOAD {
 
 struct GPGPU_WALKER {
     struct TheStructure {
+        //DW0
         uint32_t DwordLength : BITFIELD_RANGE(0, 7);
         uint32_t PredicateEnable : BITFIELD_RANGE(8, 8);
         uint32_t Reserved_9 : BITFIELD_RANGE(9, 9);
@@ -81,12 +88,16 @@ struct GPGPU_WALKER {
         uint32_t MediaCommandOpcode : BITFIELD_RANGE(24, 26);
         uint32_t Pipeline : BITFIELD_RANGE(27, 28);
         uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        //DW1
         uint32_t InterfaceDescriptorOffset : BITFIELD_RANGE(0, 5);
         uint32_t Reserved_38 : BITFIELD_RANGE(6, 31);
+        //DW2
         uint32_t IndirectDataLength : BITFIELD_RANGE(0, 16);
         uint32_t Reserved_81 : BITFIELD_RANGE(17, 31);
+        //DW3
         uint32_t Reserved_96 : BITFIELD_RANGE(0, 5);
         uint32_t IndirectDataStartAddress : BITFIELD_RANGE(6, 31);
+        //DW4
         uint32_t ThreadWidthCounterMaximum : BITFIELD_RANGE(0, 5);
         uint32_t Reserved_134 : BITFIELD_RANGE(6, 7);
         uint32_t ThreadHeightCounterMaximum : BITFIELD_RANGE(8, 13);
@@ -94,6 +105,7 @@ struct GPGPU_WALKER {
         uint32_t ThreadDepthCounterMaximum : BITFIELD_RANGE(16, 21);
         uint32_t Reserved_150 : BITFIELD_RANGE(22, 29);
         uint32_t SimdSize : BITFIELD_RANGE(30, 31);
+        //DW5 - DW14
         uint32_t ThreadGroupIdStartingX;
         uint32_t Reserved_192;
         uint32_t ThreadGroupIdXDimension;
@@ -132,12 +144,14 @@ struct GPGPU_WALKER {
 
 struct PIPE_CONTROL {
     struct TheStructure {
+        //DW0
         uint32_t DwordLength : BITFIELD_RANGE(0, 7);
         uint32_t Reserved_8 : BITFIELD_RANGE(8, 15);
         uint32_t _3DCommandSubOpcode : BITFIELD_RANGE(16, 23);
         uint32_t _3DCommandOpcode : BITFIELD_RANGE(24, 26);
         uint32_t CommandSubtype : BITFIELD_RANGE(27, 28);
         uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        //DW1
         uint32_t DepthCacheFlushEnable : BITFIELD_RANGE(0, 0);
         uint32_t StallAtPixelScoreboard : BITFIELD_RANGE(1, 1);
         uint32_t StateCacheInvalidationEnable : BITFIELD_RANGE(2, 2);
@@ -166,9 +180,12 @@ struct PIPE_CONTROL {
         uint32_t FlushLlc : BITFIELD_RANGE(26, 26);
         uint32_t ProtectedMemoryDisable : BITFIELD_RANGE(27, 27);
         uint32_t Reserved_60 : BITFIELD_RANGE(28, 31);
+        //DW2
         uint32_t Reserved_64 : BITFIELD_RANGE(0, 1);
         uint32_t Address : BITFIELD_RANGE(2, 31);
+        //DW3
         uint32_t AddressHigh;
+        //DW4
         uint64_t ImmediateData;
     } Bitfield;
     enum {
@@ -210,10 +227,13 @@ struct PIPE_CONTROL {
 
 struct INTERFACE_DESCRIPTOR_DATA {
     struct TheStructure {
+        //DW0
         uint32_t Reserved_0 : BITFIELD_RANGE(0, 5);
         uint32_t KernelStartPointer : BITFIELD_RANGE(6, 31);
+        //DW1
         uint32_t KernelStartPointerHigh : BITFIELD_RANGE(0, 15);
         uint32_t Reserved_48 : BITFIELD_RANGE(16, 31);
+        //DW2
         uint32_t Reserved_64 : BITFIELD_RANGE(0, 6);
         uint32_t SoftwareExceptionEnable : BITFIELD_RANGE(7, 7);
         uint32_t Reserved_72 : BITFIELD_RANGE(8, 10);
@@ -226,12 +246,14 @@ struct INTERFACE_DESCRIPTOR_DATA {
         uint32_t SingleProgramFlow : BITFIELD_RANGE(18, 18);
         uint32_t DenormMode : BITFIELD_RANGE(19, 19);
         uint32_t Reserved_84 : BITFIELD_RANGE(20, 31);
+        //DW3
         uint32_t Reserved_96 : BITFIELD_RANGE(0, 1);
         uint32_t SamplerCount : BITFIELD_RANGE(2, 4);
         uint32_t SamplerStatePointer : BITFIELD_RANGE(5, 31);
         uint32_t BindingTableEntryCount : BITFIELD_RANGE(0, 4);
         uint32_t BindingTablePointer : BITFIELD_RANGE(5, 15);
         uint32_t Reserved_144 : BITFIELD_RANGE(16, 31);
+        //DW4
         uint32_t ConstantUrbEntryReadOffset : BITFIELD_RANGE(0, 15);
         uint32_t ConstantIndirectUrbEntryReadLength : BITFIELD_RANGE(16, 31);
         uint32_t NumberOfThreadsInGpgpuThreadGroup : BITFIELD_RANGE(0, 9);
@@ -241,14 +263,29 @@ struct INTERFACE_DESCRIPTOR_DATA {
         uint32_t BarrierEnable : BITFIELD_RANGE(21, 21);
         uint32_t RoundingMode : BITFIELD_RANGE(22, 23);
         uint32_t Reserved_216 : BITFIELD_RANGE(24, 31);
+        //DW5
         uint32_t Cross_ThreadConstantDataReadLength : BITFIELD_RANGE(0, 7);
         uint32_t Reserved_232 : BITFIELD_RANGE(8, 31); 
     } Bitfield;
     enum {
+        FLOATING_POINT_MODE_IEEE_754 = 0x0,
+        THREAD_PRIORITY_NORMAL_PRIORITY = 0x1,
+        SINGLE_PROGRAM_FLOW_MULTIPLE = 0x0,
+        DENORM_MODE_FTZ = 0x0,
+        SAMPLER_COUNT_NO_SAMPLERS_USED = 0x0,
+        SHARED_LOCAL_MEMORY_SIZE_ENCODES_0K = 0x0,
+        ROUNDING_MODE_RTNE = 0x0
     };
     static INTERFACE_DESCRIPTOR_DATA init() {
         INTERFACE_DESCRIPTOR_DATA state;
         memset(&state, 0, sizeof(state));
+        state.Bitfield.FloatingPointMode = FLOATING_POINT_MODE_IEEE_754;
+        state.Bitfield.ThreadPriority = THREAD_PRIORITY_NORMAL_PRIORITY;
+        state.Bitfield.SingleProgramFlow = SINGLE_PROGRAM_FLOW_MULTIPLE;
+        state.Bitfield.DenormMode = DENORM_MODE_FTZ;
+        state.Bitfield.SamplerCount = SAMPLER_COUNT_NO_SAMPLERS_USED;
+        state.Bitfield.SharedLocalMemorySize = SHARED_LOCAL_MEMORY_SIZE_ENCODES_0K;
+        state.Bitfield.RoundingMode = ROUNDING_MODE_RTNE;
         return state;
     }
 };
@@ -267,6 +304,94 @@ struct BINDING_TABLE_STATE {
     static BINDING_TABLE_STATE init() {
         BINDING_TABLE_STATE state;
         memset(&state, 0, sizeof(state));
+        return state;
+    }
+};
+
+struct RENDER_SURFACE_STATE {
+    struct TheStructure {
+        //DW0
+        uint32_t Reserved_0 : BITFIELD_RANGE(0, 5);
+        uint32_t MediaBoundaryPixelMode : BITFIELD_RANGE(6, 7);
+        uint32_t RenderCacheReadWriteMode : BITFIELD_RANGE(8, 8);
+        uint32_t SamplerL2OutOfOrderModeDisable : BITFIELD_RANGE(9, 9);
+        uint32_t VerticalLineStrideOffset : BITFIELD_RANGE(10, 10);
+        uint32_t VerticalLineStride : BITFIELD_RANGE(11, 11);
+        uint32_t TileMode : BITFIELD_RANGE(12, 13);
+        uint32_t SurfaceHorizontalAlignment : BITFIELD_RANGE(14, 15);
+        uint32_t SurfaceVerticalAlignment : BITFIELD_RANGE(16, 17);
+        uint32_t SurfaceFormat : BITFIELD_RANGE(18, 26);
+        uint32_t Astc_Enable : BITFIELD_RANGE(27, 27);
+        uint32_t SurfaceArray : BITFIELD_RANGE(28, 28);
+        uint32_t SurfaceType : BITFIELD_RANGE(29, 31);
+        //DW1
+        uint32_t SurfaceQpitch : BITFIELD_RANGE(0, 14);
+        uint32_t Reserved_47 : BITFIELD_RANGE(15, 18);
+        uint32_t BaseMipLevel : BITFIELD_RANGE(19, 23);
+        uint32_t MemoryObjectControlState_Reserved : BITFIELD_RANGE(24, 24);
+        uint32_t MemoryObjectControlState_IndexToMocsTables : BITFIELD_RANGE(25, 30);
+        uint32_t Reserved_63 : BITFIELD_RANGE(31, 31);
+        //DW2
+        uint32_t Width : BITFIELD_RANGE(0, 13);
+        uint32_t Reserved_78 : BITFIELD_RANGE(14, 15);
+        uint32_t Height : BITFIELD_RANGE(16, 29);
+        uint32_t Reserved_94 : BITFIELD_RANGE(30, 31);
+        //DW3
+        uint32_t SurfacePitch : BITFIELD_RANGE(0, 17);
+        uint32_t Reserved_114 : BITFIELD_RANGE(18, 20);
+        uint32_t Depth : BITFIELD_RANGE(21, 31);
+        //DW4
+        uint32_t Reserved_128;
+        //DW5
+        uint32_t MipCountLod : BITFIELD_RANGE(0, 3);
+        uint32_t SurfaceMinLod : BITFIELD_RANGE(4, 7);
+        uint32_t MipTailStartLod : BITFIELD_RANGE(8, 11);
+        uint32_t Reserved_172 : BITFIELD_RANGE(12, 13);
+        uint32_t CoherencyType : BITFIELD_RANGE(14, 14);
+        uint32_t Reserved_175 : BITFIELD_RANGE(15, 17);
+        uint32_t TiledResourceMode : BITFIELD_RANGE(18, 19);
+        uint32_t EwaDisableForCube : BITFIELD_RANGE(20, 20);
+        uint32_t YOffset : BITFIELD_RANGE(21, 23);
+        uint32_t Reserved_184 : BITFIELD_RANGE(24, 24);
+        uint32_t XOffset : BITFIELD_RANGE(25, 31);
+        //DW6
+        uint32_t Reserved_192;
+        //DW7
+        uint32_t ResourceMinLod : BITFIELD_RANGE(0, 11);
+        uint32_t Reserved_236 : BITFIELD_RANGE(12, 15);
+        uint32_t ShaderChannelSelectAlpha : BITFIELD_RANGE(16, 18);
+        uint32_t ShaderChannelSelectBlue : BITFIELD_RANGE(19, 21);
+        uint32_t ShaderChannelSelectGreen : BITFIELD_RANGE(22, 24);
+        uint32_t ShaderChannelSelectRed : BITFIELD_RANGE(25, 27);
+        uint32_t Reserved_252 : BITFIELD_RANGE(28, 29);
+        uint32_t MemoryCompressionEnable : BITFIELD_RANGE(30, 30);
+        uint32_t MemoryCompressionMode : BITFIELD_RANGE(31, 31);
+        //DW8
+        uint64_t SurfaceBaseAddress;
+        uint64_t QuiltWidth : BITFIELD_RANGE(0, 4);
+        uint64_t QuiltHeight : BITFIELD_RANGE(5, 9);
+        uint64_t Reserved_330 : BITFIELD_RANGE(10, 63);
+        uint32_t Reserved_384;
+        uint32_t Reserved_416;
+        uint32_t Reserved_448;
+        uint32_t Reserved_480;
+    } Bitfield;
+    static RENDER_SURFACE_STATE init() {
+        RENDER_SURFACE_STATE state;
+        memset(&state, 0, sizeof(state));
+        state.Bitfield.MediaBoundaryPixelMode = MEDIA_BOUNDARY_PIXEL_MODE_NORMAL_MODE;
+        state.Bitfield.RenderCacheReadWriteMode = RENDER_CACHE_READ_WRITE_MODE_WRITE_ONLY_CACHE;
+        state.Bitfield.TileMode = TILE_MODE_LINEAR;
+        state.Bitfield.SurfaceHorizontalAlignment = SURFACE_HORIZONTAL_ALIGNMENT_HALIGN_4;
+        state.Bitfield.SurfaceVerticalAlignment = SURFACE_VERTICAL_ALIGNMENT_VALIGN_4;
+        state.Bitfield.SurfaceType = SURFACE_TYPE_SURFTYPE_1D;
+        state.Bitfield.CoherencyType = COHERENCY_TYPE_GPU_COHERENT;
+        state.Bitfield.TiledResourceMode = TILED_RESOURCE_MODE_NONE;
+        state.Bitfield.ShaderChannelSelectAlpha = SHADER_CHANNEL_SELECT_ZERO;
+        state.Bitfield.ShaderChannelSelectBlue = SHADER_CHANNEL_SELECT_ZERO;
+        state.Bitfield.ShaderChannelSelectGreen = SHADER_CHANNEL_SELECT_ZERO;
+        state.Bitfield.ShaderChannelSelectRed = SHADER_CHANNEL_SELECT_ZERO;
+        state.Bitfield.MemoryCompressionMode = MEMORY_COMPRESSION_MODE_HORIZONTAL;
         return state;
     }
 };
