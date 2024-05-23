@@ -109,6 +109,8 @@ int API_CALL CreateBuffer(pContext* cont,
 int API_CALL SetKernelArg(pKernel* kern,
                         uint32_t arg_index,
                         void* arg_value) {
+    Kernel* kernel = static_cast<Kernel*>(kern);
+    uint32_t ret = kernel->kernelArgs[arg_index](arg_index, arg_value);
     return SUCCESS;
 }
 
@@ -135,9 +137,11 @@ int API_CALL EnqueueNDRangeKernel(pContext* cont,
     ret = context->createPreemptionAllocation();
     if (ret)
         return ret;
+    /*
     ret = context->createSurfaceStateHeap();
     if (ret)
         return ret;
+        */
     //ret = context->createIndirectObjectHeap();
     //ret = context->createDynamicStateHeap();
     

@@ -348,9 +348,41 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
         case PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO:
             kernelData->kernelAttributesInfo = reinterpret_cast<const PatchKernelAttributesInfo*>(token);
             break;
+        case PATCH_TOKEN_DATA_PARAMETER_BUFFER: {
+            auto tokenParam = reinterpret_cast<const PatchDataParameterBuffer*>(token);
+            decodeKernelDataParameterToken(tokenParam);
+        } break;
         default:
             break;
     }
+}
+
+void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* token) {
+    uint32_t argNum = token->ArgumentNumber;
+    switch (token->Type) {
+        case DATA_PARAMETER_KERNEL_ARGUMENT:
+            if (kernelData.kernelArgs.size() < argNum + 1) {
+                kernelData.kernelArgs.resize(argNum + 1);
+            }                
+            kernelData.kernelArgs[argNum] = &Kernel::setArgImmediate;
+            break;
+        case DATA_PARAMETER_BUFFER_STATEFUL:
+            if (kernelData.kernelArgs.size() < argNum + 1) {
+                kernelData.kernelArgs.resize(argNum + 1);
+            }                
+            kernelData.kernelArgs[argNum] = &Kernel::setArgBuffer;
+            break;
+    }
+}
+
+uint32_t Kernel::setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue) {
+    return 1;
+}
+
+uint32_t Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
+    auto surfaceState = reinterpret_cast<RENDER_SURFACE_STATE*>(kernelData.surfaceState);
+    surfaceState->Bitfield.
+    return 2;
 }
 
 int Kernel::extractMetadata() {
@@ -361,21 +393,13 @@ int Kernel::extractMetadata() {
         printf("Binary header is wrong!\n");
         return -1;
     }
-    //printf("header Magic: %p\n", (void*)(binHeader->Magic));
-    //printf("header NumberOfkernels: %u\n", binHeader->NumberOfKernels);
     header = reinterpret_cast<const uint8_t*>(binHeader);
     patchListBlob = header + sizeof(ProgramBinaryHeader);
     kernelInfoBlob = patchListBlob + binHeader->PatchListSize;
     
     kernelData.header = reinterpret_cast<const KernelBinaryHeader*>(kernelInfoBlob);
-    //printf("header.Checksum: %u\n", kernelData->header->CheckSum);
-    //printf("header.ShaderHashCode: %lu\n", kernelData->header->ShaderHashCode);
-    //printf("header.KernelNameSize: %u\n", kernelData->header->KernelNameSize);
-    //printf("header.PatchListSize: %u\n", kernelData->header->PatchListSize);
-    //printf("header.KernelHeapSize: %u\n", kernelData->header->KernelHeapSize);
     kernelData.kernelInfo = kernelInfoBlob;
     kernelData.name = kernelInfoBlob + sizeof(KernelBinaryHeader);
-    //printf("kernel name: %s\n", *(kernelData->name));
     kernelData.isa = kernelData.name + kernelData.header->KernelNameSize;
     kernelData.generalState = kernelData.isa + kernelData.header->KernelHeapSize;
     kernelData.dynamicState = kernelData.generalState + kernelData.header->GeneralStateHeapSize;

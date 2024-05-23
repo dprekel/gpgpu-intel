@@ -374,7 +374,7 @@ data needed:- ssh pointer
 //TODO: Check clSetKernelArg
 int Context::createSurfaceStateHeap() {
     //TODO: Create allocation here
-    size_t sshSize = ;
+    size_t sshSize = 0;
     size_t alignedAllocationSize = alignUp(sshSize, PAGE_SIZE);
     BufferObject* ssh = allocateBufferObject(alignedAllocationSize, 0);
     if (!ssh)

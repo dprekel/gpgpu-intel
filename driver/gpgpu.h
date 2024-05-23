@@ -51,6 +51,9 @@ extern pKernel* BuildKernel(pContext* context,
                         uint16_t chipset_id,
                         bool enableDisassemble,
                         int* err);
+extern int SetKernelArg(pKernel* kern,
+                        uint32_t arg_index,
+                        void* arg_value);
 extern int EnqueueNDRangeKernel(pContext* context,
                         pKernel* kernel,
                         uint32_t work_dim,

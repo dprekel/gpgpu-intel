@@ -341,7 +341,13 @@ struct RENDER_SURFACE_STATE {
         uint32_t Reserved_114 : BITFIELD_RANGE(18, 20);
         uint32_t Depth : BITFIELD_RANGE(21, 31);
         //DW4
-        uint32_t Reserved_128;
+        uint32_t MultisamplePositionPaletteIndex : BITFIELD_RANGE(0, 2);
+        uint32_t NumberOfMultisamples : BITFIELD_RANGE(3, 5);
+        uint32_t MultisampledSurfaceStorageFormat : BITFIELD_RANGE(6, 6);
+        uint32_t RenderTargetViewExtent : BITFIELD_RANGE(7, 17);
+        uint32_t MinimumArrayElement : BITFIELD_RANGE(18, 28);
+        uint32_t RenderTargetAndSampleUnormRotation : BITFIELD_RANGE(29, 30);
+        uint32_t Reserved_159 : BITFIELD_RANGE(31, 31);
         //DW5
         uint32_t MipCountLod : BITFIELD_RANGE(0, 3);
         uint32_t SurfaceMinLod : BITFIELD_RANGE(4, 7);
@@ -354,8 +360,12 @@ struct RENDER_SURFACE_STATE {
         uint32_t YOffset : BITFIELD_RANGE(21, 23);
         uint32_t Reserved_184 : BITFIELD_RANGE(24, 24);
         uint32_t XOffset : BITFIELD_RANGE(25, 31);
-        //DW6
-        uint32_t Reserved_192;
+        //DW6 (if _SurfaceFormatIsnotPlanar)
+        uint32_t AuxiliarySurfaceMode : BITFIELD_RANGE(0, 2);
+        uint32_t AuxiliarySurfacePitch : BITFIELD_RANGE(3, 11);
+        uint32_t Reserved_204 : BITFIELD_RANGE(12, 15);
+        uint32_t AuxiliarySurfaceQpitch : BITFIELD_RANGE(16, 30);
+        uint32_t Reserved_223 : BITFIELD_RANGE(31, 31);
         //DW7
         uint32_t ResourceMinLod : BITFIELD_RANGE(0, 11);
         uint32_t Reserved_236 : BITFIELD_RANGE(12, 15);
@@ -376,6 +386,22 @@ struct RENDER_SURFACE_STATE {
         uint32_t Reserved_448;
         uint32_t Reserved_480;
     } Bitfield;
+    enum {
+        MEDIA_BOUNDARY_PIXEL_MODE_NORMAL_MODE = 0x0,
+        RENDER_CACHE_READ_WRITE_MODE_WRITE_ONLY_CACHE = 0x0,
+        TILE_MODE_LINEAR = 0x0,
+        SURFACE_HORIZONTAL_ALIGNMENT_HALIGN_4 = 0x1,
+        SURFACE_VERTICAL_ALIGNMENT_VALIGN_4 = 0x1,
+        SURFACE_TYPE_SURFTYPE_1D = 0x0,
+        COHERENCY_TYPE_GPU_COHERENT = 0x0,
+        TILED_RESOURCE_MODE_NONE = 0x0,
+        SHADER_CHANNEL_SELECT_ZERO = 0x0,
+        MEMORY_COMPRESSION_MODE_HORIZONTAL = 0x0,
+        NUMBER_OF_MULTISAMPLES_MULTISAMPLECOUNT_1 = 0x0,
+        MULTISAMPLED_SURFACE_STORAGE_FORMAT_MSS = 0x0,
+        RENDER_TARGET_AND_SAMPLE_UNORM_ROTATION_0DEG = 0x0,
+        AUXILIARY_SURFACE_MODE_AUX_NONE = 0x0
+    };
     static RENDER_SURFACE_STATE init() {
         RENDER_SURFACE_STATE state;
         memset(&state, 0, sizeof(state));
@@ -392,6 +418,10 @@ struct RENDER_SURFACE_STATE {
         state.Bitfield.ShaderChannelSelectGreen = SHADER_CHANNEL_SELECT_ZERO;
         state.Bitfield.ShaderChannelSelectRed = SHADER_CHANNEL_SELECT_ZERO;
         state.Bitfield.MemoryCompressionMode = MEMORY_COMPRESSION_MODE_HORIZONTAL;
+        state.Bitfield.NumberOfMultisamples = NUMBER_OF_MULTISAMPLES_MULTISAMPLECOUNT_1;
+        state.Bitfield.MultisampledSurfaceStorageFormat = MULTISAMPLED_SURFACE_STORAGE_FORMAT_MSS;
+        state.Bitfield.RenderTargetAndSampleUnormRotation = RENDER_TARGET_AND_SAMPLE_UNORM_ROTATION_0DEG;
+        state.Bitfield.AuxiliarySurfaceMode = AUXILIARY_SURFACE_MODE_AUX_NONE;
         return state;
     }
 };

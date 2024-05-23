@@ -13,17 +13,26 @@
 
 class Device;
 class Context;
+class Kernel;
 struct DeviceDescriptor;
+
+typedef uint32_t (Kernel::*KernelArgHandler)(uint32_t argIndex, size_t argSize, void* argVal);
 
 enum PATCH_TOKEN {
     PATCH_TOKEN_SAMPLER_STATE_ARRAY = 5,
     PATCH_TOKEN_BINDING_TABLE_STATE = 8,
+    PATCH_TOKEN_DATA_PARAMETER_BUFFER = 17,
     PATCH_TOKEN_MEDIA_VFE_STATE = 18,
     PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD = 19,
     PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA = 21,
     PATCH_TOKEN_EXECUTION_ENVIRONMENT = 23,
     PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO = 27,
     PATCH_TOKEN_MEDIA_VFE_STATE_SLOT1 = 55
+};
+
+enum DATA_PARAMETER {
+    DATA_PARAMETER_KERNEL_ARGUMENT = 1,
+    DATA_PARAMETER_BUFFER_STATEFUL = 43
 };
 
 #pragma pack( push, 1 )
@@ -115,6 +124,16 @@ struct PatchExecutionEnvironment : PatchItemHeader {
 struct PatchKernelAttributesInfo : PatchItemHeader {
     uint32_t AttributesSize;
 };
+struct PatchDataParameterBuffer : PatchItemHeader {
+    uint32_t Type;
+    uint32_t ArgumentNumber;
+    uint32_t Offset;
+    uint32_t DataSize;
+    uint32_t SourceOffset;
+    uint32_t LocationIndex;
+    uint32_t LocationIndex2;
+    uint32_t IsEmulationArgument;
+};
 
 
 struct KernelFromPatchtokens {
@@ -134,6 +153,7 @@ struct KernelFromPatchtokens {
     const PatchInterfaceDescriptorData* interfaceDescriptorData = nullptr;
     const PatchExecutionEnvironment* executionEnvironment = nullptr;
     const PatchKernelAttributesInfo* kernelAttributesInfo = nullptr;
+    std::vector<KernelArgHandler> kernelArgs;
 };
 
 #pragma pack ( pop )
@@ -161,6 +181,9 @@ class Kernel : public pKernel {
     void TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable);
     IgcOclTranslationCtx* createIgcTranslationCtx();
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
+    void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
+    uint32_t setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue);
+    uint32_t setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue);
     int disassembleBinary();
     void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
     int extractMetadata();
