@@ -3,15 +3,13 @@ Issues / Jobs left
 ----------------------------------------------------------------------------------------------
 
 CreateDevice:
-- Remove log.cpp and create LOGGING macros in Debug mode
-- Find all device files
 - Retrieve device info from HardwareConfigBlob 
 - Load compilers here
 - Solve issue with std::move warning
-- How do I select a device if we have more then one GPU
 
 CreateContext:
 - create TagBuffer
+- Save TagBuffer, Preemption buffer and SipKernel for other kernel instances
 
 CreateBuffer:
 - check if allocated memory is page aligned and a multiple of the cache line size
@@ -26,12 +24,22 @@ BuildKernel:
 - Test driver with different IGC versions from Github and Ubuntu repos
 - Is Mutex required?
 - Release() functions: Free buffer object memory and memory allocated by compiler
+- Check if all fields in KernelFromPatchtokensBlob struct are populated
+
+SetKernelArg:
+- Maybe all kernel argument cases must be added and a handler for not supported argument types must be added
+- What leads to the call of setArgLocal, setArgPipe, setArgDevQueue, setArgBuffer, setArgImage, setArgAccelerator, setArgSampler and setArgImmediate?
+- Check if buffer can be either bindful or bindless
+- Check if ssh and CrossThreadData need to be patched (like in clCreateKernel)
+- Add ptrOffset function
 
 EnqueueNDRangeKernel:
+- create SSH buffer; add binding table entries to it
+- create Indirect Object Heap
+- create Dynamic State Heap (KERNEL_DESCRIPTOR_DATA and CrossThreadData)
 - create SipKernel buffer
 - create Scratch Surface buffer
 - finish creation of the two command buffers
-- finish creation of ssh, ioh and dsh buffers
 - Get rid of all memory leaks
 - Add clFinish functionality
 - Use new for aligned malloc
@@ -109,6 +117,74 @@ sendIndirectState()  hardware_commands_helper_base.inl  (fill dsh, ioh, ssh)
 
 DumpProgramBinaries command:
 $ gdb --args ./cliloader --dump-output-binaries ./GEMM
+
+
+
+
+All tokens in the Patchlist:
+
+1: PATCH_TOKEN_MEDIA_VFE_STATE
+2: PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD
+3: PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA
+4: PATCH_TOKEN_BINDING_TABLE_STATE
+5: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_GLOBAL_WORK_OFFSET
+6: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_GLOBAL_WORK_OFFSET
+7: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_GLOBAL_WORK_OFFSET
+8: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_LOCAL_WORK_SIZE
+9: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_LOCAL_WORK_SIZE
+10: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_LOCAL_WORK_SIZE
+11: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_BUFFER_STATEFUL
+12: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_BUFFER_STATEFUL
+13: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_BUFFER_STATEFUL
+14: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_BUFFER_OFFSET
+15: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_BUFFER_OFFSET
+16: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_BUFFER_OFFSET
+17: PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+18: PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+19: PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+20: PATCH_TOKEN_ALLOCATE_STATELESS_PRIVATE_MEMORY
+21: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_KERNEL_ARGUMENT
+22: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_KERNEL_ARGUMENT
+23: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_KERNEL_ARGUMENT
+24: PATCH_TOKEN_DATA_PARAMETER_BUFFER -> DATA_PARAMETER_KERNEL_ARGUMENT
+25: PATCH_TOKEN_DATA_PARAMETER_STREAM
+26: PATCH_TOKEN_THREAD_PAYLOAD
+27: PATCH_TOKEN_EXECUTION_ENVIRONMENT
+28: PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO
+29: PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+30: PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+31: PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+32: PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+33: PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+34: PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+35: PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
