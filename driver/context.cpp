@@ -4,6 +4,7 @@
 #include <sys/ioctl.h>
 
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 #include "commands_gen9.h"
@@ -390,9 +391,6 @@ int Context::createSurfaceStateHeap() {
 
 
 
-
-
-
 int Context::createPreemptionAllocation() {
     size_t preemptionSize = 8 * 1048576;
     BufferObject* preemption = allocateBufferObject(preemptionSize, 0);
@@ -403,6 +401,7 @@ int Context::createPreemptionAllocation() {
     return SUCCESS;
 }
 
+
 int Context::createCommandBuffer() {
     BufferObject* commandBuffer = allocateBufferObject(16 * PAGE_SIZE, 0);
     if (!commandBuffer) {
@@ -410,6 +409,15 @@ int Context::createCommandBuffer() {
     }
     commandBuffer->bufferType = BufferType::COMMAND_BUFFER;
 
+    auto cmd1 = commandBuffer->ptrOffset<MEDIA_STATE_FLUSH*>(sizeof(MEDIA_STATE_FLUSH));
+    *cmd1 = MEDIA_STATE_FLUSH::init();
+
+    auto cmd2 = commandBuffer->ptrOffset<MEDIA_INTERFACE_DESCRIPTOR_LOAD*>(sizeof(MEDIA_INTERFACE_DESCRIPTOR_LOAD));
+    *cmd2 = MEDIA_INTERFACE_DESCRIPTOR_LOAD::init();
+    //cmd2->Bitfield.InterfaceDescriptorDataStartAddress = ;
+    cmd2->Bitfield.InterfaceDescriptorTotalLength = sizeof(INTERFACE_DESCRIPTOR_DATA);
+
+    /*
     auto pCmd1 = reinterpret_cast<MEDIA_STATE_FLUSH*>(commandBuffer->alloc);
     *pCmd1 = MEDIA_STATE_FLUSH::init();
     pCmd1 = pCmd1 + sizeof(MEDIA_STATE_FLUSH);
@@ -417,9 +425,10 @@ int Context::createCommandBuffer() {
 
     auto pCmd2 = reinterpret_cast<MEDIA_INTERFACE_DESCRIPTOR_LOAD*>(pCmd1);
     *pCmd2 = MEDIA_INTERFACE_DESCRIPTOR_LOAD::init();
-    //*pCmd.Bitfield.InterfaceDescriptorDataStartAddress = ;
+    // *pCmd.Bitfield.InterfaceDescriptorDataStartAddress = ;
     pCmd2->Bitfield.InterfaceDescriptorTotalLength = sizeof(INTERFACE_DESCRIPTOR_DATA);
     pCmd2 = pCmd2 + sizeof(MEDIA_INTERFACE_DESCRIPTOR_LOAD);
+    */
 
     /*
     // we need a variable that stores the preemption mode we are using

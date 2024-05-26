@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstring>
 
+#include "commands_gen9.h"
 #include "device.h"
 #include "gpgpu.h"
 #include "hwinfo.h"
@@ -361,27 +362,43 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
     uint32_t argNum = token->ArgumentNumber;
     switch (token->Type) {
         case DATA_PARAMETER_KERNEL_ARGUMENT:
-            if (kernelData.kernelArgs.size() < argNum + 1) {
-                kernelData.kernelArgs.resize(argNum + 1);
+            if (kernelArgs.size() < argNum + 1) {
+                kernelArgs.resize(argNum + 1);
             }                
-            kernelData.kernelArgs[argNum] = &Kernel::setArgImmediate;
+            kernelArgs[argNum] = &Kernel::setArgImmediate;
             break;
         case DATA_PARAMETER_BUFFER_STATEFUL:
-            if (kernelData.kernelArgs.size() < argNum + 1) {
-                kernelData.kernelArgs.resize(argNum + 1);
+            if (kernelArgs.size() < argNum + 1) {
+                kernelArgs.resize(argNum + 1);
             }                
-            kernelData.kernelArgs[argNum] = &Kernel::setArgBuffer;
+            kernelArgs[argNum] = &Kernel::setArgBuffer;
             break;
     }
 }
 
-uint32_t Kernel::setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue) {
+uint32_t Kernel::setArgument(uint32_t argIndex, void* argValue) {
+    uint32_t ret = (this->*kernelArgs[argIndex])(argValue);
+    return ret;
+}
+
+uint32_t Kernel::setArgImmediate(void* argValue) {
     return 1;
 }
 
-uint32_t Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
-    auto surfaceState = reinterpret_cast<RENDER_SURFACE_STATE*>(kernelData.surfaceState);
-    surfaceState->Bitfield.
+uint32_t Kernel::setArgBuffer(void* argValue) {
+    auto surfaceState = reinterpret_cast<const RENDER_SURFACE_STATE*>(kernelData.surfaceState);
+    surfaceState->Bitfield.SurfaceType = RENDER_SURFACE_STATE::SURFACE_TYPE_SURFTYPE_BUFFER;
+    surfaceState->Bitfield.SurfaceFormat = RENDER_SURFACE_STATE::SURFACE_FORMAT_RAW;
+    surfaceState->Bitfield.SurfaceVerticalAlignment = RENDER_SURFACE_STATE::SURFACE_VERTICAL_ALIGNMENT_VALIGN_4;
+    surfaceState->Bitfield.SurfaceHorizontalAlignment = RENDER_SURFACE_STATE::SURFACE_HORIZONTAL_ALIGNMENT_HALIGN_4;
+    surfaceState->Bitfield.TileMode = RENDER_SURFACE_STATE::TILE_MODE_LINEAR;
+    surfaceState->Bitfield.VerticalLineStride = 0u;
+    surfaceState->Bitfield.VerticalLineStrideOffset = 0u;
+    surfaceState->Bitfield.MemoryObjectControlState_Reserved = 3; //args.mocs;
+    surfaceState->Bitfield.MemoryObjectControlState_IndexToMocsTables = (3 >> 1); //(args.mocs >> 1);
+    surfaceState->Bitfield.SurfaceBaseAddress = 8; //argValue;
+    surfaceState->Bitfield.AuxiliarySurfaceMode = RENDER_SURFACE_STATE::AUXILIARY_SURFACE_MODE_AUX_NONE;
+    surfaceState->Bitfield.CoherencyType = RENDER_SURFACE_STATE::COHERENCY_TYPE_IA_COHERENT;
     return 2;
 }
 

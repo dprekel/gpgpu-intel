@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -fPIC -fvisibility=hidden -mavx2
+CFLAGS = -Wall -fPIC -fvisibility=hidden -mavx2 -std=c++17
 LDFLAGS = -shared
 PREFIX = /usr/local
 ifeq ($(DEBUG), 1)

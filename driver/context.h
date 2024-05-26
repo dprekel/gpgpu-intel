@@ -28,8 +28,15 @@ struct BufferObject {
     ~BufferObject() {
         printf("BufferObject destructor called!\n");
     }
+    template <typename T>
+    T ptrOffset(size_t ptr_offset) {
+        uintptr_t baseAddr = reinterpret_cast<uintptr_t>(alloc);
+        offset += sizeof(ptr_offset);
+        return reinterpret_cast<T>(baseAddr + offset);
+    }
     int bufferType;
     void* alloc;
+    size_t offset;
     size_t size;
     uint32_t handle;
 };

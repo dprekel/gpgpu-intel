@@ -13,10 +13,7 @@
 
 class Device;
 class Context;
-class Kernel;
 struct DeviceDescriptor;
-
-typedef uint32_t (Kernel::*KernelArgHandler)(uint32_t argIndex, size_t argSize, void* argVal);
 
 enum PATCH_TOKEN {
     PATCH_TOKEN_SAMPLER_STATE_ARRAY = 5,
@@ -153,7 +150,6 @@ struct KernelFromPatchtokens {
     const PatchInterfaceDescriptorData* interfaceDescriptorData = nullptr;
     const PatchExecutionEnvironment* executionEnvironment = nullptr;
     const PatchKernelAttributesInfo* kernelAttributesInfo = nullptr;
-    std::vector<KernelArgHandler> kernelArgs;
 };
 
 #pragma pack ( pop )
@@ -166,6 +162,7 @@ struct DataStruct {
 
 class Kernel : public pKernel {
   public:
+    typedef uint32_t (Kernel::*KernelArgHandler)(void* argVal);
     Kernel(Context* context, const char* filename, const char* options);
     ~Kernel();
     KernelFromPatchtokens* getKernelData();
@@ -182,8 +179,9 @@ class Kernel : public pKernel {
     IgcOclTranslationCtx* createIgcTranslationCtx();
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
-    uint32_t setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue);
-    uint32_t setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue);
+    uint32_t setArgImmediate(void* argValue);
+    uint32_t setArgBuffer(void* argValue);
+    uint32_t setArgument(uint32_t argIndex, void* argValue);
     int disassembleBinary();
     void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
     int extractMetadata();
@@ -211,6 +209,7 @@ class Kernel : public pKernel {
     const uint8_t* patchListBlob = nullptr;
     const uint8_t* kernelInfoBlob = nullptr;
     KernelFromPatchtokens kernelData;
+    std::vector<KernelArgHandler> kernelArgs;
 };
 
 

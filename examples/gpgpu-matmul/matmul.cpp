@@ -23,10 +23,13 @@ int main() {
     printf("Context creation: %d\n", err);
     pKernel* kernel = BuildKernel(context, "matmul.cl", build_options.c_str(), 0, true, &err);
     printf("Kernel build: %d\n", err);
-    //void* ptrToBuffer = CreateBuffer(gpuInfo, 4096);
+    void* ptrToBuffer = nullptr;
+    err = CreateBuffer(context, ptrToBuffer, 4096);
     //printf("Buffer ptr: %p\n", ptrToBuffer);
 
     size_t size = 3968;
+    err = SetKernelArg(kernel, 0, ptrToBuffer);
+    err = SetKernelArg(kernel, 1, (void*)&size);
     // number of work items per work group dimension
     const size_t local[2] = {TILE_GROUP_M, TILE_GROUP_N};
     // total number of work items in each dimension

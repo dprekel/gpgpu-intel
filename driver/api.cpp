@@ -110,7 +110,7 @@ int API_CALL SetKernelArg(pKernel* kern,
                         uint32_t arg_index,
                         void* arg_value) {
     Kernel* kernel = static_cast<Kernel*>(kern);
-    uint32_t ret = kernel->kernelArgs[arg_index](arg_index, arg_value);
+    uint32_t ret = kernel->setArgument(arg_index, arg_value);
     return SUCCESS;
 }
 
