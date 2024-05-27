@@ -34,11 +34,11 @@ struct BufferObject {
         offset += sizeof(ptr_offset);
         return reinterpret_cast<T>(baseAddr + offset);
     }
-    int bufferType;
-    void* alloc;
-    size_t offset;
-    size_t size;
-    uint32_t handle;
+    int bufferType  = 0;
+    void* alloc     = nullptr;
+    size_t offset   = 0;
+    size_t size     = 0;
+    uint32_t handle = 0;
 };
 
 class Device;
@@ -54,9 +54,9 @@ class Context : public pContext {
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size);
     /*
     void generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16_t threadsPerWorkGroup, uint8_t* dimensionsOrder, uint32_t simdSize) {
-    int createDynamicStateHeap();
     int createIndirectObjectHeap();
     */
+    int createDynamicStateHeap();
     int createSurfaceStateHeap();
     int allocateISAMemory();
     int createScratchAllocation();

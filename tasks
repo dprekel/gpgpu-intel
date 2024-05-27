@@ -31,12 +31,11 @@ SetKernelArg:
 - What leads to the call of setArgLocal, setArgPipe, setArgDevQueue, setArgBuffer, setArgImage, setArgAccelerator, setArgSampler and setArgImmediate?
 - Check if buffer can be either bindful or bindless
 - Check if ssh and CrossThreadData need to be patched (like in clCreateKernel)
-- Add ptrOffset function
 
 EnqueueNDRangeKernel:
 - create SSH buffer; add binding table entries to it
-- create Indirect Object Heap
-- create Dynamic State Heap (KERNEL_DESCRIPTOR_DATA and CrossThreadData)
+- create Indirect Object Heap (CrossThreadData and PerThreadData)
+- create Dynamic State Heap (INTERFACE_DESCRIPTOR_DATA)
 - create SipKernel buffer
 - create Scratch Surface buffer
 - finish creation of the two command buffers

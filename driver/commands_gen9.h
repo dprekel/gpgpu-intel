@@ -410,11 +410,6 @@ struct RENDER_SURFACE_STATE {
         memset(&state, 0, sizeof(state));
         state.Bitfield.MediaBoundaryPixelMode = MEDIA_BOUNDARY_PIXEL_MODE_NORMAL_MODE;
         state.Bitfield.RenderCacheReadWriteMode = RENDER_CACHE_READ_WRITE_MODE_WRITE_ONLY_CACHE;
-        state.Bitfield.TileMode = TILE_MODE_LINEAR;
-        state.Bitfield.SurfaceHorizontalAlignment = SURFACE_HORIZONTAL_ALIGNMENT_HALIGN_4;
-        state.Bitfield.SurfaceVerticalAlignment = SURFACE_VERTICAL_ALIGNMENT_VALIGN_4;
-        state.Bitfield.SurfaceType = SURFACE_TYPE_SURFTYPE_1D;
-        state.Bitfield.CoherencyType = COHERENCY_TYPE_GPU_COHERENT;
         state.Bitfield.TiledResourceMode = TILED_RESOURCE_MODE_NONE;
         state.Bitfield.ShaderChannelSelectAlpha = SHADER_CHANNEL_SELECT_ZERO;
         state.Bitfield.ShaderChannelSelectBlue = SHADER_CHANNEL_SELECT_ZERO;

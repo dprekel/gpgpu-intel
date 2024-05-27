@@ -122,14 +122,9 @@ void Context::setNonPersistentContext() {
 }
 
 
+
+
 /*
-void* Context::ptrOffset(void* ptrBefore, size_t offset) {
-    uintptr_t addrAfter = (uintptr_t)ptrBefore + offset;
-    return (void*)addrAfter;
-}
-
-
-
 void Context::generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16_t threadsPerWorkGroup, uint8_t* dimensionsOrder, uint32_t simdSize) {
     const int passes = simdSize / 8;
     int pass = 0;
@@ -241,22 +236,9 @@ int Context::createIndirectObjectHeap() {
     return SUCCESS;
 }
 
-
-
-int Context::createDynamicStateHeap() {
-    INTERFACE_DESCRIPTOR_DATA interfaceDescriptor = {0};
-    interfaceDescriptor.KernelStartPointerHigh = kernelStartOffset >> 32;
-    interfaceDescriptor.KernelStartPointer = (uint32_t)kernelStartOffset >> 0x6;
-    interfaceDescriptor.DenormMode = 0x1;
-    interfaceDescriptor.SamplerStatePointer = static_cast<uint32_t>(offsetSamplerState) >> 0x5;
-    interfaceDescriptor.BindingTablePointer = static_cast<uint32_t>(bindingTablePointer) >> 0x5;
-    interfaceDescriptor.SharedLocalMemorySize = programmableIDSLMSize;
-    interfaceDescriptor.NumberOfThreadsInGpgpuThreadGroup = threadsPerThreadGroup;
-    interfaceDescriptor.CrossThreadConstantDataReadLength = numGrfCrossThreadData;
-    interfaceDescriptor.ConstantIndirectUrbEntryReadLength = numGrfPerThreadData;
-    interfaceDescriptor.BarrierEnable = barrierCount;       // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.barrierCount
-}
 */
+
+
 
 
 
@@ -389,6 +371,30 @@ int Context::createSurfaceStateHeap() {
 // Kernel::setArgument calls Kernel::setArg, kernel.cpp, 822
 
 
+
+int Context::createDynamicStateHeap() {
+    size_t dshSize = 16 * PAGE_SIZE;
+    BufferObject* dsh = allocateBufferObject(dshSize, 0);
+    if (!dsh)
+        return BUFFER_ALLOCATION_FAILED;
+    dsh->bufferType = BufferType::LINEAR_STREAM;
+
+    auto interfaceDescriptor = dsh->ptrOffset<INTERFACE_DESCRIPTOR_DATA*>(sizeof(INTERFACE_DESCRIPTOR_DATA));
+    *interfaceDescriptor = INTERFACE_DESCRIPTOR_DATA::init();
+
+    /*
+    interfaceDescriptor.KernelStartPointerHigh = kernelStartOffset >> 32;
+    interfaceDescriptor.KernelStartPointer = (uint32_t)kernelStartOffset >> 0x6;
+    interfaceDescriptor.DenormMode = 0x1;
+    interfaceDescriptor.SamplerStatePointer = static_cast<uint32_t>(offsetSamplerState) >> 0x5;
+    interfaceDescriptor.BindingTablePointer = static_cast<uint32_t>(bindingTablePointer) >> 0x5;
+    interfaceDescriptor.SharedLocalMemorySize = programmableIDSLMSize;
+    interfaceDescriptor.NumberOfThreadsInGpgpuThreadGroup = threadsPerThreadGroup;
+    interfaceDescriptor.CrossThreadConstantDataReadLength = numGrfCrossThreadData;
+    interfaceDescriptor.ConstantIndirectUrbEntryReadLength = numGrfPerThreadData;
+    interfaceDescriptor.BarrierEnable = barrierCount;       // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.barrierCount
+    */
+}
 
 
 int Context::createPreemptionAllocation() {

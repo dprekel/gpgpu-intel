@@ -387,6 +387,7 @@ uint32_t Kernel::setArgImmediate(void* argValue) {
 
 uint32_t Kernel::setArgBuffer(void* argValue) {
     auto surfaceState = reinterpret_cast<const RENDER_SURFACE_STATE*>(kernelData.surfaceState);
+    /*
     surfaceState->Bitfield.SurfaceType = RENDER_SURFACE_STATE::SURFACE_TYPE_SURFTYPE_BUFFER;
     surfaceState->Bitfield.SurfaceFormat = RENDER_SURFACE_STATE::SURFACE_FORMAT_RAW;
     surfaceState->Bitfield.SurfaceVerticalAlignment = RENDER_SURFACE_STATE::SURFACE_VERTICAL_ALIGNMENT_VALIGN_4;
@@ -399,6 +400,7 @@ uint32_t Kernel::setArgBuffer(void* argValue) {
     surfaceState->Bitfield.SurfaceBaseAddress = 8; //argValue;
     surfaceState->Bitfield.AuxiliarySurfaceMode = RENDER_SURFACE_STATE::AUXILIARY_SURFACE_MODE_AUX_NONE;
     surfaceState->Bitfield.CoherencyType = RENDER_SURFACE_STATE::COHERENCY_TYPE_IA_COHERENT;
+    */
     return 2;
 }
 

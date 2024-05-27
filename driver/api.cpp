@@ -11,7 +11,8 @@
 #define API_CALL __attribute__((visibility("default")))
 
 
-std::vector<pDevice*> API_CALL CreateDevices(int* ret) {
+API_CALL std::vector<pDevice*> CreateDevices(int* ret) {
+    *ret = 0;
     std::vector<int> devIDs = openDevices(ret);
     std::vector<pDevice*> devices;
     if (*ret || devIDs.size() == 0)
@@ -28,7 +29,7 @@ std::vector<pDevice*> API_CALL CreateDevices(int* ret) {
 }
 
 
-pContext API_CALL* CreateContext(pDevice* dev, int* ret) {
+API_CALL pContext* CreateContext(pDevice* dev, int* ret) {
     *ret = 0;
     if (!dev) {
         *ret = NO_DEVICE_ERROR;
@@ -52,7 +53,7 @@ pContext API_CALL* CreateContext(pDevice* dev, int* ret) {
 }
 
 
-pKernel API_CALL* BuildKernel(pContext* cont,
+API_CALL pKernel* BuildKernel(pContext* cont,
                         const char* filename,
                         const char* options,
                         uint16_t chipset_id,
@@ -91,22 +92,27 @@ pKernel API_CALL* BuildKernel(pContext* cont,
 }
 
 
-int API_CALL CreateBuffer(pContext* cont,
-                        void* buffer,
-                        size_t size) {
-    if (!cont)
-        return NO_CONTEXT_ERROR;
+API_CALL void* CreateBuffer(pContext* cont,
+                        size_t size,
+                        int* ret) {
+    *ret = 0;
+    if (!cont) {
+        *ret = NO_CONTEXT_ERROR;
+        return nullptr;
+    }
     Context* context = static_cast<Context*>(cont);
     BufferObject* dataBuffer = context->allocateBufferObject(size, 0);
-    if (!dataBuffer)
-        return BUFFER_ALLOCATION_FAILED;
+    if (!dataBuffer) {
+        *ret = BUFFER_ALLOCATION_FAILED;
+        return nullptr;
+    }
     dataBuffer->bufferType = BufferType::BUFFER_HOST_MEMORY;
     //context->emitPinningRequest(bo);
-    buffer = dataBuffer->alloc;
-    return SUCCESS;
+    return dataBuffer->alloc;
 }
 
-int API_CALL SetKernelArg(pKernel* kern,
+
+API_CALL int SetKernelArg(pKernel* kern,
                         uint32_t arg_index,
                         void* arg_value) {
     Kernel* kernel = static_cast<Kernel*>(kern);
@@ -115,7 +121,7 @@ int API_CALL SetKernelArg(pKernel* kern,
 }
 
 
-int API_CALL EnqueueNDRangeKernel(pContext* cont,
+API_CALL int EnqueueNDRangeKernel(pContext* cont,
                         pKernel* kern,
                         uint32_t work_dim,
                         const size_t* global_work_offset,
@@ -153,7 +159,7 @@ int API_CALL EnqueueNDRangeKernel(pContext* cont,
 }
 
 
-int API_CALL ReleaseDevice(pDevice* dev) {
+API_CALL int ReleaseDevice(pDevice* dev) {
     if (!dev)
         return NO_DEVICE_ERROR;
     Device* device = static_cast<Device*>(dev);
@@ -162,7 +168,7 @@ int API_CALL ReleaseDevice(pDevice* dev) {
 }
 
 
-int API_CALL ReleaseContext(pContext* cont) {
+API_CALL int ReleaseContext(pContext* cont) {
     if (!cont)
         return NO_CONTEXT_ERROR;
     Context* context = static_cast<Context*>(cont);
@@ -171,7 +177,7 @@ int API_CALL ReleaseContext(pContext* cont) {
 }
 
 
-int API_CALL ReleaseKernel(pKernel* kern) {
+API_CALL int ReleaseKernel(pKernel* kern) {
     if (!kern)
         return NO_KERNEL_ERROR;
     Kernel* kernel = static_cast<Kernel*>(kern);

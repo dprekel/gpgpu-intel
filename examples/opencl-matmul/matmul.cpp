@@ -36,6 +36,23 @@ const char* loadProgramSource(const char* filename, uint64_t* _size) {
     return (const char*)source;
 }
 
+void* alignedMalloc(size_t size) {
+    size_t alignment = 4096;
+    size_t sizeToAlloc = size + alignment;
+    void* pOriginalMemory = malloc(sizeToAlloc);
+
+    uintptr_t pAlignedMemory = reinterpret_cast<uintptr_t>(pOriginalMemory);
+    if (pAlignedMemory) {
+        pAlignedMemory += alignment;
+        pAlignedMemory -= pAlignedMemory % alignment;
+        reinterpret_cast<void**>(pAlignedMemory)[-1] = pOriginalMemory;
+    }
+    else {
+        return nullptr;
+    }
+    return reinterpret_cast<void*>(pAlignedMemory);
+}
+
 uint64_t nanos() {
      struct timespec start;
      clock_gettime(CLOCK_MONOTONIC_RAW, &start);
@@ -106,9 +123,9 @@ int main() {
     size_t size = 3968;
     size_t matrix_memory_size = size*size*sizeof(float);
     // for such big matrices, malloc should use mmap for allocating memory, so it will be page-aligned. But there is a problem: strace shows me that the driver is remapping the memory, I need a way to avoid this
-    float* matrix_A = (float*)malloc(matrix_memory_size);
-    float* matrix_B = (float*)malloc(matrix_memory_size);
-    float* matrix_C = (float*)malloc(matrix_memory_size);
+    float* matrix_A = (float*)alignedMalloc(matrix_memory_size);
+    float* matrix_B = (float*)alignedMalloc(matrix_memory_size);
+    float* matrix_C = (float*)alignedMalloc(matrix_memory_size);
 
     // Initialize matrices A and B with ones
     size_t matrix_size = size*size;

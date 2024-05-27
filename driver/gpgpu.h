@@ -1,5 +1,8 @@
 #pragma once
 
+#include <stdint.h>
+#include <stdio.h>
+
 #include <vector>
 
 #define SUCCESS                               0
@@ -39,12 +42,11 @@ class pKernel {
 };
 
 extern std::vector<pDevice*> CreateDevices(int* err);
-extern int GetInfo(pDevice* device);
 extern pContext* CreateContext(pDevice* device, 
                         int* err);
-extern int CreateBuffer(pContext* context,
-                        void* buffer,
-                        size_t size);
+extern void* CreateBuffer(pContext* context,
+                        size_t size,
+                        int* ret);
 extern pKernel* BuildKernel(pContext* context,
                         const char* filename,
                         const char* options,
