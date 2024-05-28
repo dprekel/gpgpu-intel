@@ -131,6 +131,30 @@ struct PatchDataParameterBuffer : PatchItemHeader {
     uint32_t LocationIndex2;
     uint32_t IsEmulationArgument;
 };
+struct PatchStatelessGlobalMemoryObjectKernelArgument : PatchItemHeader {
+    uint32_t ArgumentNumber;
+    uint32_t SurfaceStateHeapOffset;
+    uint32_t DataParamOffset;
+    uint32_t DataParamSize;
+    uint32_t LocationIndex;
+    uint32_t LocationIndex2;
+    uint32_t IsEmulationArgument;
+};
+struct PatchStatelessGlobalMemoryObjectKernelArgument : PatchItemHeader {
+    uint32_t ArgumentNumber;
+    uint32_t SurfaceStateHeapOffset;
+    uint32_t DataParamOffset;
+    uint32_t DataParamSize;
+    uint32_t LocationIndex;
+    uint32_t LocationIndex2;
+    uint32_t IsEmulationArgument;
+};
+struct PatchStatelessConstantMemoryObjectKernelArgument : PatchItemHeader {
+    uint32_t GlobalBufferIndex;
+    uint32_t SurfaceStateHeapOffset;
+    uint32_t DataParamOffset;
+    uint32_t DataParamSize;
+};
 
 
 struct KernelFromPatchtokens {
@@ -153,6 +177,14 @@ struct KernelFromPatchtokens {
 };
 
 #pragma pack ( pop )
+
+
+struct ArgDescPointer {
+    uint16_t bindful        = 0;
+    uint16_t stateless      = 0;
+    uint16_t bindless       = 0;
+    uint16_t bufferOffset   = 0;
+};
 
 struct DataStruct {
     const char* data = nullptr;
@@ -209,7 +241,8 @@ class Kernel : public pKernel {
     const uint8_t* patchListBlob = nullptr;
     const uint8_t* kernelInfoBlob = nullptr;
     KernelFromPatchtokens kernelData;
-    std::vector<KernelArgHandler> kernelArgs;
+    std::vector<KernelArgHandler> argHandlers;
+    std::vector<ArgDescPointer> kernelArgs;
 };
 
 

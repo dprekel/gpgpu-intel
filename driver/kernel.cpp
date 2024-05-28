@@ -352,7 +352,34 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
         case PATCH_TOKEN_DATA_PARAMETER_BUFFER: {
             auto tokenParam = reinterpret_cast<const PatchDataParameterBuffer*>(token);
             decodeKernelDataParameterToken(tokenParam);
-        } break;
+            } break;
+        case PATCH_TOKEN_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT: {
+            auto global = reinterpret_cast<const PatchGlobalMemoryObjectKernelArgument*>(token);
+            populateKernelArg(global->ArgumentNumber,
+                              global->DataParamOffset,
+                              global->DataParamSize,
+                              global->surfaceStateHeapOffset,
+                              global->surfaceStateHeapOffset,
+                              addressingMode);
+            } break;
+        case PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT: {
+            auto stateless_global = reinterpret_cast<const PatchStatelessGlobalMemoryObjectKernelArgument*>(token);
+            populateKernelArg(stateless_global->ArgumentNumber,
+                              stateless_global->DataParamOffset,
+                              stateless_global->DataParamSize,
+                              stateless_global->surfaceStateHeapOffset,
+                              stateless_global->surfaceStateHeapOffset,
+                              addressingMode);
+            } break;
+        case PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT: {
+            auto stateless_const = reinterpret_cast<const PatchStatelessConstantMemoryObjectKernelArgument*>(token);
+            populateKernelArg(stateless_const->ArgumentNumber,
+                              stateless_const->DataParamOffset,
+                              stateless_const->DataParamSize,
+                              stateless_const->surfaceStateHeapOffset,
+                              stateless_const->surfaceStateHeapOffset,
+                              addressingMode);
+            } break;
         default:
             break;
     }
@@ -362,16 +389,27 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
     uint32_t argNum = token->ArgumentNumber;
     switch (token->Type) {
         case DATA_PARAMETER_KERNEL_ARGUMENT:
-            if (kernelArgs.size() < argNum + 1) {
+            if (argHandlers.size() < argNum + 1) {
+                argHandlers.resize(argNum + 1);
                 kernelArgs.resize(argNum + 1);
-            }                
-            kernelArgs[argNum] = &Kernel::setArgImmediate;
+            }
+            argHandlers[argNum] = &Kernel::setArgImmediate;
             break;
         case DATA_PARAMETER_BUFFER_STATEFUL:
-            if (kernelArgs.size() < argNum + 1) {
+            if (argHandlers.size() < argNum + 1) {
+                argHandlers.resize(argNum + 1);
                 kernelArgs.resize(argNum + 1);
-            }                
-            kernelArgs[argNum] = &Kernel::setArgBuffer;
+            }
+            argHandlers[argNum] = &Kernel::setArgBuffer;
+            break;
+    }
+}
+
+void Kernel::populateKernelArg(uint32_t, uint32_t , uint32_t, uint32_t, uint32_t) {
+    switch (addressingMode) {
+        case BindfulAndStateless:
+            break;
+        case BindlessAndStateless:
             break;
     }
 }

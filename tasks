@@ -13,6 +13,7 @@ CreateContext:
 
 CreateBuffer:
 - check if allocated memory is page aligned and a multiple of the cache line size
+- do I need alignUp?
 - finish execBuffer submission
 
 BuildKernel:
@@ -33,6 +34,7 @@ SetKernelArg:
 - Check if ssh and CrossThreadData need to be patched (like in clCreateKernel)
 
 EnqueueNDRangeKernel:
+- make sure this can only be done if we have GEN9
 - create SSH buffer; add binding table entries to it
 - create Indirect Object Heap (CrossThreadData and PerThreadData)
 - create Dynamic State Heap (INTERFACE_DESCRIPTOR_DATA)
