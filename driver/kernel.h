@@ -18,12 +18,15 @@ struct DeviceDescriptor;
 enum PATCH_TOKEN {
     PATCH_TOKEN_SAMPLER_STATE_ARRAY = 5,
     PATCH_TOKEN_BINDING_TABLE_STATE = 8,
+    PATCH_TOKEN_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT = 11,
     PATCH_TOKEN_DATA_PARAMETER_BUFFER = 17,
     PATCH_TOKEN_MEDIA_VFE_STATE = 18,
     PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD = 19,
     PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA = 21,
     PATCH_TOKEN_EXECUTION_ENVIRONMENT = 23,
     PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO = 27,
+    PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT = 30,
+    PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT = 31,
     PATCH_TOKEN_MEDIA_VFE_STATE_SLOT1 = 55
 };
 
@@ -131,11 +134,9 @@ struct PatchDataParameterBuffer : PatchItemHeader {
     uint32_t LocationIndex2;
     uint32_t IsEmulationArgument;
 };
-struct PatchStatelessGlobalMemoryObjectKernelArgument : PatchItemHeader {
+struct PatchGlobalMemoryObjectKernelArgument : PatchItemHeader {
     uint32_t ArgumentNumber;
     uint32_t SurfaceStateHeapOffset;
-    uint32_t DataParamOffset;
-    uint32_t DataParamSize;
     uint32_t LocationIndex;
     uint32_t LocationIndex2;
     uint32_t IsEmulationArgument;
@@ -150,10 +151,13 @@ struct PatchStatelessGlobalMemoryObjectKernelArgument : PatchItemHeader {
     uint32_t IsEmulationArgument;
 };
 struct PatchStatelessConstantMemoryObjectKernelArgument : PatchItemHeader {
-    uint32_t GlobalBufferIndex;
+    uint32_t ArgumentNumber;
     uint32_t SurfaceStateHeapOffset;
     uint32_t DataParamOffset;
     uint32_t DataParamSize;
+    uint32_t LocationIndex;
+    uint32_t LocationIndex2;
+    uint32_t IsEmulationArgument;
 };
 
 
@@ -180,10 +184,10 @@ struct KernelFromPatchtokens {
 
 
 struct ArgDescPointer {
-    uint16_t bindful        = 0;
-    uint16_t stateless      = 0;
-    uint16_t bindless       = 0;
-    uint16_t bufferOffset   = 0;
+    const PatchItemHeader* header = nullptr;
+    int argToken                  = 0;
+    uint16_t bindful              = 0;
+    uint16_t bindless             = 0;
 };
 
 struct DataStruct {
@@ -194,7 +198,7 @@ struct DataStruct {
 
 class Kernel : public pKernel {
   public:
-    typedef uint32_t (Kernel::*KernelArgHandler)(void* argVal);
+    typedef int (Kernel::*KernelArgHandler)(uint32_t argNum, void* argVal);
     Kernel(Context* context, const char* filename, const char* options);
     ~Kernel();
     KernelFromPatchtokens* getKernelData();
@@ -211,9 +215,10 @@ class Kernel : public pKernel {
     IgcOclTranslationCtx* createIgcTranslationCtx();
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
-    uint32_t setArgImmediate(void* argValue);
-    uint32_t setArgBuffer(void* argValue);
-    uint32_t setArgument(uint32_t argIndex, void* argValue);
+    void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset);
+    int setArgImmediate(uint32_t argIndex, void* argValue);
+    int setArgBuffer(uint32_t argIndex, void* argValue);
+    int setArgument(uint32_t argIndex, void* argValue);
     int disassembleBinary();
     void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
     int extractMetadata();
@@ -243,6 +248,7 @@ class Kernel : public pKernel {
     KernelFromPatchtokens kernelData;
     std::vector<KernelArgHandler> argHandlers;
     std::vector<ArgDescPointer> kernelArgs;
+    std::unique_ptr<char[]> sshLocal;
 };
 
 

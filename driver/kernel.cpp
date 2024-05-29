@@ -355,30 +355,18 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
             } break;
         case PATCH_TOKEN_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT: {
             auto global = reinterpret_cast<const PatchGlobalMemoryObjectKernelArgument*>(token);
-            populateKernelArg(global->ArgumentNumber,
-                              global->DataParamOffset,
-                              global->DataParamSize,
-                              global->surfaceStateHeapOffset,
-                              global->surfaceStateHeapOffset,
-                              addressingMode);
+            kernelArgs[global->ArgumentNumber].header = token;
+            kernelArgs[global->ArgumentNumber].argToken = PATCH_TOKEN_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT;
             } break;
         case PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT: {
             auto stateless_global = reinterpret_cast<const PatchStatelessGlobalMemoryObjectKernelArgument*>(token);
-            populateKernelArg(stateless_global->ArgumentNumber,
-                              stateless_global->DataParamOffset,
-                              stateless_global->DataParamSize,
-                              stateless_global->surfaceStateHeapOffset,
-                              stateless_global->surfaceStateHeapOffset,
-                              addressingMode);
+            kernelArgs[stateless_global->ArgumentNumber].header = token;
+            kernelArgs[stateless_global->ArgumentNumber].argToken = PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT;
             } break;
         case PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT: {
             auto stateless_const = reinterpret_cast<const PatchStatelessConstantMemoryObjectKernelArgument*>(token);
-            populateKernelArg(stateless_const->ArgumentNumber,
-                              stateless_const->DataParamOffset,
-                              stateless_const->DataParamSize,
-                              stateless_const->surfaceStateHeapOffset,
-                              stateless_const->surfaceStateHeapOffset,
-                              addressingMode);
+            kernelArgs[stateless_const->ArgumentNumber].header = token;
+            kernelArgs[stateless_const->ArgumentNumber].argToken = PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT;
             } break;
         default:
             break;
@@ -402,28 +390,64 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
             }
             argHandlers[argNum] = &Kernel::setArgBuffer;
             break;
-    }
-}
-
-void Kernel::populateKernelArg(uint32_t, uint32_t , uint32_t, uint32_t, uint32_t) {
-    switch (addressingMode) {
-        case BindfulAndStateless:
-            break;
-        case BindlessAndStateless:
+        default:
             break;
     }
 }
 
-uint32_t Kernel::setArgument(uint32_t argIndex, void* argValue) {
-    uint32_t ret = (this->*kernelArgs[argIndex])(argValue);
+
+void Kernel::populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset) {
+    if (kernelData.executionEnvironment->UseBindlessMode) {
+        kernelArgs[argNum].bindless = surfaceStateHeapOffset;
+    } else {
+        kernelArgs[argNum].bindful = surfaceStateHeapOffset;
+    }
+}
+
+int Kernel::setArgument(uint32_t argIndex, void* argValue) {
+    if (argIndex > argHandlers.size()) {
+        return INVALID_KERNEL_ARG_NUMBER;
+    }
+    int ret = (this->*argHandlers[argIndex])(argIndex, argValue);
     return ret;
 }
 
-uint32_t Kernel::setArgImmediate(void* argValue) {
-    return 1;
+int Kernel::setArgImmediate(uint32_t argIndex, void* argValue) {
+    //TODO: Finish this
+    return SUCCESS;
 }
 
-uint32_t Kernel::setArgBuffer(void* argValue) {
+//TODO: Rename ArgDescPointer
+//TODO: Add cases for images, command queues, pipes, ...
+//TODO: CreateBuffer should return a buffer object, not void pointer, so it can be checked
+//      that we have the correct kernel arguments
+int Kernel::setArgBuffer(uint32_t argIndex, void* argValue) {
+    ArgDescPointer& descriptor = kernelArgs[argIndex];
+    switch (descriptor.argToken) {
+        case PATCH_TOKEN_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT: {
+            auto global = reinterpret_cast<const PatchGlobalMemoryObjectKernelArgument*>(descriptor.header);
+            populateKernelArg(argIndex, global->SurfaceStateHeapOffset);
+            } break;
+        case PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT: {
+            auto stateless_global = reinterpret_cast<const PatchStatelessGlobalMemoryObjectKernelArgument*>(descriptor.header);
+            populateKernelArg(argIndex, stateless_global->SurfaceStateHeapOffset);
+            } break;
+        case PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT: {
+            auto stateless_const = reinterpret_cast<const PatchStatelessConstantMemoryObjectKernelArgument*>(descriptor.header);
+            populateKernelArg(argIndex, stateless_const->SurfaceStateHeapOffset);
+            } break;
+        default:
+            break;
+    }
+    //TODO: Return error if we have bindless mode
+    if (!sshLocal.get()) {
+        uint32_t sshSize = kernelData.header->SurfaceStateHeapSize;
+        if (sshSize) {
+            sshLocal = std::make_unique<char[]>(sshSize);
+            memcpy(sshLocal.get(), kernelData.surfaceState, sshSize);
+        }
+    }
+
     auto surfaceState = reinterpret_cast<const RENDER_SURFACE_STATE*>(kernelData.surfaceState);
     /*
     surfaceState->Bitfield.SurfaceType = RENDER_SURFACE_STATE::SURFACE_TYPE_SURFTYPE_BUFFER;
@@ -439,16 +463,17 @@ uint32_t Kernel::setArgBuffer(void* argValue) {
     surfaceState->Bitfield.AuxiliarySurfaceMode = RENDER_SURFACE_STATE::AUXILIARY_SURFACE_MODE_AUX_NONE;
     surfaceState->Bitfield.CoherencyType = RENDER_SURFACE_STATE::COHERENCY_TYPE_IA_COHERENT;
     */
-    return 2;
+    return SUCCESS;
 }
 
 int Kernel::extractMetadata() {
     // The following usage of reinterpret_cast could lead to undefined behaviour. Checking the header magic
+    //
     // makes sure that the reinterpreted memory has the correct format
     const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary.data);
     if (binHeader->Magic != 0x494E5443) {
         printf("Binary header is wrong!\n");
-        return -1;
+        return WRONG_KERNEL_FORMAT;
     }
     header = reinterpret_cast<const uint8_t*>(binHeader);
     patchListBlob = header + sizeof(ProgramBinaryHeader);

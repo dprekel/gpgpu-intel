@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 
+#define ADDRESS_WIDTH 48
+
 typedef long long __m256i __attribute__((__vector_size__(32), __aligned__(32)));
 typedef short __v16hi __attribute__((__vector_size__ (32)));
 typedef char __v32qi __attribute__((__vector_size__ (32)));
@@ -30,10 +32,8 @@ inline size_t alignUp(size_t before, size_t alignment) {
     return (before + mask) & ~mask;
 }
 
-uint64_t addressWidth = 48;
-
 inline uint64_t canonize(uint64_t address) {
-    return static_cast<int64_t>(address << (64 - addressWidth)) >> (64 - addressWidth);
+    return static_cast<int64_t>(address << (64 - ADDRESS_WIDTH)) >> (64 - ADDRESS_WIDTH);
 }
 
 
