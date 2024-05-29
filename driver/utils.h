@@ -32,6 +32,12 @@ inline size_t alignUp(size_t before, size_t alignment) {
     return (before + mask) & ~mask;
 }
 
+template <typename T>
+inline T ptrOffset(T ptrBefore, size_t offset) {
+    auto addrBefore = reinterpret_cast<uintptr_t>(ptrBefore);
+    return reinterpret_cast<T>(addrBefore + offset);
+}
+
 inline uint64_t canonize(uint64_t address) {
     return static_cast<int64_t>(address << (64 - ADDRESS_WIDTH)) >> (64 - ADDRESS_WIDTH);
 }

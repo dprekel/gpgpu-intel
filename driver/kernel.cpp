@@ -420,7 +420,8 @@ int Kernel::setArgImmediate(uint32_t argIndex, void* argValue) {
 //TODO: Rename ArgDescPointer
 //TODO: Add cases for images, command queues, pipes, ...
 //TODO: CreateBuffer should return a buffer object, not void pointer, so it can be checked
-//      that we have the correct kernel arguments
+//      that we have the correct kernel arguments; also maybe add a magic number
+//TODO: check CreateBuffer for different buffer sizes
 int Kernel::setArgBuffer(uint32_t argIndex, void* argValue) {
     ArgDescPointer& descriptor = kernelArgs[argIndex];
     switch (descriptor.argToken) {
@@ -447,9 +448,9 @@ int Kernel::setArgBuffer(uint32_t argIndex, void* argValue) {
             memcpy(sshLocal.get(), kernelData.surfaceState, sshSize);
         }
     }
-
-    auto surfaceState = reinterpret_cast<const RENDER_SURFACE_STATE*>(kernelData.surfaceState);
-    /*
+    auto surfaceState = reinterpret_cast<RENDER_SURFACE_STATE*>(ptrOffset(sshLocal.get(), descriptor.bindful));
+    *surfaceState = RENDER_SURFACE_STATE::init();
+    //TODO: Length fields
     surfaceState->Bitfield.SurfaceType = RENDER_SURFACE_STATE::SURFACE_TYPE_SURFTYPE_BUFFER;
     surfaceState->Bitfield.SurfaceFormat = RENDER_SURFACE_STATE::SURFACE_FORMAT_RAW;
     surfaceState->Bitfield.SurfaceVerticalAlignment = RENDER_SURFACE_STATE::SURFACE_VERTICAL_ALIGNMENT_VALIGN_4;
@@ -457,12 +458,12 @@ int Kernel::setArgBuffer(uint32_t argIndex, void* argValue) {
     surfaceState->Bitfield.TileMode = RENDER_SURFACE_STATE::TILE_MODE_LINEAR;
     surfaceState->Bitfield.VerticalLineStride = 0u;
     surfaceState->Bitfield.VerticalLineStrideOffset = 0u;
-    surfaceState->Bitfield.MemoryObjectControlState_Reserved = 3; //args.mocs;
-    surfaceState->Bitfield.MemoryObjectControlState_IndexToMocsTables = (3 >> 1); //(args.mocs >> 1);
-    surfaceState->Bitfield.SurfaceBaseAddress = 8; //argValue;
+    surfaceState->Bitfield.MemoryObjectControlState_Reserved = 3u; //args.mocs;
+    surfaceState->Bitfield.MemoryObjectControlState_IndexToMocsTables = (3u >> 1); //(args.mocs >> 1);
+    surfaceState->Bitfield.SurfaceBaseAddress = 8u; //argValue;
     surfaceState->Bitfield.AuxiliarySurfaceMode = RENDER_SURFACE_STATE::AUXILIARY_SURFACE_MODE_AUX_NONE;
     surfaceState->Bitfield.CoherencyType = RENDER_SURFACE_STATE::COHERENCY_TYPE_IA_COHERENT;
-    */
+
     return SUCCESS;
 }
 
