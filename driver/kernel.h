@@ -24,6 +24,7 @@ enum PATCH_TOKEN {
     PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD = 19,
     PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA = 21,
     PATCH_TOKEN_EXECUTION_ENVIRONMENT = 23,
+    PATCH_TOKEN_DATA_PARAMETER_STREAM = 25,
     PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO = 27,
     PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT = 30,
     PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT = 31,
@@ -124,6 +125,9 @@ struct PatchExecutionEnvironment : PatchItemHeader {
 struct PatchKernelAttributesInfo : PatchItemHeader {
     uint32_t AttributesSize;
 };
+struct PatchDataParameterStream : PatchItemHeader {
+    uint32_t DataParameterStreamSize;
+};
 struct PatchDataParameterBuffer : PatchItemHeader {
     uint32_t Type;
     uint32_t ArgumentNumber;
@@ -177,6 +181,7 @@ struct KernelFromPatchtokens {
     const PatchMediaInterfaceDescriptorLoad* mediaInterfaceDescriptorLoad = nullptr;
     const PatchInterfaceDescriptorData* interfaceDescriptorData = nullptr;
     const PatchExecutionEnvironment* executionEnvironment = nullptr;
+    const PatchDataParameterStream* dataParameterStream = nullptr;
     const PatchKernelAttributesInfo* kernelAttributesInfo = nullptr;
 };
 
@@ -201,7 +206,6 @@ class Kernel : public pKernel {
     typedef int (Kernel::*KernelArgHandler)(uint32_t argNum, void* argVal);
     Kernel(Context* context, const char* filename, const char* options);
     ~Kernel();
-    KernelFromPatchtokens* getKernelData();
     int initialize();
     int loadProgramSource();
     int build(uint16_t chipset_id);

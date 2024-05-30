@@ -10,6 +10,8 @@
 #include "gpgpu.h"
 #include "kernel.h"
 
+class Device;
+class Kernel;
 
 enum BufferType {
     BUFFER_HOST_MEMORY,
@@ -41,8 +43,6 @@ struct BufferObject {
     uint32_t handle = 0;
 };
 
-class Device;
-class Kernel;
 
 class Context : public pContext {
   public:
@@ -52,10 +52,8 @@ class Context : public pContext {
     BufferObject* allocateBufferObject(size_t size, uint32_t flags);
     void setNonPersistentContext();
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size);
-    /*
-    void generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16_t threadsPerWorkGroup, uint8_t* dimensionsOrder, uint32_t simdSize) {
     int createIndirectObjectHeap();
-    */
+    void generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16_t threadsPerWG, uint8_t* dimensionsOrder, uint32_t simdSize) {
     int createDynamicStateHeap();
     int createSurfaceStateHeap();
     int allocateISAMemory();

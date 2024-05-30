@@ -31,9 +31,6 @@ Kernel::~Kernel() {
     printf("Kernel destructor called!\n");
 }
 
-KernelFromPatchtokens* Kernel::getKernelData() {
-    return &kernelData;
-}
 
 int Kernel::loadProgramSource() {
     FILE* file = fopen(filename, "r");
@@ -349,6 +346,9 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
         case PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO:
             kernelData->kernelAttributesInfo = reinterpret_cast<const PatchKernelAttributesInfo*>(token);
             break;
+        case PATCH_TOKEN_DATA_PARAMETER_STREAM:
+            kernelData->dataParameterStream = reinterpret_cast<const PatchDataParameterStream*>(token);
+            break;
         case PATCH_TOKEN_DATA_PARAMETER_BUFFER: {
             auto tokenParam = reinterpret_cast<const PatchDataParameterBuffer*>(token);
             decodeKernelDataParameterToken(tokenParam);
@@ -495,6 +495,7 @@ int Kernel::extractMetadata() {
         decodeToken(token, &kernelData);
         decodePos = decodePos + token->Size;
     }
+    context->setKernelData(&kernelData);
     if (kernelData.bindingTableState == nullptr) {
         return -1;
     }

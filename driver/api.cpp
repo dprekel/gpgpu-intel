@@ -116,7 +116,9 @@ API_CALL int SetKernelArg(pKernel* kern,
                         uint32_t arg_index,
                         void* arg_value) {
     Kernel* kernel = static_cast<Kernel*>(kern);
-    uint32_t ret = kernel->setArgument(arg_index, arg_value);
+    int ret = kernel->setArgument(arg_index, arg_value);
+    if (ret)
+        return ret;
     return SUCCESS;
 }
 
@@ -130,6 +132,8 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     if (!cont)
         return NO_CONTEXT_ERROR;
     Context* context = static_cast<Context*>(cont);
+    if (!kern || !context.kernelData)
+        return INVALID_KERNEL;
     context->kernel = static_cast<Kernel*>(kern);
     int ret = context->validateWorkGroups(work_dim, global_work_offset, global_work_size, local_work_size);
     if (ret)
