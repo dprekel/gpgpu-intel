@@ -18,19 +18,29 @@
 
 Context::Context(Device* device) 
          : device(device),
-           globalOffsets{0, 0, 0},
-           workItems{1, 1, 1},
-           localWorkSizesIn{0, 0, 0},
-           enqueuedWorkSizes{0, 0, 0} {
+           workItemsPerWorkGroup{1, 1, 1},
+           globalWorkItems{1, 1, 1} {
     this->hwInfo = device->descriptor->pHwInfo;
+    setMaxWorkGroupSize();
 }
 
 Context::~Context() {
     printf("Context destructor called!\n");
 }
 
+void Context::setMaxWorkGroupSize() {
+    uint32_t numThreadsPerEU = hwInfo->gtSystemInfo->ThreadCount / hwInfo->gtSystemInfo->EUCount;
+    uint32_t maxThreadsPerWorkGroup = hwInfo->gtSystemInfo->MaxEuPerSubSlice * numThreadsPerEU;
+    maxThreadsPerWorkGroup = prevPowerOfTwo(maxThreadsPerWorkGroup);
+    this->maxWorkItemsPerWorkGroup = std::min(maxThreadsPerWorkGroup, 1024u);
+}
+
 void Context::setKernelData(KernelFromPatchtokens* kernelData) {
     this->kernelData = kernelData;
+}
+
+KernelFromPatchtokens* Context::getKernelData() {
+    return this->kernelData;
 }
 
 BufferObject* Context::allocateBufferObject(size_t size, uint32_t flags) {
@@ -129,60 +139,49 @@ void Context::setNonPersistentContext() {
 
 
 /*
+- Total number of work items must be specified, otherwise it alway returns INVALID_WORK_GROUP_SIZE
+- If local_work_size is nullptr, then workItemsPerWorkGroup[i] will always be 1, which leads to INVALID_WORK_GROUP_SIZE
 */
 
-
-
-int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size) {
-    workDim = work_dim;
-    /*
-    size_t remainder = 0;
+int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size) {
+    if (work_dim > 3) {
+        return INVALID_WORK_GROUP_SIZE;
+    }
+    size_t requiredWorkGroupSize[3] = {kernelData->executionEnvironment->RequiredWorkGroupSizeX,
+                                       kernelData->executionEnvironment->RequiredWorkGroupSizeY,
+                                       kernelData->executionEnvironment->RequiredWorkGroupSizeZ};
     size_t totalWorkItems = 1u;
-    uint32_t requiredWorkgroupSize[3] = {kernel->kernelData->executionEnvironment->requiredWorkgroupSizeX,
-                                         kernel->kernelData->executionEnvironment->requiredWorkgroupSizeY,
-                                         kernel->kernelData->executionEnvironment->requiredWorkgroupSizeZ};
+    size_t remainder = 0;
     bool haveRequiredWorkGroupSize = false;
-    if (requiredWorkgroupSize[0] != 0) {
-        haveRequiredWorkgroupSize = true;
+    if (requiredWorkGroupSize[0] != 0) {
+        haveRequiredWorkGroupSize = true;
     }
-    if (local_work_size) {
-        localWorkSizesIn = {1, 1, 1};
-    }
-    else {
-        localWorkSizesIn = nullptr;
-    }
-    for (uint32_t i = 0u; i < workDim; i++) {
-        workItems[i] = global_work_size ? global_work_size[i] : 0;
-        globalOffsets[i] = global_work_offset ? global_work_offset[i] : 0;
-
-        if (haveRequiredWorkGroupSize) {
-            if (requiredWorkgroupSize[i] != local_work_size[i]) {
-                return INVALID_WORK_GROUP_SIZE;
+    for (uint32_t i = 0u; i < work_dim; i++) {
+        globalWorkItems[i] = global_work_size ? global_work_size[i] : 0;
+        if (local_work_size) {
+            if (haveRequiredWorkGroupSize) {
+                if (requiredWorkGroupSize[i] != local_work_size[i]) {
+                    return INVALID_WORK_GROUP_SIZE;
+                }
             }
             if (local_work_size[i] == 0) {
                 return INVALID_WORK_GROUP_SIZE;
             }
-            localWorkSizesIn[i] = local_work_size[i];
-            enqueuedWorkSizes[i] = local_work_size[i];
+            workItemsPerWorkGroup[i] = local_work_size[i];
             totalWorkItems *= local_work_size[i];
         }
-        remainder += workItems[i] % localWorkSizesIn[i];
+        remainder += globalWorkItems[i] % workItemsPerWorkGroup[i];
     }
     if (remainder != 0) {
         return INVALID_WORK_GROUP_SIZE;
     }
-    if (totalWorkItems > kernel.getMaxKernelWorkGroupSize()) {
+    if (totalWorkItems > maxWorkItemsPerWorkGroup) {
         return INVALID_WORK_GROUP_SIZE;
     }
-    if (haveRequiredWorkGroupSize) {
-        localWorkSizesIn[0] = requiredWorkgroupSize[0];
-        localWorkSizesIn[1] = requiredWorkgroupSize[1];
-        localWorkSizesIn[2] = requiredWorkgroupSize[2];
-    }
-    */
-
     return SUCCESS;
 }
+
+
 
 int Context::allocateISAMemory() {
     size_t kernelISASize = kernelData->header->KernelHeapSize;
@@ -287,10 +286,12 @@ int Context::createIndirectObjectHeap() {
     uint32_t crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
     memset(ioh->alloc, 0x00, crossThreadDataSize);
 
+    /*
     uint32_t simdSize = kernelData->executionEnvironment->LargestCompiledSIMDSize;
     uint64_t threadsPerWG = simdSize + localWorkSize - 1;
     threadsPerWG >>= simdSize == 32 ? 5 : simdSize == 16 ? 4 : simdSize == 8 ? 3 : 0;
     generateLocalIDsSimd(ioh->alloc, localWorkgroupSize, threadsPerWG, dimensionsOrder, simdSize);
+    */
 
 
     return SUCCESS;
@@ -298,6 +299,7 @@ int Context::createIndirectObjectHeap() {
 
 
 void Context::generateLocalIDsSimd(void* ioh, uint16_t* localWorkgroupSize, uint16_t threadsPerWorkGroup, uint8_t* dimensionsOrder, uint32_t simdSize) {
+    /*
     const int passes = simdSize / 8;
     int pass = 0;
 
@@ -376,7 +378,7 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t* localWorkgroupSize, uint
         }
         b = ptrOffset(b, 8 * sizeof(uint16_t));
     } while (++pass < passes);
-
+    */
 }
 
 
@@ -403,6 +405,7 @@ int Context::createDynamicStateHeap() {
     interfaceDescriptor.ConstantIndirectUrbEntryReadLength = numGrfPerThreadData;
     interfaceDescriptor.BarrierEnable = barrierCount;       // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.barrierCount
     */
+    return SUCCESS;
 }
 
 

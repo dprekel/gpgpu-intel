@@ -26,6 +26,7 @@
 #define COMPILER_LOAD_FAILED                -18
 #define WRONG_KERNEL_FORMAT                 -19
 #define INVALID_KERNEL_ARG_NUMBER           -20
+#define INVALID_KERNEL                      -21
 
 
 class pDevice {

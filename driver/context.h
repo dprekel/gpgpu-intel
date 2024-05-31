@@ -48,21 +48,26 @@ class Context : public pContext {
   public:
     Context(Device* device);
     ~Context();
+    void setKernelData(KernelFromPatchtokens* kernelData);
+    KernelFromPatchtokens* getKernelData();
+    void setMaxWorkGroupSize();
     int createDrmContext();
-    BufferObject* allocateBufferObject(size_t size, uint32_t flags);
     void setNonPersistentContext();
-    int validateWorkGroups(uint32_t work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size);
+    BufferObject* allocateBufferObject(size_t size, uint32_t flags);
+    int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
     int createIndirectObjectHeap();
-    void generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16_t threadsPerWG, uint8_t* dimensionsOrder, uint32_t simdSize) {
     int createDynamicStateHeap();
     int createSurfaceStateHeap();
     int allocateISAMemory();
     int createScratchAllocation();
     int createPreemptionAllocation();
     int createCommandBuffer();
+
     Device* device;
     Kernel* kernel = nullptr;
   private:
+    void generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16_t threadsPerWG, uint8_t* dimensionsOrder, uint32_t simdSize);
+
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;
     std::vector<std::unique_ptr<BufferObject>> execBuffer;
@@ -70,10 +75,9 @@ class Context : public pContext {
     uint32_t ctxId;
 
     uint32_t workDim;
-    size_t globalOffsets[3];      // globalWorkOffset
-    size_t workItems[3];          // region
-    size_t localWorkSizesIn[3];   // localWkgSizeToPass
-    size_t enqueuedWorkSizes[3];  // enqueuedLocalWorkSize
+    uint32_t maxWorkItemsPerWorkGroup;
+    size_t workItemsPerWorkGroup[3];
+    size_t globalWorkItems[3];
 };
 
 

@@ -42,7 +42,14 @@ inline uint64_t canonize(uint64_t address) {
     return static_cast<int64_t>(address << (64 - ADDRESS_WIDTH)) >> (64 - ADDRESS_WIDTH);
 }
 
-
+inline uint32_t prevPowerOfTwo(uint32_t value) {
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    return (value - (value >> 1));
+}
 
 
 

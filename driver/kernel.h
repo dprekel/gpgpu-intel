@@ -60,7 +60,6 @@ struct KernelBinaryHeader {
     uint32_t KernelUnpaddedSize;
 };
 
-
 struct PatchItemHeader {
     uint32_t Token;
     uint32_t Size;
@@ -164,6 +163,7 @@ struct PatchStatelessConstantMemoryObjectKernelArgument : PatchItemHeader {
     uint32_t IsEmulationArgument;
 };
 
+#pragma pack ( pop )
 
 struct KernelFromPatchtokens {
     const KernelBinaryHeader* header = nullptr;
@@ -185,9 +185,6 @@ struct KernelFromPatchtokens {
     const PatchKernelAttributesInfo* kernelAttributesInfo = nullptr;
 };
 
-#pragma pack ( pop )
-
-
 struct ArgDescPointer {
     const PatchItemHeader* header = nullptr;
     int argToken                  = 0;
@@ -203,15 +200,22 @@ struct DataStruct {
 
 class Kernel : public pKernel {
   public:
-    typedef int (Kernel::*KernelArgHandler)(uint32_t argNum, void* argVal);
     Kernel(Context* context, const char* filename, const char* options);
     ~Kernel();
-    int initialize();
     int loadProgramSource();
+    int initialize();
     int build(uint16_t chipset_id);
+    int setArgument(uint32_t argIndex, void* argValue);
+    int disassembleBinary();
+    int extractMetadata();
+    int createSipKernel();
+
+    Context* context;
+  private:
+    typedef int (Kernel::*KernelArgHandler)(uint32_t argNum, void* argVal);
+    int loadCompiler(const char* libName, CIFMain** cifMain);
     ICIF* CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion);
     IgcBuffer* CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t size);
-    int loadCompiler(const char* libName, CIFMain** cifMain);
     FclOclTranslationCtx* createFclTranslationCtx();
     void TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform);
     void TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo);
@@ -222,14 +226,8 @@ class Kernel : public pKernel {
     void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset);
     int setArgImmediate(uint32_t argIndex, void* argValue);
     int setArgBuffer(uint32_t argIndex, void* argValue);
-    int setArgument(uint32_t argIndex, void* argValue);
-    int disassembleBinary();
     void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
-    int extractMetadata();
-    int createSipKernel();
 
-    Context* context;
-  private:
     std::unique_ptr<DeviceDescriptor> descriptor;
     const char* igcName;
     const char* fclName;

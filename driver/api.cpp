@@ -132,10 +132,10 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     if (!cont)
         return NO_CONTEXT_ERROR;
     Context* context = static_cast<Context*>(cont);
-    if (!kern || !context.kernelData)
+    if (!kern || !context->getKernelData())
         return INVALID_KERNEL;
     context->kernel = static_cast<Kernel*>(kern);
-    int ret = context->validateWorkGroups(work_dim, global_work_offset, global_work_size, local_work_size);
+    int ret = context->validateWorkGroups(work_dim, global_work_size, local_work_size);
     if (ret)
         return ret;
     ret = context->allocateISAMemory();
@@ -158,7 +158,7 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     ret = context->createCommandBuffer();
     if (ret)
         return ret;
-    context->kernel = nullptr;
+    context->kernel = nullptr; // this is not good
     return SUCCESS;
 }
 
