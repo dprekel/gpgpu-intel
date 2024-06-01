@@ -32,15 +32,16 @@ struct BufferObject {
     }
     template <typename T>
     T ptrOffset(size_t ptr_offset) {
-        uintptr_t baseAddr = reinterpret_cast<uintptr_t>(alloc);
+        uintptr_t baseAddr = reinterpret_cast<uintptr_t>(cpuAddress);
         offset += sizeof(ptr_offset);
         return reinterpret_cast<T>(baseAddr + offset);
     }
-    int bufferType  = 0;
-    void* alloc     = nullptr;
-    size_t offset   = 0;
-    size_t size     = 0;
-    uint32_t handle = 0;
+    int bufferType      = 0;
+    void* cpuAddress    = nullptr;
+    uint64_t gpuAddress = 0;
+    size_t offset       = 0;
+    size_t size         = 0;
+    uint32_t handle     = 0;
 };
 
 
@@ -55,9 +56,9 @@ class Context : public pContext {
     void setNonPersistentContext();
     BufferObject* allocateBufferObject(size_t size, uint32_t flags);
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
+    int createSurfaceStateHeap();
     int createIndirectObjectHeap();
     int createDynamicStateHeap();
-    int createSurfaceStateHeap();
     int allocateISAMemory();
     int createScratchAllocation();
     int createPreemptionAllocation();
@@ -66,7 +67,7 @@ class Context : public pContext {
     Device* device;
     Kernel* kernel = nullptr;
   private:
-    void generateLocalIDsSimd(void* b, uint16_t* localWorkgroupSize, uint16_t threadsPerWG, uint8_t* dimensionsOrder, uint32_t simdSize);
+    void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize);
 
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;

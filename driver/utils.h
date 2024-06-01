@@ -5,6 +5,7 @@
 #define ADDRESS_WIDTH 48
 
 typedef long long __m256i __attribute__((__vector_size__(32), __aligned__(32)));
+typedef long long __v4di __attribute__((__vector_size__ (32)));
 typedef short __v16hi __attribute__((__vector_size__ (32)));
 typedef char __v32qi __attribute__((__vector_size__ (32)));
 
@@ -25,6 +26,16 @@ inline __m256i _mm256_blendv_epi8(__m256i __v1, __m256i __v2, __m256i __v3) {
 
 inline void __mm256_store_si256(__m256i* __v1, __m256i __v2) {
     *__v1 = __v2;
+}
+
+inline __m256i _mm256_load_si256(const void* _p) {
+    const __m256i* p = reinterpret_cast<const __m256i*>(_p);
+    return *p;
+}
+
+inline bool checkIfZero(__m256i __v1) {
+    __m256i zero = _mm256_set1_epi16(0);
+    return __builtin_ia32_ptestz256((__v4di)__v1, (__v4di)zero) ? false : true;
 }
 
 inline size_t alignUp(size_t before, size_t alignment) {

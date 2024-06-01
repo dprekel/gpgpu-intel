@@ -4,7 +4,6 @@
 #include <sys/ioctl.h>
 
 #include <memory>
-#include <type_traits>
 #include <vector>
 
 #include "commands_gen9.h"
@@ -68,7 +67,7 @@ BufferObject* Context::allocateBufferObject(size_t size, uint32_t flags) {
     }
     // add aligned free here
     auto bo = std::make_unique<BufferObject>();
-    bo->alloc = reinterpret_cast<void*>(pAlignedMemory);
+    bo->cpuAddress = reinterpret_cast<void*>(pAlignedMemory);
     bo->size = size;
     bo->handle = userptr.handle;
     auto BO = bo.get();
@@ -83,7 +82,7 @@ int Context::emitPinningRequest(BufferObject* bo) {
     execObject.relocations_count = 0;
     execObject.relocs_ptr = 0ul;
     execObject.alignment = 0;
-    execObject.offset = bo->alloc;
+    execObject.offset = bo->cpuAddress;
     execObject.flags = EXEC_OBJECT_PINNED | EXEC_OBJECT_SUPPORTS_48B_ADDRESS;
     execObject.rsvd1 = this->ctxId;
     execObject.rsvd2 = 0;
@@ -194,7 +193,7 @@ int Context::allocateISAMemory() {
     printf("Kernel Heap Size: %lu\n", kernelISASize);
     printf("Kernel ISA Pointer: %p\n", kernelData->isa);
 
-    memcpy(kernelISA->alloc, kernelData->isa, kernelISASize);
+    memcpy(kernelISA->cpuAddress, kernelData->isa, kernelISASize);
     return SUCCESS;
 }
 
@@ -284,27 +283,31 @@ int Context::createIndirectObjectHeap() {
     
     //TODO: Terminate program if we have implicitArgs
     uint32_t crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
-    memset(ioh->alloc, 0x00, crossThreadDataSize);
+    memset(ioh->cpuAddress, 0x00, crossThreadDataSize);
 
-    /*
+    size_t localWorkSize = 16; //TODO: Calculate from arguments
     uint32_t simdSize = kernelData->executionEnvironment->LargestCompiledSIMDSize;
     uint64_t threadsPerWG = simdSize + localWorkSize - 1;
     threadsPerWG >>= simdSize == 32 ? 5 : simdSize == 16 ? 4 : simdSize == 8 ? 3 : 0;
-    generateLocalIDsSimd(ioh->alloc, localWorkgroupSize, threadsPerWG, dimensionsOrder, simdSize);
-    */
+    generateLocalIDsSimd(ioh->cpuAddress, threadsPerWG, simdSize);
 
 
     return SUCCESS;
 }
 
+alignas(32)
+const uint16_t initialLocalID[] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
 
-void Context::generateLocalIDsSimd(void* ioh, uint16_t* localWorkgroupSize, uint16_t threadsPerWorkGroup, uint8_t* dimensionsOrder, uint32_t simdSize) {
-    /*
-    const int passes = simdSize / 8;
+void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize) {
+    const uint32_t numChannels = 8u;
+    const int passes = simdSize / numChannels;
     int pass = 0;
+    uint32_t dimNum[3] = {0, 1, 2};
 
-    __m256i vLwsX = _mm256_set1_epi16(localWorkgroupSize[0]);   // localWorkgroupSize[xDimNum] == 16
-    __m256i vLwsY = _mm256_set1_epi16(localWorkgroupSize[1]);    // localWorkgroupSize[yDimNum] == 1
+    __m256i vLwsX = _mm256_set1_epi16(workItemsPerWorkGroup[dimNum[0]]);   // localWorkgroupSize[xDimNum] == 16
+    __m256i vLwsY = _mm256_set1_epi16(workItemsPerWorkGroup[dimNum[1]]);    // localWorkgroupSize[yDimNum] == 1
 
     __m256i zero = _mm256_set1_epi16(0u);
     __m256i one = _mm256_set1_epi16(1u);
@@ -334,12 +337,12 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t* localWorkgroupSize, uint
         vSimdY -= deltaY2;
         __m256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
         vSimdZ += deltaZ;
-    } while (xWrap || yWrap);
+    } while (checkIfZero(xWrap) || checkIfZero(yWrap));
     
     do {
         void* buffer = ioh;
 
-        __m256i x = ;
+        __m256i x = _mm256_load_si256(&initialLocalID[pass * numChannels]);
         __m256i y = zero;
         __m256i z = zero;
 
@@ -354,31 +357,30 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t* localWorkgroupSize, uint
             y -= deltaY2;
             __m256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
             z += deltaZ;
-        } while (xWrap);
+        } while (checkIfZero(xWrap));
 
         for (size_t i = 0; i < threadsPerWorkGroup; ++i) {
-            __mm256_store_si256(reinterpret_cast<__mm256i*>(ptrOffset(buffer, xDimNum * threadSkipSize)), x);
-            __mm256_store_si256(reinterpret_cast<__mm256i*>(ptrOffset(buffer, yDimNum * threadSkipSize)), y);
-            __mm256_store_si256(reinterpret_cast<__mm256i*>(ptrOffset(buffer, zDimNum * threadSkipSize)), z);
+            __mm256_store_si256(reinterpret_cast<__m256i*>(ptrOffset(buffer, dimNum[0] * threadSkipSize)), x);
+            __mm256_store_si256(reinterpret_cast<__m256i*>(ptrOffset(buffer, dimNum[1] * threadSkipSize)), y);
+            __mm256_store_si256(reinterpret_cast<__m256i*>(ptrOffset(buffer, dimNum[2] * threadSkipSize)), z);
 
             x += vSimdX;
             y += vSimdY;
             z += vSimdZ;
             xWrap = x >= vLwsX;
-            __mm256i deltaX = _mm256_blendv_epi8(vLwsX, zero, xWrap);
+            __m256i deltaX = _mm256_blendv_epi8(vLwsX, zero, xWrap);
             x -= deltaX;
-            __mm256i deltaY = _mm256_blendv_epi8(one, zero, xWrap);
+            __m256i deltaY = _mm256_blendv_epi8(one, zero, xWrap);
             y += deltaY;
             yWrap = y >= vLwsY;
-            __mm256i deltaY2 = _mm256_blendv_epi8(one, zero, yWrap);
+            __m256i deltaY2 = _mm256_blendv_epi8(one, zero, yWrap);
             y -= deltaY2;
-            __mm256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
+            __m256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
             z += deltaZ;
             buffer = ptrOffset(buffer, 3 * threadSkipSize);
         }
-        b = ptrOffset(b, 8 * sizeof(uint16_t));
+        ioh = ptrOffset(ioh, 8 * sizeof(uint16_t));
     } while (++pass < passes);
-    */
 }
 
 
@@ -436,7 +438,7 @@ int Context::createCommandBuffer() {
     cmd2->Bitfield.InterfaceDescriptorTotalLength = sizeof(INTERFACE_DESCRIPTOR_DATA);
 
     /*
-    auto pCmd1 = reinterpret_cast<MEDIA_STATE_FLUSH*>(commandBuffer->alloc);
+    auto pCmd1 = reinterpret_cast<MEDIA_STATE_FLUSH*>(commandBuffer->cpuAddress);
     *pCmd1 = MEDIA_STATE_FLUSH::init();
     pCmd1 = pCmd1 + sizeof(MEDIA_STATE_FLUSH);
     //printf("MEDIA_STATE_FLUSH: %lu\n", sizeof(MEDIA_STATE_FLUSH));

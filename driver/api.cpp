@@ -108,7 +108,7 @@ API_CALL void* CreateBuffer(pContext* cont,
     }
     dataBuffer->bufferType = BufferType::BUFFER_HOST_MEMORY;
     //context->emitPinningRequest(bo);
-    return dataBuffer->alloc;
+    return dataBuffer->cpuAddress;
 }
 
 
