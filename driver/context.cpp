@@ -277,7 +277,7 @@ int Context::createIndirectObjectHeap() {
     */
     size_t iohSize = 16 * PAGE_SIZE;
     BufferObject* ioh = allocateBufferObject(iohSize, 0);
-    if (ioh)
+    if (!ioh)
         return BUFFER_ALLOCATION_FAILED;
     ioh->bufferType = BufferType::INTERNAL_HEAP;
     
@@ -306,25 +306,22 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint
     int pass = 0;
     uint32_t dimNum[3] = {0, 1, 2};
 
-    __m256i vLwsX = _mm256_set1_epi16(workItemsPerWorkGroup[dimNum[0]]);   // localWorkgroupSize[xDimNum] == 16
-    __m256i vLwsY = _mm256_set1_epi16(workItemsPerWorkGroup[dimNum[1]]);    // localWorkgroupSize[yDimNum] == 1
+    __m256i vLwsX = _mm256_set1_epi16(workItemsPerWorkGroup[dimNum[0]]);
+    __m256i vLwsY = _mm256_set1_epi16(workItemsPerWorkGroup[dimNum[1]]);
 
     __m256i zero = _mm256_set1_epi16(0u);
     __m256i one = _mm256_set1_epi16(1u);
 
-    uint64_t threadSkipSize;
-    if (simdSize == 32) {
-        threadSkipSize = 32 * sizeof(uint16_t);
-    }
-    else {
-        threadSkipSize = 16 * sizeof(uint16_t);
-    }
+    const uint64_t threadSkipSize = ((simdSize == 32) ? 32 : 16) * sizeof(uint16_t);
+
     __m256i vSimdX = _mm256_set1_epi16(simdSize);
     __m256i vSimdY = zero;
     __m256i vSimdZ = zero;
 
     __m256i xWrap;
     __m256i yWrap;
+
+    bool isZero1, isZero2;
 
     do {
         xWrap = vSimdX >= vLwsX;
@@ -337,7 +334,9 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint
         vSimdY -= deltaY2;
         __m256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
         vSimdZ += deltaZ;
-    } while (checkIfZero(xWrap) || checkIfZero(yWrap));
+        isZero1 = __builtin_ia32_ptestz256((__v4di)xWrap, (__v4di)xWrap);
+        isZero2 = __builtin_ia32_ptestz256((__v4di)yWrap, (__v4di)yWrap);
+    } while (!isZero1 || !isZero2);
     
     do {
         void* buffer = ioh;
@@ -357,7 +356,8 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint
             y -= deltaY2;
             __m256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
             z += deltaZ;
-        } while (checkIfZero(xWrap));
+            isZero1 = __builtin_ia32_ptestz256((__v4di)xWrap, (__v4di)xWrap);
+        } while (!isZero1);
 
         for (size_t i = 0; i < threadsPerWorkGroup; ++i) {
             __mm256_store_si256(reinterpret_cast<__m256i*>(ptrOffset(buffer, dimNum[0] * threadSkipSize)), x);

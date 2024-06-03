@@ -21,7 +21,7 @@ inline __m256i _mm256_set1_epi16(short _v) {
 }
 
 inline __m256i _mm256_blendv_epi8(__m256i __v1, __m256i __v2, __m256i __v3) {
-    return (__m256i)__builtin_ia32_pblendvb256((__v32qi)__v1, (__v32qi)__v2, (__v32qi)__v3);
+    return (__m256i)__builtin_ia32_pblendvb256((__v32qi)__v2, (__v32qi)__v1, (__v32qi)__v3);
 }
 
 inline void __mm256_store_si256(__m256i* __v1, __m256i __v2) {
@@ -33,9 +33,14 @@ inline __m256i _mm256_load_si256(const void* _p) {
     return *p;
 }
 
-inline bool checkIfZero(__m256i __v1) {
-    __m256i zero = _mm256_set1_epi16(0);
-    return __builtin_ia32_ptestz256((__v4di)__v1, (__v4di)zero) ? false : true;
+inline bool isZero(__m256i __v1) {
+    bool x = __builtin_ia32_ptestz256((__v4di)__v1, (__v4di)__v1);
+    if (x) { // __v1 is zero
+        return false;
+    } else {
+        return true;
+    }
+    //return __builtin_ia32_ptestz256((__v4di)__v1, (__v4di)mask) ? false : true;
 }
 
 inline size_t alignUp(size_t before, size_t alignment) {
