@@ -424,6 +424,43 @@ struct RENDER_SURFACE_STATE {
     }
 };
 
+struct MI_BATCH_BUFFER_START {
+    struct TheStructure {
+        uint32_t DwordLength : BITFIELD_RANGE(0, 7);
+        uint32_t AddressSpaceIndicator : BITFIELD_RANGE(8, 8);
+        uint32_t Reserved_9 : BITFIELD_RANGE(9, 9);
+        uint32_t ResourceStreamerEnable : BITFIELD_RANGE(10, 10);
+        uint32_t Reserved_11 : BITFIELD_RANGE(11, 14);
+        uint32_t PredicationEnable : BITFIELD_RANGE(15, 15);
+        uint32_t AddOffsetEnable : BITFIELD_RANGE(16, 16);
+        uint32_t Reserved_17 : BITFIELD_RANGE(17, 21);
+        uint32_t SecondLevelBatchBuffer : BITFIELD_RANGE(22, 22);
+        uint32_t MiCommandOpcode : BITFIELD_RANGE(23, 28);
+        uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        uint64_t Reserved_32 : BITFIELD_RANGE(0, 1);
+        uint64_t BatchBufferStartAddress_Graphicsaddress47_2 : BITFIELD_RANGE(2, 47);
+        uint64_t BatchBufferStartAddress_Reserved : BITFIELD_RANGE(48, 63);
+    } Bitfield;
+    enum {
+        DWORD_LENGTH_EXCLUDES_DWORD_0_1 = 0x1,
+        ADDRESS_SPACE_INDICATOR_GGTT = 0x0,
+        ADDRESS_SPACE_INDICATOR_PPGTT = 0x1,
+        SECOND_LEVEL_BATCH_BUFFER_FIRST_LEVEL_BATCH = 0x0,
+        MI_COMMAND_OPCODE_MI_BATCH_BUFFER_START = 0x31,
+        COMMAND_TYPE_MI_COMMAND = 0x0
+    };
+    static MI_BATCH_BUFFER_START init() {
+        MI_BATCH_BUFFER_START state;
+        memset(&state, 0, sizeof(state));
+        state.Bitfield.DwordLength = DWORD_LENGTH_EXCLUDES_DWORD_0_1;
+        state.Bitfield.AddressSpaceIndicator = ADDRESS_SPACE_INDICATOR_GGTT;
+        state.Bitfield.SecondLevelBatchBuffer = SECOND_LEVEL_BATCH_BUFFER_FIRST_LEVEL_BATCH;
+        state.Bitfield.MiCommandOpcode = MI_COMMAND_OPCODE_MI_BATCH_BUFFER_START;
+        state.Bitfield.CommandType = COMMAND_TYPE_MI_COMMAND;
+        return state;
+    }
+};
+
 #pragma pack()
 
 

@@ -13,12 +13,15 @@
 
 class Device;
 class Context;
+class Kernel;
 struct DeviceDescriptor;
 
 enum PATCH_TOKEN {
     PATCH_TOKEN_SAMPLER_STATE_ARRAY = 5,
     PATCH_TOKEN_BINDING_TABLE_STATE = 8,
     PATCH_TOKEN_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT = 11,
+    PATCH_TOKEN_IMAGE_MEMORY_OBJECT_KERNEL_ARGUMENT = 12,
+    PATCH_TOKEN_SAMPLER_KERNEL_ARGUMENT = 16,
     PATCH_TOKEN_DATA_PARAMETER_BUFFER = 17,
     PATCH_TOKEN_MEDIA_VFE_STATE = 18,
     PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD = 19,
@@ -28,12 +31,33 @@ enum PATCH_TOKEN {
     PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO = 27,
     PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT = 30,
     PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT = 31,
+    PATCH_TOKEN_STATELESS_DEVICE_QUEUE_KERNEL_ARGUMENT = 46,
     PATCH_TOKEN_MEDIA_VFE_STATE_SLOT1 = 55
 };
 
 enum DATA_PARAMETER {
     DATA_PARAMETER_KERNEL_ARGUMENT = 1,
-    DATA_PARAMETER_BUFFER_STATEFUL = 43
+    DATA_PARAMETER_IMAGE_WIDTH = 9,
+    DATA_PARAMETER_IMAGE_HEIGHT = 10,
+    DATA_PARAMETER_IMAGE_DEPTH = 11,
+    DATA_PARAMETER_IMAGE_CHANNEL_DATA_TYPE = 12,
+    DATA_PARAMETER_IMAGE_CHANNEL_ORDER = 13,
+    DATA_PARAMETER_SAMPLER_ADDRESS_MODE = 14,
+    DATA_PARAMETER_SAMPLER_NORMALIZED_COORDS = 15,
+    DATA_PARAMETER_IMAGE_ARRAY_SIZE = 18,
+    DATA_PARAMETER_IMAGE_NUM_SAMPLES = 20,
+    DATA_PARAMETER_SAMPLER_COORDINATE_SNAP_WA_REQUIRED = 21,
+    DATA_PARAMETER_VME_MB_BLOCK_TYPE = 23,
+    DATA_PARAMETER_VME_SUBPIXEL_MODE = 24,
+    DATA_PARAMETER_VME_SAD_ADJUST_MODE = 25,
+    DATA_PARAMETER_VME_SEARCH_PATH_TYPE = 26,
+    DATA_PARAMETER_IMAGE_NUM_MIP_LEVELS = 27,
+    DATA_PARAMETER_OBJECT_ID = 35,
+    DATA_PARAMETER_BUFFER_STATEFUL = 43,
+    DATA_PARAMETER_FLAT_IMAGE_BASEOFFSET = 44,
+    DATA_PARAMETER_FLAT_IMAGE_WIDTH = 45,
+    DATA_PARAMETER_FLAT_IMAGE_HEIGHT = 46,
+    DATA_PARAMETER_FLAT_IMAGE_PITCH = 47
 };
 
 #pragma pack( push, 1 )
@@ -185,11 +209,21 @@ struct KernelFromPatchtokens {
     const PatchKernelAttributesInfo* kernelAttributesInfo = nullptr;
 };
 
-struct ArgDescPointer {
+struct ArgDescriptor {
     const PatchItemHeader* header = nullptr;
-    int argToken                  = 0;
-    uint16_t bindful              = 0;
-    uint16_t bindless             = 0;
+    int argToken = 0;
+    int (Kernel::*KernelArgHandler)(uint32_t argNum, void* argVal);
+};
+
+struct ArgDescPointer : ArgDescriptor {
+    uint16_t bindful = 0u;
+    uint16_t bindless = 0u;
+};
+
+struct ArgDescValue : ArgDescriptor {
+    uint16_t crossThreadDataOffset = 0u;
+    uint16_t size = 0u;
+    uint16_t sourceOffset = 0u;
 };
 
 struct DataStruct {
@@ -212,7 +246,6 @@ class Kernel : public pKernel {
 
     Context* context;
   private:
-    typedef int (Kernel::*KernelArgHandler)(uint32_t argNum, void* argVal);
     int loadCompiler(const char* libName, CIFMain** cifMain);
     ICIF* CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion);
     IgcBuffer* CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t size);
@@ -248,8 +281,8 @@ class Kernel : public pKernel {
     const uint8_t* patchListBlob = nullptr;
     const uint8_t* kernelInfoBlob = nullptr;
     KernelFromPatchtokens kernelData;
-    std::vector<KernelArgHandler> argHandlers;
-    std::vector<ArgDescPointer> kernelArgs;
+    std::vector<std::unique_ptr<ArgDescriptor>> argDescriptor;
+    bool unsupportedKernelArgs = false;
     std::unique_ptr<char[]> sshLocal;
 };
 

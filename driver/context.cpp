@@ -437,38 +437,27 @@ int Context::createCommandBuffer() {
     //cmd2->Bitfield.InterfaceDescriptorDataStartAddress = ;
     cmd2->Bitfield.InterfaceDescriptorTotalLength = sizeof(INTERFACE_DESCRIPTOR_DATA);
 
+    // we need a variable that stores the preemption mode we are using
+    // we don't need to dispatch workarounds on Skylake, but maybe on other architectures
+    auto cmd3 = commandBuffer->ptrOffset<GPGPU_WALKER*>(sizeof(GPGPU_WALKER));
+    *cmd3 = GPGPU_WALKER::init();
     /*
-    auto pCmd1 = reinterpret_cast<MEDIA_STATE_FLUSH*>(commandBuffer->cpuAddress);
-    *pCmd1 = MEDIA_STATE_FLUSH::init();
-    pCmd1 = pCmd1 + sizeof(MEDIA_STATE_FLUSH);
-    //printf("MEDIA_STATE_FLUSH: %lu\n", sizeof(MEDIA_STATE_FLUSH));
-
-    auto pCmd2 = reinterpret_cast<MEDIA_INTERFACE_DESCRIPTOR_LOAD*>(pCmd1);
-    *pCmd2 = MEDIA_INTERFACE_DESCRIPTOR_LOAD::init();
-    // *pCmd.Bitfield.InterfaceDescriptorDataStartAddress = ;
-    pCmd2->Bitfield.InterfaceDescriptorTotalLength = sizeof(INTERFACE_DESCRIPTOR_DATA);
-    pCmd2 = pCmd2 + sizeof(MEDIA_INTERFACE_DESCRIPTOR_LOAD);
+    cmd3->Bitfield.IndirectDataStartAddress = static_cast<uint32_t>(offsetCrossThreadData);
+    cmd3->Bitfield.InterfaceDescriptorOffset = interfaceDescriptorIndex;
+    cmd3->Bitfield.IndirectDataLength = indirectDataLength;
+    cmd3->Bitfield.ThreadWidthCounterMaximum = static_cast<uint32_t>(threadsPerWorkGroup);
+    cmd3->Bitfield.ThreadGroupIdXDimension = static_cast<uint32_t>(numWorkGroups[0]);
+    cmd3->Bitfield.ThreadGroupIdYDimension = static_cast<uint32_t>(numWorkGroups[1]);
+    cmd3->Bitfield.ThreadGroupIdZDimension = static_cast<uint32_t>(numWorkGroups[2]);
+    cmd3->Bitfield.RightExecutionMask = static_cast<uint32_t>(executionMask);
+    cmd3->Bitfield.BottomExecutionMask = static_cast<uint32_t>(0xffffffff);
+    cmd3->Bitfield.SimdSize = simdSize;
+    cmd3->Bitfield.ThreadGroupIdStartingX = static_cast<uint32_t>(startWorkGroups[0]);
+    cmd3->Bitfield.ThreadGroupIdStartingY = static_cast<uint32_t>(startWorkGroups[1]);
+    cmd3->Bitfield.ThreadGroupIdStartingResumeZ = static_cast<uint32_t>(startWorkGroups[2]);
     */
 
     /*
-    // we need a variable that stores the preemption mode we are using
-    // we don't need to dispatch workarounds on Skylake, but maybe on other architectures
-    auto pCmd3 = reinterpret_cast<GPGPU_WALKER*>(pCmd2);
-    *pCmd3 = GPGPU_WALKER::init();
-    pCmd3->Bitfield.InterfaceDescriptorOffset = interfaceDescriptorIndex;
-    pCmd3->Bitfield.IndirectDataLength = indirectDataLength;
-    pCmd3->Bitfield.ThreadWidthCounterMaximum = static_cast<uint32_t>(threadsPerWorkGroup);
-    pCmd3->Bitfield.ThreadGroupIdXDimension = static_cast<uint32_t>(numWorkGroups[0]);
-    pCmd3->Bitfield.ThreadGroupIdYDimension = static_cast<uint32_t>(numWorkGroups[1]);
-    pCmd3->Bitfield.ThreadGroupIdZDimension = static_cast<uint32_t>(numWorkGroups[2]);
-    pCmd3->Bitfield.RightExecutionMask = static_cast<uint32_t>(executionMask);
-    pCmd3->Bitfield.BottomExecutionMask = static_cast<uint32_t>(0xffffffff);
-    pCmd3->Bitfield.SimdSize = simdSize;
-    pCmd3->Bitfield.ThreadGroupIdStartingX = static_cast<uint32_t>(startWorkGroups[0]);
-    pCmd3->Bitfield.ThreadGroupIdStartingY = static_cast<uint32_t>(startWorkGroups[1]);
-    pCmd3->Bitfield.ThreadGroupIdStartingResumeZ = static_cast<uint32_t>(startWorkGroups[2]);
-    pCmd3 = pCmd3 + sizeof(GPGPU_WALKER);
-
     auto pCmd4 = reinterpret_cast<MEDIA_STATE_FLUSH*>(pCmd3);
     *pCmd4 = MEDIA_STATE_FLUSH::init();
     pCmd4->Bitfield.InterfaceDescriptorOffset = interfaceDescriptorIndex;
