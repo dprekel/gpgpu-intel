@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <time.h>
 #include <CL/cl.h>
-#include <gpgpu.h>
 
 #define TILE_SIZE_M     1
 #define TILE_GROUP_M    16
@@ -119,6 +118,13 @@ int main() {
     cl_kernel kernel = clCreateKernel(program, kernel_name, &err);
     printf("err: %d\n", err);
 
+    printf("Begin test allocation\n");
+    float* mem1 = (float*)alignedMalloc(1000);
+    float* mem2 = (float*)alignedMalloc(4100);
+    cl_mem buffer1 = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_USE_HOST_PTR, 1000, mem1, &err);
+    cl_mem buffer2 = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_USE_HOST_PTR, 4100, mem2, &err);
+    printf("End test allocation\n");
+
     // Allocating memory for matrices
     size_t size = 3968;
     size_t matrix_memory_size = size*size*sizeof(float);
@@ -150,6 +156,7 @@ int main() {
     err = clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&bufferC);
     err = clSetKernelArg(kernel, 5, sizeof(cl_int), (void*)&ldabc);
     err = clSetKernelArg(kernel, 6, sizeof(cl_int), (void*)&ldabc);
+    printf("sizeof cl_mem: %lu\n", sizeof(cl_mem));
     printf("err: %d\n", err);
 
     // number of work items per work group dimension
@@ -179,6 +186,10 @@ int main() {
     clReleaseMemObject(bufferA);
     clReleaseMemObject(bufferB);
     clReleaseMemObject(bufferC);
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+    clReleaseCommandQueue(queue);
+    clReleaseContext(context);
     return 0;
 }
 

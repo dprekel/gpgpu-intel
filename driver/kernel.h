@@ -212,7 +212,7 @@ struct KernelFromPatchtokens {
 struct ArgDescriptor {
     const PatchItemHeader* header = nullptr;
     int argToken = 0;
-    int (Kernel::*KernelArgHandler)(uint32_t argNum, void* argVal);
+    int (Kernel::*KernelArgHandler)(uint32_t argNum, size_t argSize, void* argVal);
 };
 
 struct ArgDescPointer : ArgDescriptor {
@@ -239,7 +239,7 @@ class Kernel : public pKernel {
     int loadProgramSource();
     int initialize();
     int build(uint16_t chipset_id);
-    int setArgument(uint32_t argIndex, void* argValue);
+    int setArgument(uint32_t argIndex, size_t argSize, void* argValue);
     int disassembleBinary();
     int extractMetadata();
     int createSipKernel();
@@ -257,8 +257,8 @@ class Kernel : public pKernel {
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
     void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset);
-    int setArgImmediate(uint32_t argIndex, void* argValue);
-    int setArgBuffer(uint32_t argIndex, void* argValue);
+    int setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue);
+    int setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue);
     void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
 
     std::unique_ptr<DeviceDescriptor> descriptor;
@@ -284,6 +284,7 @@ class Kernel : public pKernel {
     std::vector<std::unique_ptr<ArgDescriptor>> argDescriptor;
     bool unsupportedKernelArgs = false;
     std::unique_ptr<char[]> sshLocal;
+    std::unique_ptr<char[]> crossThreadData;
 };
 
 

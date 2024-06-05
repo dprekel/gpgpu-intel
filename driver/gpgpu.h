@@ -24,7 +24,7 @@
 #define LOAD_SOURCE_FAILED                  -16
 #define NO_DEVICES_FOUND                    -17
 #define COMPILER_LOAD_FAILED                -18
-#define WRONG_KERNEL_FORMAT                 -19
+#define INVALID_KERNEL_FORMAT               -19
 #define INVALID_KERNEL_ARG_NUMBER           -20
 #define INVALID_KERNEL                      -21
 
@@ -58,6 +58,7 @@ extern pKernel* BuildKernel(pContext* context,
                         int* err);
 extern int SetKernelArg(pKernel* kern,
                         uint32_t arg_index,
+                        size_t arg_size,
                         void* arg_value);
 extern int EnqueueNDRangeKernel(pContext* context,
                         pKernel* kernel,

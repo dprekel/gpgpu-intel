@@ -33,12 +33,13 @@ int main() {
     float* matrix_C = static_cast<float*>(CreateBuffer(context, matrix_memory_size, &err));
     printf("Buffer ptr: %p\n", matrix_A);
 
-    err = SetKernelArg(kernel, 0, (void*)matrix_A);
-    err = SetKernelArg(kernel, 1, (void*)&matrix_memory_size);
-    err = SetKernelArg(kernel, 2, (void*)matrix_B);
-    err = SetKernelArg(kernel, 3, (void*)&matrix_memory_size);
-    err = SetKernelArg(kernel, 4, (void*)matrix_C);
-    err = SetKernelArg(kernel, 5, (void*)&matrix_memory_size);
+    err = SetKernelArg(kernel, 0, sizeof(matrix_A), static_cast<void*>(matrix_A));
+    err = SetKernelArg(kernel, 1, sizeof(int),      static_cast<void*>(&size));
+    err = SetKernelArg(kernel, 2, sizeof(matrix_B), static_cast<void*>(matrix_B));
+    err = SetKernelArg(kernel, 3, sizeof(int),      static_cast<void*>(&size));
+    err = SetKernelArg(kernel, 4, sizeof(matrix_C), static_cast<void*>(matrix_C));
+    err = SetKernelArg(kernel, 5, sizeof(int),      static_cast<void*>(&size));
+    err = SetKernelArg(kernel, 6, sizeof(int),      static_cast<void*>(&size));
     // number of work items per work group dimension
     const size_t local[2] = {TILE_GROUP_M, TILE_GROUP_N};
     // total number of work items in each dimension

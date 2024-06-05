@@ -114,9 +114,10 @@ API_CALL void* CreateBuffer(pContext* cont,
 
 API_CALL int SetKernelArg(pKernel* kern,
                         uint32_t arg_index,
+                        size_t arg_size,
                         void* arg_value) {
     Kernel* kernel = static_cast<Kernel*>(kern);
-    int ret = kernel->setArgument(arg_index, arg_value);
+    int ret = kernel->setArgument(arg_index, arg_size, arg_value);
     if (ret)
         return ret;
     return SUCCESS;

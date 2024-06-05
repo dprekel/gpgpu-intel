@@ -321,6 +321,7 @@ int Kernel::build(uint16_t chipset_id) {
     return SUCCESS;
 }
 
+
 void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData) {
     switch (token->Token) {
         case PATCH_TOKEN_SAMPLER_STATE_ARRAY:
@@ -378,7 +379,6 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
             break;
     }
 }
-
 
 void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* token) {
     uint32_t argNum = token->ArgumentNumber;
@@ -441,38 +441,39 @@ void Kernel::populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset)
     }
 }
 
-int Kernel::setArgument(uint32_t argIndex, void* argValue) {
-    if (argIndex > argDescriptor.size()) { // is this correct?
+int Kernel::setArgument(uint32_t argIndex, size_t argSize, void* argValue) {
+    if (argIndex >= argDescriptor.size()) {
         return INVALID_KERNEL_ARG_NUMBER;
     }
     ArgDescriptor* desc = argDescriptor[argIndex].get();
-    int ret = (this->*desc->KernelArgHandler)(argIndex, argValue);
+    int ret = (this->*desc->KernelArgHandler)(argIndex, argSize, argValue);
     return ret;
 }
 
-int Kernel::setArgImmediate(uint32_t argIndex, void* argValue) {
-    /*
-    ArgDescPointer& descriptor = kernelArgs[argIndex];
-    for (auto& element : descriptor.elements) {
-        auto pDest = ptrOffset(crossThreadData, element.offset);
-        auto pSrc = ptrOffset(argValue, element.sourceOffset);
-        if (element.sourceOffset < argSize) {
-            size_t maxBytesToCopy = argSize - element.sourceOffset;
-            size_t bytesToCopy = std::min(static_cast<size_t>(element.size), maxBytesToCopy);
-            memcpy(pDest, pSrc, bytesToCopy);
+int Kernel::setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue) {
+    if (!crossThreadData.get()) {
+        uint32_t crossThreadDataSize = kernelData.dataParameterStream->DataParameterStreamSize;
+        if (crossThreadDataSize) {
+            crossThreadData = std::make_unique<char[]>(crossThreadDataSize);
+            memset(crossThreadData.get(), 0x00, crossThreadDataSize);
         }
     }
-    */
-    //TODO: Finish this
+    auto argDescValue = static_cast<ArgDescValue*>(argDescriptor[argIndex].get());
+    auto pDest = ptrOffset(crossThreadData.get(), argDescValue->crossThreadDataOffset);
+    auto pSrc = ptrOffset(argValue, argDescValue->sourceOffset);
+    if (argDescValue->sourceOffset < argSize) {
+        size_t maxBytesToCopy = argSize - argDescValue->sourceOffset;
+        size_t bytesToCopy = std::min(static_cast<size_t>(argDescValue->size), maxBytesToCopy);
+        memcpy(pDest, pSrc, bytesToCopy);
+    }
+    //TODO: Why do we have a for loop here?
+    //TODO: Initialize crossThreadData once; memcpy immediate arguments to it
     return SUCCESS;
 }
 
-//TODO: Rename ArgDescPointer
 //TODO: Add cases for images, command queues, pipes, ...
-//TODO: CreateBuffer should return a buffer object, not void pointer, so it can be checked
-//      that we have the correct kernel arguments; also maybe add a magic number
 //TODO: check CreateBuffer for different buffer sizes
-int Kernel::setArgBuffer(uint32_t argIndex, void* argValue) {
+int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     auto descriptor = static_cast<ArgDescPointer*>(argDescriptor[argIndex].get());
     switch (descriptor->argToken) {
         case PATCH_TOKEN_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT: {
@@ -490,7 +491,7 @@ int Kernel::setArgBuffer(uint32_t argIndex, void* argValue) {
         default:
             break;
     }
-    //TODO: Return error if we have bindless mode
+    //TODO: Check if GROMACS has bindless mode somewhere
     if (!sshLocal.get()) {
         uint32_t sshSize = kernelData.header->SurfaceStateHeapSize;
         if (sshSize) {
@@ -498,6 +499,8 @@ int Kernel::setArgBuffer(uint32_t argIndex, void* argValue) {
             memcpy(sshLocal.get(), kernelData.surfaceState, sshSize);
         }
     }
+    //TODO: Save buffer pointers to crossThreadData, see line 1407 in Kernel::setArgBuffer
+    //TODO: Save local work sizes to crossThreadData, see line 214-228, hardware_interface_base.inl
     auto surfaceState = reinterpret_cast<RENDER_SURFACE_STATE*>(ptrOffset(sshLocal.get(), descriptor->bindful));
     *surfaceState = RENDER_SURFACE_STATE::init();
     //TODO: Length fields
@@ -524,7 +527,7 @@ int Kernel::extractMetadata() {
     const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary.data);
     if (binHeader->Magic != 0x494E5443) {
         printf("Binary header is wrong!\n");
-        return WRONG_KERNEL_FORMAT;
+        return INVALID_KERNEL_FORMAT;
     }
     header = reinterpret_cast<const uint8_t*>(binHeader);
     patchListBlob = header + sizeof(ProgramBinaryHeader);
@@ -549,6 +552,10 @@ int Kernel::extractMetadata() {
     if (kernelData.bindingTableState == nullptr) {
         return -1;
     }
+    //TODO: Check if all necessary patchtokens are not nullptr
+    //TODO: return error if unsupportedKernelArgs is true
+    //TODO: return error if we have implicit args
+    //TODO: Check if GROMACS uses implicit args
     printf("bindingTableState->Count = %u\n", kernelData.bindingTableState->Count);
     return SUCCESS;
 }
