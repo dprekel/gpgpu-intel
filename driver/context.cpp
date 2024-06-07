@@ -42,24 +42,25 @@ KernelFromPatchtokens* Context::getKernelData() {
     return this->kernelData;
 }
 
-BufferObject* Context::allocateBufferObject(size_t size, uint32_t flags) {
-    size_t alignment = PAGE_SIZE;    // aligned to page size
+BufferObject* Context::allocateBufferObject(size_t size) {
+    size_t alignment = PAGE_SIZE;
+    //TODO: What is difference between this alignment and alignment in alignUp() function?
     size_t sizeToAlloc = size + alignment;
     void* pOriginalMemory = malloc(sizeToAlloc);
 
+    //TODO: Reformat the following if-else statement
     uintptr_t pAlignedMemory = reinterpret_cast<uintptr_t>(pOriginalMemory);
     if (pAlignedMemory) {
         pAlignedMemory += alignment;
         pAlignedMemory -= pAlignedMemory % alignment;
         reinterpret_cast<void**>(pAlignedMemory)[-1] = pOriginalMemory;
-    }
-    else {
+    } else {
         return nullptr;
     }
     drm_i915_gem_userptr userptr = {0};
     userptr.user_ptr = pAlignedMemory;
     userptr.user_size = size;
-    userptr.flags = flags;
+    userptr.flags = 0;
 
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr);
     if (ret) {
@@ -68,9 +69,11 @@ BufferObject* Context::allocateBufferObject(size_t size, uint32_t flags) {
     // add aligned free here
     auto bo = std::make_unique<BufferObject>();
     bo->cpuAddress = reinterpret_cast<void*>(pAlignedMemory);
+    //TODO: Should we calculate GPU address already here?
     bo->size = size;
     bo->handle = userptr.handle;
     auto BO = bo.get();
+    //TODO: There is a problem with std::move here
     execBuffer.push_back(std::move(bo));
     return BO;
 }
@@ -185,7 +188,7 @@ int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_siz
 int Context::allocateISAMemory() {
     size_t kernelISASize = kernelData->header->KernelHeapSize;
     size_t alignedAllocationSize = alignUp(kernelISASize, PAGE_SIZE);
-    BufferObject* kernelISA = allocateBufferObject(alignedAllocationSize, 0);
+    BufferObject* kernelISA = allocateBufferObject(alignedAllocationSize);
     if (!kernelISA) {
         return KERNEL_ALLOCATION_FAILED;
     }
@@ -214,7 +217,7 @@ int Context::createScratchAllocation() {
     size_t requiredScratchSizeInBytes = requiredScratchSize * computeUnitsUsedForScratch;
     if (requiredScratchSize) {
         size_t alignedAllocationSize = alignUp(requiredScratchSizeInBytes, PAGE_SIZE);
-        BufferObject* scratch = allocateBufferObject(alignedAllocationSize, 0);
+        BufferObject* scratch = allocateBufferObject(alignedAllocationSize);
         if (!scratch)
             return BUFFER_ALLOCATION_FAILED;
         scratch->bufferType = BufferType::SCRATCH_SURFACE;
@@ -245,7 +248,7 @@ int Context::createSurfaceStateHeap() {
     //TODO: Create allocation here
     size_t sshSize = 0;
     size_t alignedAllocationSize = alignUp(sshSize, PAGE_SIZE);
-    BufferObject* ssh = allocateBufferObject(alignedAllocationSize, 0);
+    BufferObject* ssh = allocateBufferObject(alignedAllocationSize);
     if (!ssh)
         return BUFFER_ALLOCATION_FAILED;
     ssh->bufferType = BufferType::LINEAR_STREAM;
@@ -276,7 +279,7 @@ int Context::createIndirectObjectHeap() {
     uint64_t size = crossThreadDataSize + threadsPerWG * perThreadSizeLocalIDs;
     */
     size_t iohSize = 16 * PAGE_SIZE;
-    BufferObject* ioh = allocateBufferObject(iohSize, 0);
+    BufferObject* ioh = allocateBufferObject(iohSize);
     if (!ioh)
         return BUFFER_ALLOCATION_FAILED;
     ioh->bufferType = BufferType::INTERNAL_HEAP;
@@ -387,7 +390,7 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint
 
 int Context::createDynamicStateHeap() {
     size_t dshSize = 16 * PAGE_SIZE;
-    BufferObject* dsh = allocateBufferObject(dshSize, 0);
+    BufferObject* dsh = allocateBufferObject(dshSize);
     if (!dsh)
         return BUFFER_ALLOCATION_FAILED;
     dsh->bufferType = BufferType::LINEAR_STREAM;
@@ -413,7 +416,7 @@ int Context::createDynamicStateHeap() {
 
 int Context::createPreemptionAllocation() {
     size_t preemptionSize = 8 * 1048576;
-    BufferObject* preemption = allocateBufferObject(preemptionSize, 0);
+    BufferObject* preemption = allocateBufferObject(preemptionSize);
     if (!preemption) {
         return PREEMPTION_ALLOCATION_FAILED;
     }
@@ -423,7 +426,7 @@ int Context::createPreemptionAllocation() {
 
 
 int Context::createCommandBuffer() {
-    BufferObject* commandBuffer = allocateBufferObject(16 * PAGE_SIZE, 0);
+    BufferObject* commandBuffer = allocateBufferObject(16 * PAGE_SIZE);
     if (!commandBuffer) {
         return BUFFER_ALLOCATION_FAILED;
     }
@@ -589,7 +592,11 @@ int Context::createCommandBuffer() {
 }
 
 
-
+Buffer::Buffer(BufferObject* dataBuffer) {
+    this->mem = dataBuffer->cpuAddress;
+    this->gpuAddress = canonize(reinterpret_cast<uint64_t>(dataBuffer->cpuAddress));
+    this->size = alignUp(dataBuffer->size, 4);
+}
 
 
 

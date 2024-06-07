@@ -28,9 +28,9 @@ int main() {
     size_t size = 3968;
     size_t matrix_memory_size = size*size*sizeof(float);
     
-    float* matrix_A = static_cast<float*>(CreateBuffer(context, matrix_memory_size, &err));
-    float* matrix_B = static_cast<float*>(CreateBuffer(context, matrix_memory_size, &err));
-    float* matrix_C = static_cast<float*>(CreateBuffer(context, matrix_memory_size, &err));
+    pBuffer* matrix_A = CreateBuffer(context, matrix_memory_size, &err);
+    pBuffer* matrix_B = CreateBuffer(context, matrix_memory_size, &err);
+    pBuffer* matrix_C = CreateBuffer(context, matrix_memory_size, &err);
     printf("Buffer ptr: %p\n", matrix_A);
 
     err = SetKernelArg(kernel, 0, sizeof(matrix_A), static_cast<void*>(matrix_A));
@@ -52,8 +52,5 @@ int main() {
     err = ReleaseDevice(devices[0]);
     return 0;
 }
-
-//TODO: maybe CreateBuffer should return something like cl_mem*, so that argument checking in SetKernelArg is easier
-//TODO: check number of kernel arguments in SetKernelArg
 
 

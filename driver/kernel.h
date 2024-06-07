@@ -259,6 +259,7 @@ class Kernel : public pKernel {
     void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset);
     int setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue);
     int setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue);
+    uint32_t getMocsIndex();
     void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
 
     std::unique_ptr<DeviceDescriptor> descriptor;

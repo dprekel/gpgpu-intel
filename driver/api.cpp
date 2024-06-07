@@ -92,7 +92,7 @@ API_CALL pKernel* BuildKernel(pContext* cont,
 }
 
 
-API_CALL void* CreateBuffer(pContext* cont,
+API_CALL pBuffer* CreateBuffer(pContext* cont,
                         size_t size,
                         int* ret) {
     *ret = 0;
@@ -101,14 +101,16 @@ API_CALL void* CreateBuffer(pContext* cont,
         return nullptr;
     }
     Context* context = static_cast<Context*>(cont);
-    BufferObject* dataBuffer = context->allocateBufferObject(size, 0);
+    BufferObject* dataBuffer = context->allocateBufferObject(size);
     if (!dataBuffer) {
         *ret = BUFFER_ALLOCATION_FAILED;
         return nullptr;
     }
     dataBuffer->bufferType = BufferType::BUFFER_HOST_MEMORY;
     //context->emitPinningRequest(bo);
-    return dataBuffer->cpuAddress;
+    Buffer* bufferObj = new Buffer(dataBuffer);
+    pBuffer* buf = static_cast<pBuffer*>(bufferObj);
+    return buf;
 }
 
 

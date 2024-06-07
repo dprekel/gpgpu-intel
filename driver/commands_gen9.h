@@ -420,8 +420,25 @@ struct RENDER_SURFACE_STATE {
         state.Bitfield.MultisampledSurfaceStorageFormat = MULTISAMPLED_SURFACE_STORAGE_FORMAT_MSS;
         state.Bitfield.RenderTargetAndSampleUnormRotation = RENDER_TARGET_AND_SAMPLE_UNORM_ROTATION_0DEG;
         state.Bitfield.AuxiliarySurfaceMode = AUXILIARY_SURFACE_MODE_AUX_NONE;
+
+        state.Bitfield.SurfaceType = SURFACE_TYPE_SURFTYPE_BUFFER;
+        state.Bitfield.SurfaceFormat = SURFACE_FORMAT_RAW;
+        state.Bitfield.SurfaceVerticalAlignment = SURFACE_VERTICAL_ALIGNMENT_VALIGN_4;
+        state.Bitfield.SurfaceHorizontalAlignment = SURFACE_HORIZONTAL_ALIGNMENT_HALIGN_4;
+        state.Bitfield.TileMode = TILE_MODE_LINEAR;
+        state.Bitfield.CoherencyType = COHERENCY_TYPE_IA_COHERENT;
+
         return state;
     }
+};
+
+union SURFACE_STATE_BUFFER_LENGTH {
+    uint32_t Length;
+    struct SurfaceState {
+        uint32_t Width : BITFIELD_RANGE(0, 6);
+        uint32_t Height : BITFIELD_RANGE(7, 20);
+        uint32_t Depth : BITFIELD_RANGE(21, 31);
+    } SurfaceState;
 };
 
 struct MI_BATCH_BUFFER_START {

@@ -25,29 +25,36 @@
 #define NO_DEVICES_FOUND                    -17
 #define COMPILER_LOAD_FAILED                -18
 #define INVALID_KERNEL_FORMAT               -19
-#define INVALID_KERNEL_ARG_NUMBER           -20
+#define INVALID_KERNEL_ARG                  -20
 #define INVALID_KERNEL                      -21
 
 
 class pDevice {
   public:
+    int magic = 0x373E5A13;
     const char* devName;
 };
 
 class pContext {
   public:
-    int magic;
+    int magic = 0x373E5A13;
+};
+
+class pBuffer {
+  public:
+    int magic = 0x373E5A13;
+    void* mem;
 };
 
 class pKernel {
   public:
-    int magic;
+    int magic = 0x373E5A13;
 };
 
 extern std::vector<pDevice*> CreateDevices(int* err);
 extern pContext* CreateContext(pDevice* device, 
                         int* err);
-extern void* CreateBuffer(pContext* context,
+extern pBuffer* CreateBuffer(pContext* context,
                         size_t size,
                         int* ret);
 extern pKernel* BuildKernel(pContext* context,

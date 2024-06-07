@@ -38,10 +38,17 @@ struct BufferObject {
     }
     int bufferType      = 0;
     void* cpuAddress    = nullptr;
-    uint64_t gpuAddress = 0;
     size_t offset       = 0;
     size_t size         = 0;
     uint32_t handle     = 0;
+};
+
+class Buffer : public pBuffer {
+  public:
+    Buffer(BufferObject* dataBuffer);
+    ~Buffer();
+    uint64_t gpuAddress = 0;
+    size_t size = 0;
 };
 
 
@@ -54,7 +61,7 @@ class Context : public pContext {
     void setMaxWorkGroupSize();
     int createDrmContext();
     void setNonPersistentContext();
-    BufferObject* allocateBufferObject(size_t size, uint32_t flags);
+    BufferObject* allocateBufferObject(size_t size);
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
     int createSurfaceStateHeap();
     int createIndirectObjectHeap();
