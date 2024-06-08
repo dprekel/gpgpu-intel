@@ -46,6 +46,7 @@ BufferObject* Context::allocateBufferObject(size_t size) {
     size_t alignment = PAGE_SIZE;
     //TODO: What is difference between this alignment and alignment in alignUp() function?
     size_t sizeToAlloc = size + alignment;
+    //TODO: Replace malloc with new
     void* pOriginalMemory = malloc(sizeToAlloc);
 
     //TODO: Reformat the following if-else statement
@@ -184,9 +185,8 @@ int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_siz
 }
 
 
-
 int Context::allocateISAMemory() {
-    size_t kernelISASize = kernelData->header->KernelHeapSize;
+    size_t kernelISASize = static_cast<size_t>(kernelData->header->KernelHeapSize);
     size_t alignedAllocationSize = alignUp(kernelISASize, PAGE_SIZE);
     BufferObject* kernelISA = allocateBufferObject(alignedAllocationSize);
     if (!kernelISA) {
@@ -199,7 +199,6 @@ int Context::allocateISAMemory() {
     memcpy(kernelISA->cpuAddress, kernelData->isa, kernelISASize);
     return SUCCESS;
 }
-
 
 
 //TODO: Check why Intels GEMM uses no Scratch Space
@@ -226,39 +225,22 @@ int Context::createScratchAllocation() {
 }
 
 
-
-
-
-/*
-data needed:- ssh pointer
-            - kernel.kernelInfo.kernelDescriptor.payloadMappings.bindingTable.numEntries
-            - kernel.pSshLocal
-            - kernel.sshLocalSize
-            - kernel.numberOfBindingTableStates (from kernel.kernelInfo.kernelDescriptor.payloadMappings.bindingTable.numEntries)
-            - kernel.localBindingTableOffset (from kernel.kernelDescriptor.payloadMappings.bindingTable.tableOffset)
-- populateKernelDescriptor() in kernel_descriptor_from_patchtokens.cpp copies data from src.tokens to kernel.kernelDescriptor
-- IMPORTANT: file patchtokens_decoder.cpp
-- KEY FILE: hardware_commands_helper_base.inl
-            command_encoder.inl
-*/
-//TODO: Check number of binding table entries in GROMACS
-//TODO: Check if ssh contains pointers by printing the binding table
-//TODO: Check clSetKernelArg
 int Context::createSurfaceStateHeap() {
-    //TODO: Create allocation here
-    size_t sshSize = 0;
-    size_t alignedAllocationSize = alignUp(sshSize, PAGE_SIZE);
-    BufferObject* ssh = allocateBufferObject(alignedAllocationSize);
-    if (!ssh)
+    size_t sshSize = static_cast<size_t>(kernelData->header->SurfaceStateHeapSize);
+    size_t alignedAllocationSize = alignUp(sshSize, PAGE_SIZE); //TODO: this is not right size
+    BufferObject* dstSsh = allocateBufferObject(alignedAllocationSize);
+    if (!dstSsh)
         return BUFFER_ALLOCATION_FAILED;
-    ssh->bufferType = BufferType::LINEAR_STREAM;
+    dstSsh->bufferType = BufferType::LINEAR_STREAM;
+    if (kernelData->bindingTableState->Count == 0)
+        return 0;
+    auto srcSsh = kernel->getSurfaceStatePtr();
+    memcpy(dstSsh->cpuAddress, srcSsh, sshSize);
 
-    BINDING_TABLE_STATE bti = {0};
+    //TODO: A function that keeps track of the current offset
+    //size_t offsetOfBindingTable = kernelData->bindingTableState->Offset;
     return SUCCESS;
 }
-// Kernel::setArgBuffer, kernel.cpp, 1377
-// Kernel::setArgument calls Kernel::setArg, kernel.cpp, 822
-
 
 
 int Context::createIndirectObjectHeap() {

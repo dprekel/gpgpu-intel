@@ -257,6 +257,7 @@ class Kernel : public pKernel {
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
     void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset);
+    char* getSurfaceStatePtr();
     int setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue);
     int setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue);
     uint32_t getMocsIndex();

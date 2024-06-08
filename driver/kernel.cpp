@@ -31,6 +31,9 @@ Kernel::~Kernel() {
     printf("Kernel destructor called!\n");
 }
 
+char* Kernel::getSurfaceStatePtr() {
+    return this->sshLocal.get();
+}
 
 int Kernel::loadProgramSource() {
     FILE* file = fopen(filename, "r");
@@ -459,7 +462,6 @@ int Kernel::setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue) {
         size_t bytesToCopy = std::min(static_cast<size_t>(argDescValue->size), maxBytesToCopy);
         memcpy(pDest, pSrc, bytesToCopy);
     }
-    //TODO: Why do we have a for loop here?
     //TODO: Initialize crossThreadData once; memcpy immediate arguments to it
     return SUCCESS;
 }
@@ -493,18 +495,17 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     //TODO: Save local work sizes to crossThreadData, see line 214-228, hardware_interface_base.inl
     auto surfaceState = reinterpret_cast<RENDER_SURFACE_STATE*>(ptrOffset(sshLocal.get(), descriptor->bindful));
     *surfaceState = RENDER_SURFACE_STATE::init();
-    //TODO: Length fields
     SURFACE_STATE_BUFFER_LENGTH Length = {0};
     Length.Length = static_cast<uint32_t>(bufferObj->size - 1);
-    surfaceState->Bitfield.Width = Length.SurfaceState.Width + 1;
-    surfaceState->Bitfield.Height = Length.SurfaceState.Height + 1;
-    surfaceState->Bitfield.Depth = Length.SurfaceState.Depth + 1;
+    surfaceState->Bitfield.Width = Length.SurfaceState.Width;
+    surfaceState->Bitfield.Height = Length.SurfaceState.Height;
+    surfaceState->Bitfield.Depth = Length.SurfaceState.Depth;
     surfaceState->Bitfield.VerticalLineStride = 0u;
     surfaceState->Bitfield.VerticalLineStrideOffset = 0u;
     uint32_t mocsIndex = getMocsIndex();
     surfaceState->Bitfield.MemoryObjectControlState_Reserved = mocsIndex; // leads to data loss, I don't know why this is necessary
     surfaceState->Bitfield.MemoryObjectControlState_IndexToMocsTables = (mocsIndex >> 1);
-    surfaceState->Bitfield.SurfaceBaseAddress = canonize(reinterpret_cast<uint64_t>(bufferObj->mem));
+    surfaceState->Bitfield.SurfaceBaseAddress = bufferObj->gpuAddress;
 
     return SUCCESS;
 }

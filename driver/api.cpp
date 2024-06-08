@@ -154,10 +154,10 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     ret = context->createSurfaceStateHeap();
     if (ret)
         return ret;
-        */
     ret = context->createIndirectObjectHeap();
     if (ret)
         return ret;
+        */
     //ret = context->createDynamicStateHeap();
     
     ret = context->createCommandBuffer();
