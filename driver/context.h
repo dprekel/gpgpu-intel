@@ -38,9 +38,14 @@ struct BufferObject {
     }
     int bufferType      = 0;
     void* cpuAddress    = nullptr;
+    uint64_t gpuAddress = 0;
     size_t offset       = 0;
     size_t size         = 0;
     uint32_t handle     = 0;
+};
+
+struct AllocationData {
+    uint64_t kernelAddr;
 };
 
 class Buffer : public pBuffer {
@@ -79,6 +84,7 @@ class Context : public pContext {
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;
     std::vector<std::unique_ptr<BufferObject>> execBuffer;
+    AllocationData allocData;
     uint32_t vmId;
     uint32_t ctxId;
 

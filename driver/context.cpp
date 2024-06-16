@@ -71,6 +71,7 @@ BufferObject* Context::allocateBufferObject(size_t size) {
     auto bo = std::make_unique<BufferObject>();
     bo->cpuAddress = reinterpret_cast<void*>(pAlignedMemory);
     //TODO: Should we calculate GPU address already here?
+    bo->gpuAddress = canonize(reinterpret_cast<uint64_t>(bo->cpuAddress));
     bo->size = size;
     bo->handle = userptr.handle;
     auto BO = bo.get();
@@ -193,10 +194,8 @@ int Context::allocateISAMemory() {
         return KERNEL_ALLOCATION_FAILED;
     }
     kernelISA->bufferType = BufferType::KERNEL_ISA;
-    printf("Kernel Heap Size: %lu\n", kernelISASize);
-    printf("Kernel ISA Pointer: %p\n", kernelData->isa);
-
     memcpy(kernelISA->cpuAddress, kernelData->isa, kernelISASize);
+    allocData.kernelAddr = kernelISA->gpuAddress;
     return SUCCESS;
 }
 
@@ -204,8 +203,6 @@ int Context::allocateISAMemory() {
 //TODO: Check why Intels GEMM uses no Scratch Space
 //TODO: Check necessary alignment size
 //TODO: Make sure that mediaVfeState[0] is never nullptr
-//TODO: Make hwInfo and kernelData members of Context class
-//TODO: Do we ever need flags argument in allocateBufferObject()?
 //TODO: Unify BUFFER_ALLOCATION_FAILED like macros
 int Context::createScratchAllocation() {
     uint32_t computeUnitsUsedForScratch = hwInfo->gtSystemInfo->MaxSubSlicesSupported
@@ -236,9 +233,6 @@ int Context::createSurfaceStateHeap() {
         return 0;
     auto srcSsh = kernel->getSurfaceStatePtr();
     memcpy(dstSsh->cpuAddress, srcSsh, sshSize);
-
-    //TODO: A function that keeps track of the current offset
-    //size_t offsetOfBindingTable = kernelData->bindingTableState->Offset;
     return SUCCESS;
 }
 
@@ -380,18 +374,24 @@ int Context::createDynamicStateHeap() {
     auto interfaceDescriptor = dsh->ptrOffset<INTERFACE_DESCRIPTOR_DATA*>(sizeof(INTERFACE_DESCRIPTOR_DATA));
     *interfaceDescriptor = INTERFACE_DESCRIPTOR_DATA::init();
 
+    uint64_t kernelStartOffset = reinterpret_cast<uint64_t>(allocData.kernelAddr);
+    interfaceDescriptor->Bitfield.KernelStartPointerHigh = kernelStartOffset >> 32;
+    interfaceDescriptor->Bitfield.KernelStartPointer = (uint32_t)kernelStartOffset >> 0x6;
+    interfaceDescriptor->Bitfield.DenormMode = INTERFACE_DESCRIPTOR_DATA::DENORM_MODE_SETBYKERNEL;
+    interfaceDescriptor->Bitfield.BindingTablePointer = static_cast<uint32_t>(kernelData->bindingTableState->Offset) >> 0x5;
+    interfaceDescriptor.SharedLocalMemorySize = 0u;
     /*
-    interfaceDescriptor.KernelStartPointerHigh = kernelStartOffset >> 32;
-    interfaceDescriptor.KernelStartPointer = (uint32_t)kernelStartOffset >> 0x6;
-    interfaceDescriptor.DenormMode = 0x1;
-    interfaceDescriptor.SamplerStatePointer = static_cast<uint32_t>(offsetSamplerState) >> 0x5;
-    interfaceDescriptor.BindingTablePointer = static_cast<uint32_t>(bindingTablePointer) >> 0x5;
-    interfaceDescriptor.SharedLocalMemorySize = programmableIDSLMSize;
+    // threadsPerThreadGroup means number of hardware threads per Work Group
     interfaceDescriptor.NumberOfThreadsInGpgpuThreadGroup = threadsPerThreadGroup;
-    interfaceDescriptor.CrossThreadConstantDataReadLength = numGrfCrossThreadData;
-    interfaceDescriptor.ConstantIndirectUrbEntryReadLength = numGrfPerThreadData;
-    interfaceDescriptor.BarrierEnable = barrierCount;       // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.barrierCount
     */
+    // one general purpose register file (GRF) has 32 bytes on GEN9
+    uint32_t grfSize = 32;
+    size_t crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
+    interfaceDescriptor->Bitfield.CrossThreadConstantDataReadLength = static_cast<uint32_t>(crossThreadDataSize / grfSize);
+    uint32_t numGrfPerThreadData = static_cast<uint32_t>(perThreadDataSize / grfSize);
+    numGrfPerThreadData = std::max(numGrfPerThreadData, 1u);
+    interfaceDescriptor->Bitfield.ConstantIndirectUrbEntryReadLength = numGrfPerThreadData;
+    interfaceDescriptor->Bitfield.BarrierEnable = kernelData->executionEnvironment->HasBarriers;
     return SUCCESS;
 }
 
@@ -576,7 +576,7 @@ int Context::createCommandBuffer() {
 
 Buffer::Buffer(BufferObject* dataBuffer) {
     this->mem = dataBuffer->cpuAddress;
-    this->gpuAddress = canonize(reinterpret_cast<uint64_t>(dataBuffer->cpuAddress));
+    this->gpuAddress = dataBuffer->gpuAddress;
     this->size = alignUp(dataBuffer->size, 4);
 }
 
