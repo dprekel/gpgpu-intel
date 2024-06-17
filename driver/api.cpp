@@ -147,6 +147,9 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     ret = context->createScratchAllocation();
     if (ret)
         return ret;
+    ret = context->createTagAllocation();
+    if (ret)
+        return ret;
     ret = context->createPreemptionAllocation();
     if (ret)
         return ret;

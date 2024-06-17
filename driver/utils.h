@@ -67,5 +67,9 @@ inline uint32_t prevPowerOfTwo(uint32_t value) {
     return (value - (value >> 1));
 }
 
+inline uint64_t maxNBitValue(uint64_t n) {
+    return ((1ull << n) - 1);
+}
+
 
 

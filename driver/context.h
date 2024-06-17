@@ -25,6 +25,18 @@ enum BufferType {
     COMMAND_BUFFER
 };
 
+namespace MemoryConstants {
+    constexpr uint64_t kiloByte = 1024;
+    constexpr uint64_t megaByte = 1024 * kiloByte;
+    constexpr size_t pageSize = 4 * kiloByte;
+    constexpr size_t cacheLineSize = 64; 
+};
+
+enum class DebugPauseState : uint32_t {
+    disabled,
+    waitingForFirstSemaphore
+};
+
 struct BufferObject {
     BufferObject() {}
     ~BufferObject() {
@@ -45,7 +57,9 @@ struct BufferObject {
 };
 
 struct AllocationData {
-    uint64_t kernelAddr;
+    uint64_t kernelAddress;
+    uint64_t tagAddress;
+    size_t hwThreadsPerWorkGroup;
 };
 
 class Buffer : public pBuffer {
@@ -68,12 +82,13 @@ class Context : public pContext {
     void setNonPersistentContext();
     BufferObject* allocateBufferObject(size_t size);
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
+    int allocateISAMemory();
+    int createScratchAllocation();
     int createSurfaceStateHeap();
     int createIndirectObjectHeap();
     int createDynamicStateHeap();
-    int allocateISAMemory();
-    int createScratchAllocation();
     int createPreemptionAllocation();
+    int createTagAllocation();
     int createCommandBuffer();
 
     Device* device;
@@ -92,6 +107,7 @@ class Context : public pContext {
     uint32_t maxWorkItemsPerWorkGroup;
     size_t workItemsPerWorkGroup[3];
     size_t globalWorkItems[3];
+    size_t numWorkGroups[3];
 };
 
 

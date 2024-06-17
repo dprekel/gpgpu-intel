@@ -157,7 +157,7 @@ std::unique_ptr<DeviceDescriptor> Device::getDevInfoFromDescriptorTable(uint16_t
             break;
         }
     }
-    return std::move(descriptor);
+    return descriptor;
 }
 
 

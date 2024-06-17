@@ -264,7 +264,7 @@ struct INTERFACE_DESCRIPTOR_DATA {
         uint32_t RoundingMode : BITFIELD_RANGE(22, 23);
         uint32_t Reserved_216 : BITFIELD_RANGE(24, 31);
         //DW5
-        uint32_t Cross_ThreadConstantDataReadLength : BITFIELD_RANGE(0, 7);
+        uint32_t CrossThreadConstantDataReadLength : BITFIELD_RANGE(0, 7);
         uint32_t Reserved_232 : BITFIELD_RANGE(8, 31); 
     } Bitfield;
     enum {
