@@ -44,7 +44,7 @@ int main() {
     const size_t local[2] = {TILE_GROUP_M, TILE_GROUP_N};
     // total number of work items in each dimension
     const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
-    err = EnqueueNDRangeKernel(context, kernel, 2, NULL, global, local);
+    err = EnqueueNDRangeKernel(context, kernel, 2, global, local);
     printf("err: %d\n", err);
 
     err = ReleaseKernel(kernel);

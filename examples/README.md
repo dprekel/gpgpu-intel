@@ -24,3 +24,5 @@ int Bind = get_group_id(1)*TILE_GROUP_N*TILE_SIZE_N + get_local_id(1);
 int Cind = Aind + Bind*ldc;
 ```
 
+## Example execution
+![](OpenCL_Matmul_cropped.gif)

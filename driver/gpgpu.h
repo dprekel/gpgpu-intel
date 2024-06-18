@@ -69,7 +69,6 @@ extern int SetKernelArg(pKernel* kern,
 extern int EnqueueNDRangeKernel(pContext* context,
                         pKernel* kernel,
                         uint32_t work_dim,
-                        const size_t* global_work_offset,
                         const size_t* global_work_size,
                         const size_t* local_work_size);
 extern int ReleaseDevice(pDevice* device);

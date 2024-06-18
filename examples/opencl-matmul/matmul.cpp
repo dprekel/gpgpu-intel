@@ -170,8 +170,8 @@ int main() {
         uint64_t start = nanos();
         err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, 0, 0);
         printf("err: %d\n", err);
-        //err = clFinish(queue);
-        sleep(30);
+        err = clFinish(queue);
+        //sleep(30);
         uint64_t end = nanos();
         double time = (end - start)/1e6;
         printf("Runtime: %f ms\n", time);

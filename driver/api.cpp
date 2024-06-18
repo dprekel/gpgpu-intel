@@ -129,7 +129,6 @@ API_CALL int SetKernelArg(pKernel* kern,
 API_CALL int EnqueueNDRangeKernel(pContext* cont,
                         pKernel* kern,
                         uint32_t work_dim,
-                        const size_t* global_work_offset,
                         const size_t* global_work_size,
                         const size_t* local_work_size) {
     if (!cont)

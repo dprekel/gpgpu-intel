@@ -397,7 +397,6 @@ int Context::createDynamicStateHeap() {
 
 int Context::createPreemptionAllocation() {
     size_t preemptionSize = hwInfo->gtSystemInfo->CsrSizeInMb * MemoryConstants::megaByte;
-    size_t preemptionSize2 = 8 * 1048576;
     BufferObject* preemption = allocateBufferObject(preemptionSize);
     if (!preemption) {
         return BUFFER_ALLOCATION_FAILED;
@@ -511,12 +510,14 @@ int Context::createCommandBuffer() {
 
     // program Pipeline Select
     //if (mediaSamplerConfigChanged || !isPreambleSent) {
+    /*
         auto cmd6 = commandBuffer->ptrOffset<PIPELINE_SELECT*>(sizeof(PIPELINE_SELECT));
         *cmd6 = PIPELINE_SELECT::init();
         cmd6->Bitfield.MaskBits = mask;
         cmd6->Bitfield.PipelineSelection = PIPELINE_SELECTION_GPGPU;
         cmd6->Bitfield.MediaSamplerDopClockGateEnable = !pipelineSelectArgs.mediaSamplerRequired;
     //}
+    */
 
     /*
     // program L3 cache:
