@@ -25,4 +25,5 @@ int Cind = Aind + Bind*ldc;
 ```
 
 ## Example execution
-![](OpenCL_Matmul_cropped.gif)
+<img src="OpenCL_Matmul_cropped.gif" width="200" height="400" />
+
