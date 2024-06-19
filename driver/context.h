@@ -37,6 +37,13 @@ enum class DebugPauseState : uint32_t {
     waitingForFirstSemaphore
 };
 
+enum ThreadArbitrationPolicy {
+    AgeBased = 0x0,
+    RoundRobin = 0x1,
+    RoundRobinAfterDependency = 0x2,
+    NotPresent = 0xffff
+};
+
 struct BufferObject {
     BufferObject() {}
     ~BufferObject() {

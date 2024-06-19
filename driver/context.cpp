@@ -508,45 +508,48 @@ int Context::createCommandBuffer() {
     // immediateData == taskCount (always 1 if no batched submission)
     cmd5->Bitfield.ImmediateData = 1u;
 
+
+
+
+
     // program Pipeline Select
     //if (mediaSamplerConfigChanged || !isPreambleSent) {
-    /*
         auto cmd6 = commandBuffer->ptrOffset<PIPELINE_SELECT*>(sizeof(PIPELINE_SELECT));
         *cmd6 = PIPELINE_SELECT::init();
         cmd6->Bitfield.MaskBits = mask;
-        cmd6->Bitfield.PipelineSelection = PIPELINE_SELECTION_GPGPU;
+        cmd6->Bitfield.PipelineSelection = PIPELINE_SELECT::PIPELINE_SELECTION_GPGPU;
         cmd6->Bitfield.MediaSamplerDopClockGateEnable = !pipelineSelectArgs.mediaSamplerRequired;
     //}
-    */
 
-    /*
+    // program Preamble:
     // program L3 cache:
-    auto pCmd8 = reinterpret_cast<MI_LOAD_REGISTER_IMM*>(pCmd7);
-    *pCmd8 = MI_LOAD_REGISTER_IMM::init();
-    pCmd8->Bitfield.RegisterOffset = L3RegisterOffset;
-    pCmd8->Bitfield.DataDword = l3Config;
-    pCmd8 = pCmd8 + sizeof(MI_LOAD_REGISTER_IMM);
+    auto cmd7 = commandBuffer->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
+    *cmd7 = MI_LOAD_REGISTER_IMM::init();
+    uint32_t L3RegisterOffset = 0x7034;
+    uint32_t L3ValueNoSLM = 0x80000340;
+    cmd7->Bitfield.RegisterOffset = L3RegisterOffset;
+    cmd7->Bitfield.DataDword = L3ValueNoSLM;
 
     // program Thread Arbitration
-    auto pCmd9 = reinterpret_cast<PIPE_CONTROL*>(pCmd8);
-    *pCmd9 = PIPE_CONTROL::init();
-    pCmd9->Bitfield.CommandStreamerStallEnable = true;
-    pCmd9 = pCmd9 + sizeof(PIPE_CONTROL);
+    auto cmd8 = commandBuffer->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
+    *cmd8 = PIPE_CONTROL::init();
+    cmd8->Bitfield.CommandStreamerStallEnable = true;
 
-    auto pCmd10 = reinterpret_cast<MI_LOAD_REGISTER_IMM*>(pCmd9);
-    *pCmd10 = MI_LOAD_REGISTER_IMM::init();
-    pCmd10->Bitfield.RegisterOffset = debugControlReg2Address;
-    pCmd10->Bitfield.DataDword = requiredThreadArbitrationPolicy;
-    pCmd10 = pCmd10 + sizeof(MI_LOAD_REGISTER_IMM);
+    auto cmd9 = commandBuffer->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
+    *cmd9 = MI_LOAD_REGISTER_IMM::init();
+    uint32_t debugControlReg2Offset = 0xe404;
+    uint32_t requiredThreadArbitrationPolicy = ThreadArbitrationPolicy::RoundRobin;
+    cmd9->Bitfield.RegisterOffset = debugControlReg2Offset;
+    cmd9->Bitfield.DataDword = requiredThreadArbitrationPolicy;
 
     // program Preemption
     if (isMidThreadPreemption) {
-        auto pCmd11 = reinterpret_cast<GPGPU_CSR_BASE_ADDRESS*>(pCmd10);
-        *pCmd11 = GPGPU_CSR_BASE_ADDRESS::init();
-        pCmd11->Bitfield.GpgpuCsrBaseAddress = preemptionBufferGpuAddress;
-        pCmd11 = pCmd11 + sizeof(GPGPU_CSR_BASE_ADDRESS);
+        auto cmd10 = commandBuffer->ptrOffset<GPGPU_CSR_BASE_ADDRESS*>(sizeof(GPGPU_CSR_BASE_ADDRESS));
+        *cmd10 = GPGPU_CSR_BASE_ADDRESS::init();
+        cmd10->Bitfield.GpgpuCsrBaseAddress = preemptionBufferGpuAddress;
     }
 
+    /*
     // program VFE state
     if (mediaVfeStateDirty) {
         auto pCmd12 = reinterpret_cast<MEDIA_VFE_STATE*>(pCmd12);

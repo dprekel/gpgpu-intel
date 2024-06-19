@@ -76,6 +76,114 @@ struct MEDIA_INTERFACE_DESCRIPTOR_LOAD {
     }
 };
 
+struct MEDIA_VFE_STATE {
+    struct TheStructure {
+        //DW0
+        uint32_t DwordLength : BITFIELD_RANGE(0, 15);
+        uint32_t Subopcode : BITFIELD_RANGE(16, 23);
+        uint32_t MediaCommandOpcode : BITFIELD_RANGE(24, 26);
+        uint32_t Pipeline : BITFIELD_RANGE(27, 28);
+        uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        //DW1
+        uint32_t PerThreadScratchSpace : BITFIELD_RANGE(0, 3);
+        uint32_t StackSize : BITFIELD_RANGE(4, 7);
+        uint32_t Reserved_40 : BITFIELD_RANGE(8, 9);
+        uint32_t ScratchSpaceBasePointer : BITFIELD_RANGE(10, 31);
+        //DW2
+        uint32_t ScratchSpaceBasePointerHigh : BITFIELD_RANGE(0, 15);
+        uint32_t Reserved_80 : BITFIELD_RANGE(16, 31);
+        //DW3
+        uint32_t Reserved_96 : BITFIELD_RANGE(0, 6);
+        uint32_t ResetGatewayTimer : BITFIELD_RANGE(7, 7);
+        uint32_t NumberOfUrbEntries : BITFIELD_RANGE(8, 15);
+        uint32_t MaximumNumberOfThreads : BITFIELD_RANGE(16, 31);
+        //DW4
+        uint32_t SliceDisable : BITFIELD_RANGE(0, 1);
+        uint32_t Reserved_130 : BITFIELD_RANGE(2, 31);
+        //DW5
+        uint32_t CurbeAllocationSize : BITFIELD_RANGE(0, 15);
+        uint32_t UrbEntryAllocationSize : BITFIELD_RANGE(16, 31);
+        //DW6
+        uint32_t ScoreboardMask : BITFIELD_RANGE(0, 7);
+        uint32_t Reserved_200 : BITFIELD_RANGE(8, 29);
+        uint32_t ScoreboardType : BITFIELD_RANGE(30, 30);
+        uint32_t ScoreboardEnable : BITFIELD_RANGE(31, 31);
+        //DW7
+        uint32_t Scoreboard0DeltaX : BITFIELD_RANGE(0, 3);
+        uint32_t Scoreboard0DeltaY : BITFIELD_RANGE(4, 7);
+        uint32_t Scoreboard1DeltaX : BITFIELD_RANGE(8, 11);
+        uint32_t Scoreboard1DeltaY : BITFIELD_RANGE(12, 15);
+        uint32_t Scoreboard2DeltaX : BITFIELD_RANGE(16, 19);
+        uint32_t Scoreboard2DeltaY : BITFIELD_RANGE(20, 23);
+        uint32_t Scoreboard3DeltaX : BITFIELD_RANGE(24, 27);
+        uint32_t Scoreboard3DeltaY : BITFIELD_RANGE(28, 31);
+        //DW8
+        uint32_t Scoreboard4DeltaX : BITFIELD_RANGE(0, 3);
+        uint32_t Scoreboard4DeltaY : BITFIELD_RANGE(4, 7);
+        uint32_t Scoreboard5DeltaX : BITFIELD_RANGE(8, 11);
+        uint32_t Scoreboard5DeltaY : BITFIELD_RANGE(12, 15);
+        uint32_t Scoreboard6DeltaX : BITFIELD_RANGE(16, 19);
+        uint32_t Scoreboard6DeltaY : BITFIELD_RANGE(20, 23);
+        uint32_t Scoreboard7DeltaX : BITFIELD_RANGE(24, 27);
+        uint32_t Scoreboard7DeltaY : BITFIELD_RANGE(28, 31);
+    } Bitfield;
+    enum {
+        DWORD_LENGTH_DWORD_COUNT_N = 0x7,
+        SUBOPCODE_MEDIA_VFE_STATE_SUBOP = 0x0,
+        MEDIA_COMMAND_OPCODE_MEDIA_VFE_STATE = 0x0,
+        PIPELINE_MEDIA = 0x2,
+        COMMAND_TYPE_GFXPIPE = 0x3,
+        RESET_GATEWAY_TIMER_MAINTAINING_THE_EXISTING_TIMESTAMP_STATE = 0x0,
+        SLICE_DISABLE_ALL_SUBSLICES_ENABLED = 0x0,
+        SCOREBOARD_TYPE_STALLING_SCOREBOARD = 0x0
+    };
+    static MEDIA_VFE_STATE init() {
+        MEDIA_VFE_STATE state;
+        memset(&state, 0, sizeof(state));
+        state.Bitfield.DwordLength = DWORD_LENGTH_DWORD_COUNT_N;
+        state.Bitfield.Subopcode = SUBOPCODE_MEDIA_VFE_STATE_SUBOP;
+        state.Bitfield.MediaCommandOpcode = MEDIA_COMMAND_OPCODE_MEDIA_VFE_STATE;
+        state.Bitfield.Pipeline = PIPELINE_MEDIA;
+        state.Bitfield.CommandType = COMMAND_TYPE_GFXPIPE;
+        state.Bitfield.ResetGatewayTimer = RESET_GATEWAY_TIMER_MAINTAINING_THE_EXISTING_TIMESTAMP_STATE;
+        state.Bitfield.SliceDisable = SLICE_DISABLE_ALL_SUBSLICES_ENABLED;
+        state.Bitfield.ScoreboardType = SCOREBOARD_TYPE_STALLING_SCOREBOARD;
+        return state;
+    }
+};
+
+struct GPGPU_CSR_BASE_ADDRESS {
+    struct TheStructure {
+        //DW0
+        uint32_t DwordLength : BITFIELD_RANGE(0, 7);
+        uint32_t Reserved_8 : BITFIELD_RANGE(8, 15);
+        uint32_t _3DCommandSubOpcode : BITFIELD_RANGE(16, 23);
+        uint32_t _3DCommandOpcode : BITFIELD_RANGE(24, 26);
+        uint32_t CommandSubtype : BITFIELD_RANGE(27, 28);
+        uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        //DW1+DW2
+        uint64_t Reserved_32 : BITFIELD_RANGE(0, 11);
+        uint64_t GpgpuCsrBaseAddress : BITFIELD_RANGE(12, 63);
+    } Bitfield;
+    enum {
+        DWORD_LENGTH_UNNAMED_1 = 0x1,
+        _3D_COMMAND_SUB_OPCODE_GPGPU_CSR_BASE_ADDRESS = 0x4,
+        _3D_COMMAND_OPCODE_GFXPIPE_NONPIPELINED = 0x1,
+        COMMAND_SUBTYPE_GFXPIPE_COMMON = 0x0,
+        COMMAND_TYPE_GFXPIPE = 0x3
+    };
+    static GPGPU_CSR_BASE_ADDRESS init() {
+        GPGPU_CSR_BASE_ADDRESS state;
+        memset(&state, 0, sizeof(state));
+        state.Bitfield.DwordLength = DWORD_LENGTH_UNNAMED_1;
+        state.Bitfield._3DCommandSubOpcode = _3D_COMMAND_SUB_OPCODE_GPGPU_CSR_BASE_ADDRESS;
+        state.Bitfield._3DCommandOpcode = _3D_COMMAND_OPCODE_GFXPIPE_NONPIPELINED;
+        state.Bitfield.CommandSubtype = COMMAND_SUBTYPE_GFXPIPE_COMMON;
+        state.Bitfield.CommandType = COMMAND_TYPE_GFXPIPE;
+        return state;
+    }
+};
+
 struct GPGPU_WALKER {
     struct TheStructure {
         //DW0
@@ -221,6 +329,71 @@ struct PIPE_CONTROL {
         state.Bitfield.GlobalSnapshotCountReset = GLOBAL_SNAPSHOT_COUNT_RESET_DON_T_RESET;
         state.Bitfield.LriPostSyncOperation = LRI_POST_SYNC_OPERATION_NO_LRI_OPERATION;
         state.Bitfield.DestinationAddressType = DESTINATION_ADDRESS_TYPE_PPGTT;
+        return state;
+    }
+};
+
+struct PIPELINE_SELECT {
+    struct TheStructure {
+        //DW0
+        uint32_t PipelineSelection : BITFIELD_RANGE(0, 1);
+        uint32_t RenderSliceCommonPowerGateEnable : BITFIELD_RANGE(2, 2);
+        uint32_t RenderSamplerPowerGateEnable : BITFIELD_RANGE(3, 3);
+        uint32_t MediaSamplerDopClockGateEnable : BITFIELD_RANGE(4, 4);
+        uint32_t ForceMediaAwake : BITFIELD_RANGE(5, 5);
+        uint32_t Reserved_6 : BITFIELD_RANGE(6, 7);
+        uint32_t MaskBits : BITFIELD_RANGE(8, 15);
+        uint32_t _3DCommandSubOpcode : BITFIELD_RANGE(16, 23);
+        uint32_t _3DCommandOpcode : BITFIELD_RANGE(24, 26);
+        uint32_t CommandSubtype : BITFIELD_RANGE(27, 28);
+        uint32_t CommandType : BITFIELD_RANGE(29, 31);
+    } Bitfield;
+    enum {
+        PIPELINE_SELECTION_3D = 0x0,
+        PIPELINE_SELECTION_MEDIA = 0x1,
+        PIPELINE_SELECTION_GPGPU = 0x2,
+        _3D_COMMAND_SUB_OPCODE_PIPELINE_SELECT = 0x4,
+        _3D_COMMAND_OPCODE_GFXPIPE_NONPIPELINED = 0x1,
+        COMMAND_SUBTYPE_GFXPIPE_SINGLE_DW = 0x1,
+        COMMAND_TYPE_GFXPIPE = 0x3
+    };
+    static PIPELINE_SELECT init() {
+        PIPELINE_SELECT state;
+        memset(&state, 0, sizeof(state));
+        state.Bitfield._3DCommandSubOpcode = _3D_COMMAND_SUB_OPCODE_PIPELINE_SELECT;
+        state.Bitfield._3DCommandOpcode = _3D_COMMAND_OPCODE_GFXPIPE_NONPIPELINED;
+        state.Bitfield.CommandSubtype = COMMAND_SUBTYPE_GFXPIPE_SINGLE_DW;
+        state.Bitfield.CommandType = COMMAND_TYPE_GFXPIPE;
+        return state;
+    }
+};
+
+struct MI_LOAD_REGISTER_IMM {
+    struct TheStructure {
+        //Dw0
+        uint32_t DwordLength : BITFIELD_RANGE(0, 7);
+        uint32_t ByteWriteDisables : BITFIELD_RANGE(8, 11);
+        uint32_t Reserved_12 : BITFIELD_RANGE(12, 22);
+        uint32_t MiCommandOpcode : BITFIELD_RANGE(23, 28);
+        uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        //DW1
+        uint32_t Reserved_32 : BITFIELD_RANGE(0, 1);
+        uint32_t RegisterOffset : BITFIELD_RANGE(2, 22);
+        uint32_t Reserved_55 : BITFIELD_RANGE(23, 31);
+        //DW2
+        uint32_t DataDword;
+    } Bitfield;
+    enum {
+        DWORD_LENGTH_EXCLUDES_DWORD_0_1 = 0x1,
+        MI_COMMAND_OPCODE_MI_LOAD_REGISTER_IMM = 0x22,
+        COMMAND_TYPE_MI_COMMAND = 0x0
+    };
+    static MI_LOAD_REGISTER_IMM {
+        MI_LOAD_REGISTER_IMM state;
+        memset(&state, 0, sizeof(state));
+        state.Bitfield.DwordLength = DWORD_LENGTH_EXCLUDES_DWORD_0_1;
+        state.Bitfield.MiCommandOpcode = MI_COMMAND_OPCODE_MI_LOAD_REGISTER_IMM;
+        state.Bitfield.CommandType = COMMAND_TYPE_MI_COMMAND;
         return state;
     }
 };
