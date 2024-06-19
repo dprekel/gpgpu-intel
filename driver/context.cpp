@@ -402,6 +402,7 @@ int Context::createPreemptionAllocation() {
         return BUFFER_ALLOCATION_FAILED;
     }
     preemption->bufferType = BufferType::PREEMPTION;
+    allocData.preemptionAddress = preemption->gpuAddress;
     return SUCCESS;
 }
 
@@ -546,7 +547,7 @@ int Context::createCommandBuffer() {
     if (isMidThreadPreemption) {
         auto cmd10 = commandBuffer->ptrOffset<GPGPU_CSR_BASE_ADDRESS*>(sizeof(GPGPU_CSR_BASE_ADDRESS));
         *cmd10 = GPGPU_CSR_BASE_ADDRESS::init();
-        cmd10->Bitfield.GpgpuCsrBaseAddress = preemptionBufferGpuAddress;
+        cmd10->Bitfield.GpgpuCsrBaseAddress = allocData.preemptionAddress;
     }
 
     /*

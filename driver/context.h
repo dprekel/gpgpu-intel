@@ -66,6 +66,7 @@ struct BufferObject {
 struct AllocationData {
     uint64_t kernelAddress;
     uint64_t tagAddress;
+    uint64_t preemptionAddress;
     size_t hwThreadsPerWorkGroup;
 };
 
