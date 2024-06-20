@@ -5,7 +5,6 @@ Issues / Jobs left
 CreateDevice:
 - Retrieve device info from HardwareConfigBlob 
 - Load compilers here
-- Solve issue with std::move warning
 
 CreateContext:
 - create TagBuffer
@@ -43,7 +42,6 @@ EnqueueNDRangeKernel:
 - finish creation of the two command buffers
 - Get rid of all memory leaks
 - Add clFinish functionality
-- Use new for aligned malloc
 - Make sure all API functions can only be called in correct order
 - Add aligned free for buffer objects
 - make sure that a new kernel can only be submitted if a previous kernel has finished execution

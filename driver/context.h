@@ -65,9 +65,13 @@ struct BufferObject {
 
 struct AllocationData {
     uint64_t kernelAddress;
+    uint64_t scratchAddress;
     uint64_t tagAddress;
     uint64_t preemptionAddress;
+
     size_t hwThreadsPerWorkGroup;
+    uint32_t maxVfeThreads;
+    uint32_t perThreadScratchSpace;
 };
 
 class Buffer : public pBuffer {

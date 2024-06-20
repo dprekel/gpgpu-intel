@@ -19,6 +19,7 @@ Context::Context(Device* device)
            globalWorkItems{1, 1, 1} {
     this->hwInfo = device->descriptor->pHwInfo;
     setMaxWorkGroupSize();
+    setMaxThreadsForVfe();
 }
 
 Context::~Context() {
@@ -30,6 +31,12 @@ void Context::setMaxWorkGroupSize() {
     uint32_t maxThreadsPerWorkGroup = hwInfo->gtSystemInfo->MaxEuPerSubSlice * numThreadsPerEU;
     maxThreadsPerWorkGroup = prevPowerOfTwo(maxThreadsPerWorkGroup);
     this->maxWorkItemsPerWorkGroup = std::min(maxThreadsPerWorkGroup, 1024u);
+}
+
+void Context::setMaxThreadsForVfe() {
+    // For GEN11 and GEN12, there is another term (extraQuantityThreadsPerEU) that must be added to numThreadsPerEU
+    uint32_t numThreadsPerEU = hwInfo->gtSystemInfo->ThreadCount / hwInfo->gtSystemInfo->EUCount;
+    allocData.maxVfeThreads = hwInfo->gtSystemInfo->EUCount * numThreadsPerEU;
 }
 
 void Context::setKernelData(KernelFromPatchtokens* kernelData) {
@@ -75,33 +82,6 @@ BufferObject* Context::allocateBufferObject(size_t size) {
     return BO;
 }
 
-/*
-int Context::emitPinningRequest(BufferObject* bo) {
-    drm_i915_gem_exec_object2 execObject = {};
-    execObject.handle = bo->handle;
-    execObject.relocations_count = 0;
-    execObject.relocs_ptr = 0ul;
-    execObject.alignment = 0;
-    execObject.offset = bo->cpuAddress;
-    execObject.flags = EXEC_OBJECT_PINNED | EXEC_OBJECT_SUPPORTS_48B_ADDRESS;
-    execObject.rsvd1 = this->ctxId;
-    execObject.rsvd2 = 0;
-
-    drm_i915_gem_execbuffer2 execbuf = {};
-    execbuf.buffers_ptr = reinterpret_cast<uintptr_t>(&execObject);
-    execbuf.buffer_count = 2u;
-    execbuf.batch_start_offset = 0u;
-    execbuf.batch_len = alignUp(used, 8);
-    execbuf.flags = flags;
-    execbuf.rsvd1 = this->ctxId;
-
-    int ret = ioctl(fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
-    if (ret) {
-        return -1;
-    }
-    return 0;
-}
-*/
 
 
 int Context::createDrmContext() {
@@ -215,7 +195,16 @@ int Context::createScratchAllocation() {
         if (!scratch)
             return BUFFER_ALLOCATION_FAILED;
         scratch->bufferType = BufferType::SCRATCH_SURFACE;
+        allocData.scratchAddress = scratch->gpuAddress;
+        requiredScratchSize >>= static_cast<uint32_t>(MemoryConstants::kiloByteShiftSize);
+        allocData.perThreadScratchSpace = 0u;
+        while (requiredScratchSpace >>= 1) {
+            allocData.perThreadScratchSpace++;
+        }
+        return SUCCESS;
     }
+    allocData.scratchAddress = 0u;
+    allocData.perThreadScratchSpace = 0u;
     return SUCCESS;
 }
 
@@ -550,24 +539,30 @@ int Context::createCommandBuffer() {
         cmd10->Bitfield.GpgpuCsrBaseAddress = allocData.preemptionAddress;
     }
 
-    /*
     // program VFE state
     if (mediaVfeStateDirty) {
-        auto pCmd12 = reinterpret_cast<MEDIA_VFE_STATE*>(pCmd12);
-        *pCmd12 = MEDIA_VFE_STATE::init();
-        pCmd12->Bitfield.MaximumNumberOfThreads = maxFrontEndThreads;
-        pCmd12->Bitfield.NumberOfUrbEntries = 1;
-        pCmd12->Bitfield.UrbEntryAllocationSize = UrbEntryAllocationSize;
-        pCmd12->Bitfield.PerThreadScratchSpace = ScratchSizeValueToProgramMediaVfeState;
-        pCmd12->Bitfield.StackSize = ScratchSizeValueToProgramMediaVfeState;
-        pCmd12->Bitfield.ScratchSpaceBasePointer = lowAddress;
-        pCmd12->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
-        pCmd12 = pCmd12 + sizeof(MEDIA_VFE_STATE);
+        auto cmd11 = commandBuffer->ptrOffset<MEDIA_VFE_STATE*>(sizeof(MEDIA_VFE_STATE));
+        *cmd11 = MEDIA_VFE_STATE::init();
+        cmd11->Bitfield.MaximumNumberOfThreads = allocData.maxVfeThreads;
+        cmd11->Bitfield.NumberOfUrbEntries = 1;
+        cmd11->Bitfield.UrbEntryAllocationSize = 0x782;
+        cmd11->Bitfield.PerThreadScratchSpace = allocData.perThreadScratchSpace;
+        cmd11->Bitfield.StackSize = allocData.perThreadScratchSpace;
+        uint32_t lowAddress = static_cast<uint32_t>(0xffffffff & allocData.scratchAddress);
+        uint32_t highAddress = static_cast<uint32_t>(0xffffffff & (allocData.scratchAddress >> 32));
+        cmd11->Bitfield.ScratchSpaceBasePointer = lowAddress;
+        cmd11->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
     }
+    /*
 
     // program Preemption again?
 
     // Program State Base Address
+    // 1. Pipe Control
+    // 2. Additional Pipeline Select (if 3DPipelineSelectWARequired)
+    // 3. Program State Base Address
+    // 4. Additional Pipeline Select (if 3DPipelineSelectWARequired)
+    // 5. Program Sip State
     auto pCmd13 = reinterpret_cast<PIPE_CONTROL*>(pCmd12);
     *pCmd13 = PIPE_CONTROL::init();
     pCmd13->Bitfield.CommandStreamerStallEnable = true;
@@ -584,12 +579,47 @@ int Context::createCommandBuffer() {
     pCmd13->Bitfield.DcFlushEnable = true;
     pCmd13 = pCmd13 + sizeof(PIPE_CONTROL);
 
-    // Additional Pipe Control
-
+    // Pipe Control
     // Add BATCH_BUFFER_START
     */
 
+    // DrmCommandStreamReceiver::flush() in drm_command_stream.inl
+    // DrmCommandStreamReceiver::flushInternal() in drm_command_stream_bdw_and_later.inl
+    // DrmCommandStreamReceiver::exec() in drm_command_stream.inl
+    // BufferObject::exec() in drm_buffer_object.cpp
     return SUCCESS;
+}
+
+int Context::pinExecbuffer() {
+    
+}
+
+int Context::fillExecObject(
+
+int Context::emitPinningRequest(BufferObject* bo) {
+    drm_i915_gem_exec_object2 execObject = {};
+    execObject.handle = bo->handle;
+    execObject.relocations_count = 0;
+    execObject.relocs_ptr = 0ul;
+    execObject.alignment = 0;
+    execObject.offset = bo->gpuAddress;
+    execObject.flags = EXEC_OBJECT_PINNED | EXEC_OBJECT_SUPPORTS_48B_ADDRESS;
+    execObject.rsvd1 = this->ctxId;
+    execObject.rsvd2 = 0;
+
+    drm_i915_gem_execbuffer2 execbuf = {};
+    execbuf.buffers_ptr = reinterpret_cast<uintptr_t>(&execObject);
+    execbuf.buffer_count = 2u;
+    execbuf.batch_start_offset = 0u;
+    execbuf.batch_len = alignUp(used, 8);
+    execbuf.flags = flags;
+    execbuf.rsvd1 = this->ctxId;
+
+    int ret = ioctl(fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
+    if (ret) {
+        return -1;
+    }
+    return 0;
 }
 
 

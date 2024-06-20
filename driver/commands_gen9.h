@@ -152,6 +152,97 @@ struct MEDIA_VFE_STATE {
     }
 };
 
+struct STATE_BASE_ADDRESS {
+    struct TheStructure {
+        //DW0
+        uint32_t DwordLength : BITFIELD_RANGE(0, 7);
+        uint32_t Reserved_8 : BITFIELD_RANGE(8, 15);
+        uint32_t _3DCommandSubOpcode : BITFIELD_RANGE(16, 23);
+        uint32_t _3DCommandOpcode : BITFIELD_RANGE(24, 26);
+        uint32_t CommandSubtype : BITFIELD_RANGE(27, 28);
+        uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        //DW1+DW2
+        uint64_t GeneralStateBaseAddressModifyEnable : BITFIELD_RANGE(0, 0);
+        uint64_t Reserved_33 : BITFIELD_RANGE(1, 3);
+        uint64_t GeneralStateMemoryObjectControlState_Reserved : BITFIELD_RANGE(4, 4);
+        uint64_t GeneralStateMemoryObjectControlState_IndexToMocsTables : BITFIELD_RANGE(5, 10);
+        uint64_t Reserved_43 : BITFIELD_RANGE(11, 11);
+        uint64_t GeneralStateBaseAddress : BITFIELD_RANGE(12, 63);
+        //DW3
+        uint32_t Reserved_96 : BITFIELD_RANGE(0, 15);
+        uint32_t StatelessDataPortAccessMemoryObjectControlState_Reserved : BITFIELD_RANGE(16, 16);
+        uint32_t StatelessDataPortAccessMemoryObjectControlState_IndexToMocsTables : BITFIELD_RANGE(17, 22);
+        uint32_t Reserved_119 : BITFIELD_RANGE(23, 31);
+        //DW4+DW5
+        uint64_t SurfaceStateBaseAddressModifyEnable : BITFIELD_RANGE(0, 0);
+        uint64_t Reserved_129 : BITFIELD_RANGE(1, 3);
+        uint64_t SurfaceStateMemoryObjectControlState_Reserved : BITFIELD_RANGE(4, 4);
+        uint64_t SurfaceStateMemoryObjectControlState_IndexToMocsTables : BITFIELD_RANGE(5, 10);
+        uint64_t Reserved_139 : BITFIELD_RANGE(11, 11);
+        uint64_t SurfaceStateBaseAddress : BITFIELD_RANGE(12, 63);
+        //DW6+DW7
+        uint64_t DynamicStateBaseAddressModifyEnable : BITFIELD_RANGE(0, 0);
+        uint64_t Reserved_193 : BITFIELD_RANGE(1, 3);
+        uint64_t DynamicStateMemoryObjectControlState_Reserved : BITFIELD_RANGE(4, 4);
+        uint64_t DynamicStateMemoryObjectControlState_IndexToMocsTables : BITFIELD_RANGE(5, 10);
+        uint64_t Reserved_203 : BITFIELD_RANGE(11, 11);
+        uint64_t DynamicStateBaseAddress : BITFIELD_RANGE(12, 63);
+        //DW8+DW9
+        uint64_t IndirectObjectBaseAddressModifyEnable : BITFIELD_RANGE(0, 0);
+        uint64_t Reserved_257 : BITFIELD_RANGE(1, 3);
+        uint64_t IndirectObjectMemoryObjectControlState_Reserved : BITFIELD_RANGE(4, 4);
+        uint64_t IndirectObjectMemoryObjectControlState_IndexToMocsTables : BITFIELD_RANGE(5, 10);
+        uint64_t Reserved_267 : BITFIELD_RANGE(11, 11);
+        uint64_t IndirectObjectBaseAddress : BITFIELD_RANGE(12, 63);
+        //DW10+DW11
+        uint64_t InstructionBaseAddressModifyEnable : BITFIELD_RANGE(0, 0);
+        uint64_t Reserved_321 : BITFIELD_RANGE(1, 3);
+        uint64_t InstructionMemoryObjectControlState_Reserved : BITFIELD_RANGE(4, 4);
+        uint64_t InstructionMemoryObjectControlState_IndexToMocsTables : BITFIELD_RANGE(5, 10);
+        uint64_t Reserved_331 : BITFIELD_RANGE(11, 11);
+        uint64_t InstructionBaseAddress : BITFIELD_RANGE(12, 63);
+        //DW12
+        uint32_t GeneralStateBufferSizeModifyEnable : BITFIELD_RANGE(0, 0);
+        uint32_t Reserved_385 : BITFIELD_RANGE(1, 11);
+        uint32_t GeneralStateBufferSize : BITFIELD_RANGE(12, 31);
+        //DW13
+        uint32_t DynamicStateBufferSizeModifyEnable : BITFIELD_RANGE(0, 0);
+        uint32_t Reserved_417 : BITFIELD_RANGE(1, 11);
+        uint32_t DynamicStateBufferSize : BITFIELD_RANGE(12, 31);
+        //DW14
+        uint32_t IndirectObjectBufferSizeModifyEnable : BITFIELD_RANGE(0, 0);
+        uint32_t Reserved_449 : BITFIELD_RANGE(1, 11);
+        uint32_t IndirectObjectBufferSize : BITFIELD_RANGE(12, 31);
+        //DW15
+        uint32_t InstructionBufferSizeModifyEnable : BITFIELD_RANGE(0, 0);
+        uint32_t Reserved_481 : BITFIELD_RANGE(1, 11);
+        uint32_t InstructionBufferSize : BITFIELD_RANGE(12, 31);
+        //DW16+DW17
+        uint64_t BindlessSurfaceStateBaseAddressModifyEnable : BITFIELD_RANGE(0, 0);
+        uint64_t Reserved_513 : BITFIELD_RANGE(1, 3);
+        uint64_t BindlessSurfaceStateMemoryObjectControlState_Reserved : BITFIELD_RANGE(4, 4);
+        uint64_t BindlessSurfaceStateMemoryObjectControlState_IndexToMocsTables : BITFIELD_RANGE(5, 10);
+        uint64_t Reserved_523 : BITFIELD_RANGE(11, 11);
+        uint64_t BindlessSurfaceStateBaseAddress : BITFIELD_RANGE(12, 63);
+        //DW18
+        uint32_t Reserved_576 : BITFIELD_RANGE(0, 11);
+        uint32_t BindlessSurfaceStateSize : BITFIELD_RANGE(12, 31);
+    } Bitfield;
+    enum {
+
+    };
+    static STATE_BASE_ADDRESS init() {
+        STATE_BASE_ADDRESS state;
+        memset(&state, 0, sizeof(state));
+        state.Bitfield.DwordLength = DWORD_LENGTH_DWORD_COUNT_N;
+        state.Bitfield._3DCommandSubOpcode = _3D_COMMAND_SUB_OPCODE_STATE_BASE_ADDRESS;
+        state.Bitfield._3DCommandOpcode = _3D_COMMAND_OPCODE_GFXPIPE_NONPIPELINED;
+        state.Bitfield.CommandSubtype = COMMAND_SUBTYPE_GFXPIPE_COMMON;
+        state.Bitfield.CommandType = COMMAND_TYPE_GFXPIPE;
+        return state;
+    }
+};
+
 struct GPGPU_CSR_BASE_ADDRESS {
     struct TheStructure {
         //DW0
