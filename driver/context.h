@@ -68,6 +68,7 @@ struct AllocationData {
     uint64_t scratchAddress;
     uint64_t tagAddress;
     uint64_t preemptionAddress;
+    uint64_t commandStreamTaskAddress;
 
     size_t hwThreadsPerWorkGroup;
     uint32_t maxVfeThreads;
@@ -101,7 +102,8 @@ class Context : public pContext {
     int createDynamicStateHeap();
     int createPreemptionAllocation();
     int createTagAllocation();
-    int createCommandBuffer();
+    int createCommandStreamTask();
+    int createCommandStreamReceiver();
 
     Device* device;
     Kernel* kernel = nullptr;

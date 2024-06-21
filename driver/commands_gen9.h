@@ -275,6 +275,38 @@ struct GPGPU_CSR_BASE_ADDRESS {
     }
 };
 
+struct STATE_SIP {
+    struct TheStructure {
+        //DW0
+        uint32_t DwordLength : BITFIELD_RANGE(0, 7);
+        uint32_t Reserved_8 : BITFIELD_RANGE(8, 15);
+        uint32_t _3DCommandSubOpcode : BITFIELD_RANGE(16, 23);
+        uint32_t _3DCommandOpcode : BITFIELD_RANGE(24, 26);
+        uint32_t CommandSubtype : BITFIELD_RANGE(27, 28);
+        uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        //DW1+DW2
+        uint64_t Reserved_32 : BITFIELD_RANGE(0, 3);
+        uint64_t SystemInstructionPointer : BITFIELD_RANGE(4, 63);
+    } Bitfield;
+    enum {
+        DWORD_LENGTH_DWORD_COUNT_N = 0x1,
+        _3D_COMMAND_SUB_OPCODE_STATE_SIP = 0x2,
+        _3D_COMMAND_OPCODE_GFXPIPE_NONPIPELINED = 0x1,
+        COMMAND_SUBTYPE_GFXPIPE_COMMON = 0x0,
+        COMMAND_TYPE_GFXPIPE = 0x3
+    };
+    static STATE_SIP init() {
+        STATE_SIP state;
+        memset(&state, 0, sizeof(state));
+        state.Bitfield.DwordLength = DWORD_LENGTH_DWORD_COUNT_N;
+        state.Bitfield._3DCommandSubOpcode = _3D_COMMAND_SUB_OPCODE_STATE_SIP;
+        state.Bitfield._3DCommandOpcode = _3D_COMMAND_OPCODE_GFXPIPE_NONPIPELINED;
+        state.Bitfield.CommandSubtype = COMMAND_SUBTYPE_GFXPIPE_COMMON;
+        state.Bitfield.CommandType = COMMAND_TYPE_GFXPIPE;
+        return state;
+    }
+};
+
 struct GPGPU_WALKER {
     struct TheStructure {
         //DW0
@@ -420,6 +452,16 @@ struct PIPE_CONTROL {
         state.Bitfield.GlobalSnapshotCountReset = GLOBAL_SNAPSHOT_COUNT_RESET_DON_T_RESET;
         state.Bitfield.LriPostSyncOperation = LRI_POST_SYNC_OPERATION_NO_LRI_OPERATION;
         state.Bitfield.DestinationAddressType = DESTINATION_ADDRESS_TYPE_PPGTT;
+        state.Bitfield.ConstantCacheInvalidationEnable = false;
+        state.Bitfield.InstructionCacheInvalidateEnable = false;
+        state.Bitfield.PipeControlFlushEnable = false;
+        state.Bitfield.RenderTargetCacheFlushEnable = false;
+        state.Bitfield.StateCacheInvalidationEnable = false;
+        state.Bitfield.TextureCacheInvalidationEnable = false;
+        state.Bitfield.VfCacheInvalidationEnable = false;
+        state.Bitfield.GenericMediaStateClear = false;
+        state.Bitfield.TlbInvalidate = false;
+        state.Bitfield.NotifyEnable = false;
         return state;
     }
 };
