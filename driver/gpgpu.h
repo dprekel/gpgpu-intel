@@ -26,6 +26,7 @@
 #define INVALID_KERNEL_FORMAT               -18
 #define INVALID_KERNEL_ARG                  -19
 #define INVALID_KERNEL                      -20
+#define SIP_ERROR                           -21
 
 
 class pDevice {

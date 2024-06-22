@@ -82,10 +82,12 @@ API_CALL pKernel* BuildKernel(pContext* cont,
         *ret = kernel->extractMetadata();
         if (*ret)
             return nullptr;
-        *ret = kernel->createSipKernel();
-        if (*ret)
-            return nullptr;
-        // Set kernelBuildSuccessful to true
+        if (!context->getIsSipKernelAllocated()) {
+            *ret = kernel->createSipKernel();
+            if (*ret)
+                return nullptr;
+        }
+    // Set kernelBuildSuccessful to true
     }
     pKernel* kern = static_cast<pKernel*>(kernel);
     return kern;
@@ -119,6 +121,8 @@ API_CALL int SetKernelArg(pKernel* kern,
                         size_t arg_size,
                         void* arg_value) {
     Kernel* kernel = static_cast<Kernel*>(kern);
+    if (!kernel)
+        return INVALID_KERNEL;
     int ret = kernel->setArgument(arg_index, arg_size, arg_value);
     if (ret)
         return ret;
@@ -162,7 +166,10 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
         */
     //ret = context->createDynamicStateHeap();
     
-    ret = context->createCommandBuffer();
+    ret = context->createCommandStreamTask();
+    if (ret)
+        return ret;
+    ret = context->createCommandStreamReceiver();
     if (ret)
         return ret;
     context->kernel = nullptr; // this is not good

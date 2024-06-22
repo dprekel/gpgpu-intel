@@ -208,7 +208,7 @@ void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTab
     igcFeWa->SetFtrPooledEuEnabled(featureTable->flags.ftrPooledEuEnabled);
 }
 
-IgcOclTranslationCtx* Kernel::createIgcTranslationCtx() {
+IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
     uint64_t interfaceID = 0x15483dac4ed88c8;
     uint64_t interfaceVersion = 2;
     ICIF* DeviceCtx = CreateInterface(igcMain, interfaceID, interfaceVersion);
@@ -230,9 +230,8 @@ IgcOclTranslationCtx* Kernel::createIgcTranslationCtx() {
     TransferPlatformInfo(igcPlatform, descriptor->pHwInfo->platform);
     TransferSystemInfo(igcGetSystemInfo, descriptor->pHwInfo->gtSystemInfo);
     TransferFeaturesInfo(igcFeWa, descriptor->pHwInfo->featureTable);
-    
-    uint64_t translationCtxVersion = 3;
-    return newDeviceCtx->CreateTranslationCtxImpl(translationCtxVersion, intermediateType, outType);
+
+    return newDeviceCtx;
 }
 
 int Kernel::initialize() {
@@ -298,7 +297,12 @@ int Kernel::build(uint16_t chipset_id) {
     fclBuildOutput->Retain();
 
     // Backend Compilation
-    IgcOclTranslationCtx* igcTranslationCtx = createIgcTranslationCtx();
+    deviceCtx = getIgcDeviceCtx();
+    if (!deviceCtx) {
+        return BACKEND_BUILD_ERROR;
+    }
+    uint64_t translationCtxVersion = 3;
+    IgcOclTranslationCtx* igcTranslationCtx = deviceCtx->CreateTranslationCtxImpl(translationCtxVersion, intermediateType, outType);
     if (!igcTranslationCtx) {
         return BACKEND_BUILD_ERROR;
     }
@@ -565,26 +569,35 @@ int Kernel::extractMetadata() {
 }
 
 int Kernel::createSipKernel() {
-    /*
-    uint64_t interfaceID = 0x15483dac4ed88c8;
-    uint64_t interfaceVersion = 2;
-    ICIF* DeviceCtx = CreateInterface(igcMain, interfaceID, interfaceVersion);
-    IgcOclDeviceCtx* newDeviceCtx = static_cast<IgcOclDeviceCtx*>(DeviceCtx);
-    if (newDeviceCtx == nullptr) {
-        return nullptr;
-    }
-    uint64_t interfaceID2 = ;
-    uint64_t interfaceVersion = ;
+    if (!deviceCtx)
+        deviceCtx = getIgcDeviceCtx();
+    uint64_t interfaceID2 = 0xfffe2429681d9502;
+    uint64_t interfaceVersion2 = 0x1;
     ICIF* RoutineBufferCtx = CreateInterface(igcMain, interfaceID2, interfaceVersion2);
+    ICIF* AreaBufferCtx = CreateInterface(igcMain, interfaceID2, interfaceVersion2);
     IgcBuffer* systemRoutineBuffer = static_cast<IgcBuffer*>(RoutineBufferCtx);
-    if (systemRoutineBuffer == nullptr) {
-        return nullptr;
-    }
-    bool result = DeviceCtx->GetSystemRoutine(0u, bindlessSip, systemRoutineBuffer, stateSaveAreaBuffer);    
-    */
+    IgcBuffer* stateSaveAreaBuffer = static_cast<IgcBuffer*>(AreaBufferCtx);
+    if (!systemRoutineBuffer || !stateSaveAreaBuffer)
+        return SIP_ERROR;
+    uint64_t typeOfSystemRoutine = 0xfffffffffffc642;
+    bool result = deviceCtx->GetSystemRoutine(typeOfSystemRoutine, false, systemRoutineBuffer, stateSaveAreaBuffer);    
+    if (!result)
+        return SIP_ERROR;
+    size_t sipSize = systemRoutineBuffer->GetSizeRaw();
+    const char* sipBinaryRaw = static_cast<const char*>(systemRoutineBuffer->GetMemoryRaw());
+    if (!sipSize || !sipBinaryRaw)
+        return SIP_ERROR;
+    size_t sipAllocSize = alignUp(sipSize, MemoryConstants::pageSize);
+    BufferObject* sipBinary = context->allocateBufferObject(sipAllocSize);
+    if (!sipBinary)
+        return BUFFER_ALLOCATION_FAILED;
+    sipBinary->bufferType = BufferType::KERNEL_ISA_INTERNAL;
+    memcpy(sipBinary->cpuAddress, sipBinaryRaw, sipSize);
 
+    context->setIsSipKernelAllocated(true);
     return SUCCESS;
 }
+
 
 void Kernel::setOptBit(uint32_t& opts, uint32_t bit, bool isSet) {
     if (isSet) {

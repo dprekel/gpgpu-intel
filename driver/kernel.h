@@ -254,7 +254,7 @@ class Kernel : public pKernel {
     void TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform);
     void TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo);
     void TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable);
-    IgcOclTranslationCtx* createIgcTranslationCtx();
+    IgcOclDeviceCtx* getIgcDeviceCtx();
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
     void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset);
@@ -268,6 +268,7 @@ class Kernel : public pKernel {
     const char* fclName;
     CIFMain* igcMain = nullptr;
     CIFMain* fclMain = nullptr;
+    IgcOclDeviceCtx* deviceCtx = nullptr;
 
     const char* filename;
     DataStruct options;    

@@ -229,7 +229,11 @@ struct STATE_BASE_ADDRESS {
         uint32_t BindlessSurfaceStateSize : BITFIELD_RANGE(12, 31);
     } Bitfield;
     enum {
-
+        DWORD_LENGTH_DWORD_COUNT_N = 0x11,
+        _3D_COMMAND_SUB_OPCODE_STATE_BASE_ADDRESS = 0x1,
+        _3D_COMMAND_OPCODE_GFXPIPE_NONPIPELINED = 0x1,
+        COMMAND_SUBTYPE_GFXPIPE_COMMON = 0x0,
+        COMMAND_TYPE_GFXPIPE = 0x3
     };
     static STATE_BASE_ADDRESS init() {
         STATE_BASE_ADDRESS state;
@@ -521,7 +525,7 @@ struct MI_LOAD_REGISTER_IMM {
         MI_COMMAND_OPCODE_MI_LOAD_REGISTER_IMM = 0x22,
         COMMAND_TYPE_MI_COMMAND = 0x0
     };
-    static MI_LOAD_REGISTER_IMM {
+    static MI_LOAD_REGISTER_IMM init() {
         MI_LOAD_REGISTER_IMM state;
         memset(&state, 0, sizeof(state));
         state.Bitfield.DwordLength = DWORD_LENGTH_EXCLUDES_DWORD_0_1;

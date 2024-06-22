@@ -27,6 +27,7 @@ enum BufferType {
 
 namespace MemoryConstants {
     constexpr uint64_t kiloByte = 1024;
+    constexpr uint64_t kiloByteShiftSize = 10;
     constexpr uint64_t megaByte = 1024 * kiloByte;
     constexpr size_t pageSize = 4 * kiloByte;
     constexpr size_t cacheLineSize = 64; 
@@ -66,6 +67,9 @@ struct BufferObject {
 struct AllocationData {
     uint64_t kernelAddress;
     uint64_t scratchAddress;
+    uint64_t sshAddress;
+    uint64_t iohAddress;
+    uint64_t dshAddress;
     uint64_t tagAddress;
     uint64_t preemptionAddress;
     uint64_t commandStreamTaskAddress;
@@ -90,7 +94,10 @@ class Context : public pContext {
     ~Context();
     void setKernelData(KernelFromPatchtokens* kernelData);
     KernelFromPatchtokens* getKernelData();
+    bool getIsSipKernelAllocated();
+    void setIsSipKernelAllocated(bool value);
     void setMaxWorkGroupSize();
+    void setMaxThreadsForVfe();
     int createDrmContext();
     void setNonPersistentContext();
     BufferObject* allocateBufferObject(size_t size);
@@ -112,6 +119,8 @@ class Context : public pContext {
 
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;
+
+    bool isSipKernelAllocated;
     std::vector<std::unique_ptr<BufferObject>> execBuffer;
     AllocationData allocData;
     uint32_t vmId;
