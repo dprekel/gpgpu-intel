@@ -65,13 +65,7 @@ struct BufferObject {
 };
 
 struct AllocationData {
-    uint64_t kernelAddress;
     uint64_t scratchAddress;
-    uint64_t sshAddress;
-    uint64_t iohAddress;
-    uint64_t dshAddress;
-    uint64_t tagAddress;
-    uint64_t preemptionAddress;
     uint64_t commandStreamTaskAddress;
 
     size_t hwThreadsPerWorkGroup;
@@ -95,32 +89,45 @@ class Context : public pContext {
     void setKernelData(KernelFromPatchtokens* kernelData);
     KernelFromPatchtokens* getKernelData();
     bool getIsSipKernelAllocated();
-    void setIsSipKernelAllocated(bool value);
     void setMaxWorkGroupSize();
     void setMaxThreadsForVfe();
     int createDrmContext();
     void setNonPersistentContext();
-    BufferObject* allocateBufferObject(size_t size);
+    std::unique_ptr<BufferObject> allocateBufferObject(size_t size);
+    int createTagAllocation();
+    int createPreemptionAllocation();
+    int createSipAllocation(size_t sipSize, const char* sipBinaryRaw);
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
+    int createGPUAllocations();
+
+    Device* device;
+    Kernel* kernel = nullptr;
+  private:
     int allocateISAMemory();
     int createScratchAllocation();
     int createSurfaceStateHeap();
     int createIndirectObjectHeap();
     int createDynamicStateHeap();
-    int createPreemptionAllocation();
-    int createTagAllocation();
     int createCommandStreamTask();
     int createCommandStreamReceiver();
-
-    Device* device;
-    Kernel* kernel = nullptr;
-  private:
     void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize);
 
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;
 
-    bool isSipKernelAllocated;
+    //TODO: Load compilers in CreateDevices
+    //TODO: Add virtual memory creation to CreateContext
+    //TODO: How to set and save data buffers?
+    std::unique_ptr<BufferObject> kernelAllocation;
+    std::unique_ptr<BufferObject> scratchAllocation;
+    std::unique_ptr<BufferObject> sshAllocation;
+    std::unique_ptr<BufferObject> iohAllocation;
+    std::unique_ptr<BufferObject> dshAllocation;
+    std::unique_ptr<BufferObject> tagAllocation;
+    std::unique_ptr<BufferObject> preemptionAllocation;
+    std::unique_ptr<BufferObject> sipAllocation;
+    std::unique_ptr<BufferObject> commandStreamTask;
+    std::unique_ptr<BufferObject> commandStreamCSR;
     std::vector<std::unique_ptr<BufferObject>> execBuffer;
     AllocationData allocData;
     uint32_t vmId;
@@ -131,6 +138,8 @@ class Context : public pContext {
     size_t workItemsPerWorkGroup[3];
     size_t globalWorkItems[3];
     size_t numWorkGroups[3];
+
+    bool isSipKernelAllocated;
 };
 
 

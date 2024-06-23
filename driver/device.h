@@ -55,6 +55,11 @@ class Device : public pDevice {
     void checkPreemptionSupport();
     int enableTurboBoost();
 
+    const char* igcName;
+    const char* fclName;
+    CIFMain* igcMain = nullptr;
+    CIFMain* fclMain = nullptr;
+
     uint32_t numDevices = 0;
     char driver_name[5];
     int chipset_id;

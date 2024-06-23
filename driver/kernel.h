@@ -243,7 +243,7 @@ class Kernel : public pKernel {
     int setArgument(uint32_t argIndex, size_t argSize, void* argValue);
     int disassembleBinary();
     int extractMetadata();
-    int createSipKernel();
+    int retrieveSystemRoutineInstructions();
 
     Context* context;
   private:
@@ -264,10 +264,6 @@ class Kernel : public pKernel {
     void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
 
     std::unique_ptr<DeviceDescriptor> descriptor;
-    const char* igcName;
-    const char* fclName;
-    CIFMain* igcMain = nullptr;
-    CIFMain* fclMain = nullptr;
     IgcOclDeviceCtx* deviceCtx = nullptr;
 
     const char* filename;

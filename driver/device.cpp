@@ -24,8 +24,11 @@ const DeviceDescriptor deviceDescriptorTable[] = {
     {0, nullptr, nullptr}
 };
 
-Device::Device(int fd) : fd(fd)
-                         {}
+Device::Device(int fd) 
+         : fd(fd),
+           igcName("libigc.so.1"),
+           fclName("libigdfcl.so.1") {
+}
 
 Device::~Device() {
     printf("Device destructor called!\n");
@@ -323,6 +326,18 @@ void Device::checkPreemptionSupport() {
     preemptionSupported = ((0 == ret) && (value & I915_SCHEDULER_CAP_PREEMPTION));
 }
 
+int Device::initCompiler() {
+    int ret = 0;
+    if (!fclMain) {
+        ret = Kernel::loadCompiler(fclName, &fclMain);
+    }
+    if (!igcMain) {
+        ret = Kernel::loadCompiler(igcName, &igcMain);
+    }
+    if (ret)
+        return ret;
+    return SUCCESS;
+}
 
 
 std::vector<int> openDevices(int* err) {

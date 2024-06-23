@@ -15,6 +15,7 @@ API_CALL std::vector<pDevice*> CreateDevices(int* ret) {
     *ret = 0;
     std::vector<int> devIDs = openDevices(ret);
     std::vector<pDevice*> devices;
+    bool isCompilerInitialized = false;
     if (*ret || devIDs.size() == 0)
         return devices;
     for (auto& ID : devIDs) {
@@ -48,6 +49,12 @@ API_CALL pContext* CreateContext(pDevice* dev, int* ret) {
     if (device->getNonPersistentContextsSupported()) {
         context->setNonPersistentContext();
     }
+    *ret = context->createTagAllocation();
+    if (*ret)
+        return nullptr;
+    *ret = context->createPreemptionAllocation();
+    if (*ret)
+        return nullptr;
     pContext* cont = static_cast<pContext*>(context);
     return cont;
 }
@@ -67,9 +74,6 @@ API_CALL pKernel* BuildKernel(pContext* cont,
     *ret = 0;
     Context* context = static_cast<Context*>(cont);
     Kernel* kernel = new Kernel(context, filename, options);
-    *ret = kernel->initialize();
-    if (*ret)
-        return nullptr;
     *ret = kernel->build(chipset_id);
     if (*ret)
         return nullptr;
@@ -83,7 +87,7 @@ API_CALL pKernel* BuildKernel(pContext* cont,
         if (*ret)
             return nullptr;
         if (!context->getIsSipKernelAllocated()) {
-            *ret = kernel->createSipKernel();
+            *ret = kernel->retrieveSystemRoutineInstructions();
             if (*ret)
                 return nullptr;
         }
@@ -144,32 +148,7 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     int ret = context->validateWorkGroups(work_dim, global_work_size, local_work_size);
     if (ret)
         return ret;
-    ret = context->allocateISAMemory();
-    if (ret)
-        return ret;
-    ret = context->createScratchAllocation();
-    if (ret)
-        return ret;
-    ret = context->createTagAllocation();
-    if (ret)
-        return ret;
-    ret = context->createPreemptionAllocation();
-    if (ret)
-        return ret;
-    /*
-    ret = context->createSurfaceStateHeap();
-    if (ret)
-        return ret;
-    ret = context->createIndirectObjectHeap();
-    if (ret)
-        return ret;
-        */
-    //ret = context->createDynamicStateHeap();
-    
-    ret = context->createCommandStreamTask();
-    if (ret)
-        return ret;
-    ret = context->createCommandStreamReceiver();
+    ret = context->createGPUAllocations();
     if (ret)
         return ret;
     context->kernel = nullptr; // this is not good

@@ -17,8 +17,6 @@
 
 Kernel::Kernel(Context* context, const char* filename, const char* options) 
          : context(context),
-           igcName("libigc.so.1"),
-           fclName("libigdfcl.so.1"), 
            filename(filename),
            srcType(2305843009183132750),            // oclC
            intermediateType(2305843009202725362),   // spirV
@@ -93,27 +91,24 @@ IgcBuffer* Kernel::CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t si
     return buffer;
 }
 
-int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
+static int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
     void* handle;
     auto dlopenFlag = RTLD_LAZY | RTLD_DEEPBIND;
     handle = dlopen(libName, dlopenFlag);
     if (!handle) {
-        printf("Loading compiler library not successful\n");
         return COMPILER_LOAD_FAILED;
     }
     CIFMain* (*CreateCIFMainFunc)();
     void* addr = dlsym(handle, "CIFCreateMain");
     CreateCIFMainFunc = reinterpret_cast<CIFMain*(*)()>(addr);
     if (CreateCIFMainFunc == nullptr) {
-        printf("Couldn't create main entry point\n");
         return COMPILER_LOAD_FAILED;
     }
     *cifMain = CreateCIFMainFunc();
     if (*cifMain == nullptr) {
-        printf("CIFCreateMain failed\n");
         return COMPILER_LOAD_FAILED;
     }
-    return 0;
+    return SUCCESS;
 }
 
 FclOclTranslationCtx* Kernel::createFclTranslationCtx() {
@@ -122,7 +117,6 @@ FclOclTranslationCtx* Kernel::createFclTranslationCtx() {
     ICIF* DeviceCtx = CreateInterface(fclMain, interfaceID, interfaceVersion);
     FclOclDeviceCtx* newDeviceCtx = static_cast<FclOclDeviceCtx*>(DeviceCtx);
     if (newDeviceCtx == nullptr) {
-        printf("No Device Context!\n");
         return nullptr;
     }
     uint32_t openCLVersion = 30;
@@ -234,15 +228,6 @@ IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
     return newDeviceCtx;
 }
 
-int Kernel::initialize() {
-    int retFcl = loadCompiler(fclName, &fclMain);
-    int retIgc = loadCompiler(igcName, &igcMain);
-    if (retFcl)
-        return retFcl;
-    if (retIgc)
-        return retIgc;
-    return SUCCESS;
-}
 
 int Kernel::build(uint16_t chipset_id) {
     int ret = loadProgramSource();
@@ -568,7 +553,7 @@ int Kernel::extractMetadata() {
     return SUCCESS;
 }
 
-int Kernel::createSipKernel() {
+int Kernel::retrieveSystemRoutineInstructions() {
     if (!deviceCtx)
         deviceCtx = getIgcDeviceCtx();
     uint64_t interfaceID2 = 0xfffe2429681d9502;
@@ -587,14 +572,9 @@ int Kernel::createSipKernel() {
     const char* sipBinaryRaw = static_cast<const char*>(systemRoutineBuffer->GetMemoryRaw());
     if (!sipSize || !sipBinaryRaw)
         return SIP_ERROR;
-    size_t sipAllocSize = alignUp(sipSize, MemoryConstants::pageSize);
-    BufferObject* sipBinary = context->allocateBufferObject(sipAllocSize);
-    if (!sipBinary)
-        return BUFFER_ALLOCATION_FAILED;
-    sipBinary->bufferType = BufferType::KERNEL_ISA_INTERNAL;
-    memcpy(sipBinary->cpuAddress, sipBinaryRaw, sipSize);
-
-    context->setIsSipKernelAllocated(true);
+    int ret = createSipAllocation(sipSize, sipBinaryRaw);
+    if (ret)
+        return ret;
     return SUCCESS;
 }
 

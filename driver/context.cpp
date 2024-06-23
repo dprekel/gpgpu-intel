@@ -51,11 +51,8 @@ bool Context::getIsSipKernelAllocated() {
     return isSipKernelAllocated;
 }
 
-void Context::setIsSipKernelAllocated(bool value) {
-    this->isSipKernelAllocated = value;
-}
 
-BufferObject* Context::allocateBufferObject(size_t size) {
+std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size) {
     size_t alignment = MemoryConstants::pageSize;
     //TODO: What is difference between this alignment and alignment in alignUp() function?
     size_t sizeToAlloc = size + alignment;
@@ -85,9 +82,7 @@ BufferObject* Context::allocateBufferObject(size_t size) {
     bo->gpuAddress = canonize(reinterpret_cast<uint64_t>(bo->cpuAddress));
     bo->size = size;
     bo->handle = userptr.handle;
-    auto BO = bo.get();
-    execBuffer.push_back(std::move(bo));
-    return BO;
+    return bo;
 }
 
 
@@ -96,13 +91,13 @@ int Context::createDrmContext() {
     int ret;
     vmId = device->drmVmId;
     
-    drm_i915_gem_context_create_ext gcc = {};
+    drm_i915_gem_context_create_ext gcc = {0};
     ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT, &gcc);
     if (ret) {
         return CONTEXT_CREATION_FAILED;
     }
     if (vmId > 0) {
-        drm_i915_gem_context_param param = {};
+        drm_i915_gem_context_param param = {0};
         param.ctx_id = gcc.ctx_id;
         param.value = vmId;
         param.param = I915_CONTEXT_PARAM_VM;
@@ -116,7 +111,7 @@ int Context::createDrmContext() {
 }
 
 void Context::setNonPersistentContext() {
-    drm_i915_gem_context_param contextParam = {};
+    drm_i915_gem_context_param contextParam = {0};
     contextParam.ctx_id = ctxId;
     contextParam.param = I915_CONTEXT_PARAM_PERSISTENCE;
     ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &contextParam);
@@ -172,16 +167,48 @@ int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_siz
 }
 
 
+int Context::createGPUAllocations() {
+    int ret = 0;
+    ret = allocateISAMemory();
+    if (ret)
+        return ret;
+    ret = createScratchAllocation();
+    if (ret)
+        return ret;
+    ret = createSurfaceStateHeap();
+    if (ret)
+        return ret;
+    ret = createIndirectObjectHeap();
+    if (ret)
+        return ret;
+    ret = createDynamicStateHeap();
+    if (ret)
+        return ret;
+    ret = createCommandStreamTask();
+    if (ret)
+        return ret;
+    ret = createCommandStreamReceiver();
+    if (ret)
+        return ret;
+    return SUCCESS;
+}
+
+
 int Context::allocateISAMemory() {
     size_t kernelISASize = static_cast<size_t>(kernelData->header->KernelHeapSize);
     size_t alignedAllocationSize = alignUp(kernelISASize, MemoryConstants::pageSize);
-    BufferObject* kernelISA = allocateBufferObject(alignedAllocationSize);
-    if (!kernelISA) {
-        return KERNEL_ALLOCATION_FAILED;
+    bool hasRequiredAllocationSize;
+    if (kernelAllocation) {
+        hasRequiredAllocationSize = (kernelAllocation->size >= alignedAllocationSize) ? true : false;
     }
-    kernelISA->bufferType = BufferType::KERNEL_ISA;
-    memcpy(kernelISA->cpuAddress, kernelData->isa, kernelISASize);
-    allocData.kernelAddress = kernelISA->gpuAddress;
+    if (!kernelAllocation || !hasRequiredAllocSize) {
+        kernelAllocation = allocateBufferObject(alignedAllocationSize);
+        if (!kernelAllocation) {
+            return KERNEL_ALLOCATION_FAILED;
+        }
+        kernelAllocation->bufferType = BufferType::KERNEL_ISA;
+    }
+    memcpy(kernelAllocation->cpuAddress, kernelData->isa, kernelISASize);
     return SUCCESS;
 }
 
@@ -219,16 +246,17 @@ int Context::createScratchAllocation() {
 
 int Context::createSurfaceStateHeap() {
     size_t sshSize = static_cast<size_t>(kernelData->header->SurfaceStateHeapSize);
-    size_t alignedAllocationSize = alignUp(sshSize, MemoryConstants::pageSize); //TODO: this is not right size
-    BufferObject* dstSsh = allocateBufferObject(alignedAllocationSize);
-    if (!dstSsh)
-        return BUFFER_ALLOCATION_FAILED;
-    dstSsh->bufferType = BufferType::LINEAR_STREAM;
+    if (!sshAllocation) {
+        size_t alignedAllocationSize = alignUp(sshSize, MemoryConstants::pageSize); //TODO: this is not right size
+        sshAllocation = allocateBufferObject(alignedAllocationSize);
+        if (!dstSsh)
+            return BUFFER_ALLOCATION_FAILED;
+        sshAllocation->bufferType = BufferType::LINEAR_STREAM;
+    }
     if (kernelData->bindingTableState->Count == 0)
         return 0;
     auto srcSsh = kernel->getSurfaceStatePtr();
-    memcpy(dstSsh->cpuAddress, srcSsh, sshSize);
-    allocData.sshAddress = dstSsh->gpuAddress;
+    memcpy(sshAllocation->cpuAddress, srcSsh, sshSize);
     return SUCCESS;
 }
 
@@ -250,12 +278,13 @@ int Context::createIndirectObjectHeap() {
     // in matmul test example, size will be 192
     uint64_t size = crossThreadDataSize + threadsPerWG * perThreadSizeLocalIDs;
     */
-    size_t iohSize = 16 * MemoryConstants::pageSize;
-    BufferObject* ioh = allocateBufferObject(iohSize);
-    if (!ioh)
-        return BUFFER_ALLOCATION_FAILED;
-    ioh->bufferType = BufferType::INTERNAL_HEAP;
-    
+    if (!iohAllocation) {
+        size_t iohSize = 16 * MemoryConstants::pageSize;
+        iohAllocation = allocateBufferObject(iohSize);
+        if (!iohAllocation)
+            return BUFFER_ALLOCATION_FAILED;
+        iohAllocation->bufferType = BufferType::INTERNAL_HEAP;
+    }
     //TODO: Terminate program if we have implicitArgs
     uint32_t crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
     memset(ioh->cpuAddress, 0x00, crossThreadDataSize);
@@ -266,9 +295,8 @@ int Context::createIndirectObjectHeap() {
     threadsPerWG >>= simdSize == 32 ? 5 : simdSize == 16 ? 4 : simdSize == 8 ? 3 : 0;
     allocData.hwThreadsPerWorkGroup = threadsPerWG;
 
-    //generateLocalIDsSimd(ioh->cpuAddress, threadsPerWG, simdSize);
+    //generateLocalIDsSimd(iohAllocation->cpuAddress, threadsPerWG, simdSize);
 
-    allocData.iohAddress = ioh->gpuAddress;
     return SUCCESS;
 }
 
@@ -364,13 +392,14 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint
 
 int Context::createDynamicStateHeap() {
     //TODO: Why 16 times pageSize?
-    size_t dshSize = 16 * MemoryConstants::pageSize;
-    BufferObject* dsh = allocateBufferObject(dshSize);
-    if (!dsh)
-        return BUFFER_ALLOCATION_FAILED;
-    dsh->bufferType = BufferType::LINEAR_STREAM;
-
-    auto interfaceDescriptor = dsh->ptrOffset<INTERFACE_DESCRIPTOR_DATA*>(sizeof(INTERFACE_DESCRIPTOR_DATA));
+    if (!dshAllocation) {
+        size_t dshSize = 16 * MemoryConstants::pageSize;
+        dshAllocation = allocateBufferObject(dshSize);
+        if (!dsh)
+            return BUFFER_ALLOCATION_FAILED;
+        dshAllocation->bufferType = BufferType::LINEAR_STREAM;
+    }
+    auto interfaceDescriptor = dshAllocation->ptrOffset<INTERFACE_DESCRIPTOR_DATA*>(sizeof(INTERFACE_DESCRIPTOR_DATA));
     *interfaceDescriptor = INTERFACE_DESCRIPTOR_DATA::init();
 
     uint64_t kernelStartOffset = reinterpret_cast<uint64_t>(allocData.kernelAddress);
@@ -390,49 +419,58 @@ int Context::createDynamicStateHeap() {
     numGrfPerThreadData = std::max(numGrfPerThreadData, 1u);
     interfaceDescriptor->Bitfield.ConstantIndirectUrbEntryReadLength = numGrfPerThreadData;
     interfaceDescriptor->Bitfield.BarrierEnable = kernelData->executionEnvironment->HasBarriers;
-    allocData.dshAddress = dsh->gpuAddress;
     return SUCCESS;
 }
 
 
 int Context::createPreemptionAllocation() {
     size_t preemptionSize = hwInfo->gtSystemInfo->CsrSizeInMb * MemoryConstants::megaByte;
-    BufferObject* preemption = allocateBufferObject(preemptionSize);
-    if (!preemption) {
+    preemptionAllocation = allocateBufferObject(preemptionSize);
+    if (!preemptionAllocation) {
         return BUFFER_ALLOCATION_FAILED;
     }
-    preemption->bufferType = BufferType::PREEMPTION;
-    allocData.preemptionAddress = preemption->gpuAddress;
+    preemptionAllocation->bufferType = BufferType::PREEMPTION;
     return SUCCESS;
 }
 
 
 int Context::createTagAllocation() {
-    BufferObject* tagAlloc = allocateBufferObject(MemoryConstants::pageSize);
-    if (!tagAlloc) {
+    tagAllocation = allocateBufferObject(MemoryConstants::pageSize);
+    if (!tagAllocation) {
         return BUFFER_ALLOCATION_FAILED;
     }
-    tagAlloc->bufferType = BufferType::TAG_BUFFER;
-    uint32_t* tagAddress = reinterpret_cast<uint32_t*>(tagAlloc->cpuAddress);
+    tagAllocation->bufferType = BufferType::TAG_BUFFER;
+    uint32_t* tagAddress = reinterpret_cast<uint32_t*>(tagAllocation->cpuAddress);
     uint32_t initialHardwareTag = 0u;
     *tagAddress = initialHardwareTag;
 
-    uint8_t* tagAdd = reinterpret_cast<uint8_t*>(tagAlloc->cpuAddress);
+    uint8_t* tagAdd = reinterpret_cast<uint8_t*>(tagAllocation->cpuAddress);
     DebugPauseState* debugPauseStateAddress = reinterpret_cast<DebugPauseState*>(tagAdd + MemoryConstants::cacheLineSize);
     *debugPauseStateAddress = DebugPauseState::waitingForFirstSemaphore;
+    return SUCCESS;
+}
 
-    allocData.tagAddress = tagAlloc->gpuAddress;
+
+int Context::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
+    size_t sipAllocSize = alignUp(sipSize, MemoryConstants::pageSize);
+    sipAllocation = allocateBufferObject(sipAllocSize);
+    if (!sipAllocation)
+        return BUFFER_ALLOCATION_FAILED;
+    sipAllocation->bufferType = BufferType::KERNEL_ISA_INTERNAL;
+    memcpy(sipAllocation->cpuAddress, sipBinaryRaw, sipSize);
+    isSipKernelAllocated = true;
     return SUCCESS;
 }
 
 
 int Context::createCommandStreamTask() {
-    BufferObject* commandStreamTask = allocateBufferObject(16 * MemoryConstants::pageSize);
     if (!commandStreamTask) {
-        return BUFFER_ALLOCATION_FAILED;
+        commandStreamTask = allocateBufferObject(16 * MemoryConstants::pageSize);
+        if (!commandStreamTask) {
+            return BUFFER_ALLOCATION_FAILED;
+        }
+        commandStreamTask->bufferType = BufferType::COMMAND_BUFFER;
     }
-    commandStreamTask->bufferType = BufferType::COMMAND_BUFFER;
-
     auto cmd1 = commandStreamTask->ptrOffset<MEDIA_STATE_FLUSH*>(sizeof(MEDIA_STATE_FLUSH));
     *cmd1 = MEDIA_STATE_FLUSH::init();
 
@@ -527,11 +565,13 @@ int Context::createCommandStreamTask() {
 
 int Context::createCommandStreamReceiver() {
     //TODO: Always 16 * pageSize?
-    BufferObject* commandStreamCSR = allocateBufferObject(16 * MemoryConstants::pageSize);
     if (!commandStreamCSR) {
-        return BUFFER_ALLOCATION_FAILED;
+        commandStreamCSR = allocateBufferObject(16 * MemoryConstants::pageSize);
+        if (!commandStreamCSR) {
+            return BUFFER_ALLOCATION_FAILED;
+        }
+        commandStreamCSR->bufferType = BufferType::COMMAND_BUFFER;
     }
-    commandStreamCSR->bufferType = BufferType::COMMAND_BUFFER;
     //TODO: program Pipeline Select
     //if (mediaSamplerConfigChanged || !isPreambleSent) {
         auto cmd1 = commandStreamCSR->ptrOffset<PIPELINE_SELECT*>(sizeof(PIPELINE_SELECT));
