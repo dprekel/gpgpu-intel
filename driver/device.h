@@ -26,11 +26,19 @@ struct DeviceDescriptor {
     const char* devName;
 };
 
+struct CompilerInfo {
+    const char* igcName = "libigc.so.1";
+    const char* fclName = "libigdfcl.so.1";
+    CIFMain* igcMain = nullptr;
+    CIFMain* fclMain = nullptr;
+};
+
 std::vector<int> openDevices(int* err);
+CompilerInfo initCompiler(int* ret);
 
 class Device : public pDevice {
   public:
-    Device(int fd);
+    Device(int fd, CompilerInfo* compilerInfo);
     ~Device();
     int initialize();
     bool getNonPersistentContextsSupported();
@@ -41,6 +49,8 @@ class Device : public pDevice {
     DeviceDescriptor* getDeviceDescriptor();
 
     Context* context = nullptr;
+    CIFMain* igcMain = nullptr;
+    CIFMain* fclMain = nullptr;
     int fd;
     int drmVmId;                            // unique identifier for ppGTT
     std::unique_ptr<DeviceDescriptor> descriptor;
@@ -54,12 +64,7 @@ class Device : public pDevice {
     void checkNonPersistentContextsSupport();
     void checkPreemptionSupport();
     int enableTurboBoost();
-
-    const char* igcName;
-    const char* fclName;
-    CIFMain* igcMain = nullptr;
-    CIFMain* fclMain = nullptr;
-
+    
     uint32_t numDevices = 0;
     char driver_name[5];
     int chipset_id;

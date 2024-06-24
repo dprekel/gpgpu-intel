@@ -236,6 +236,7 @@ class Kernel : public pKernel {
   public:
     Kernel(Context* context, const char* filename, const char* options);
     ~Kernel();
+    static int loadCompiler(const char* libName, CIFMain** cifMain);
     char* getSurfaceStatePtr();
     int loadProgramSource();
     int initialize();
@@ -247,7 +248,6 @@ class Kernel : public pKernel {
 
     Context* context;
   private:
-    int loadCompiler(const char* libName, CIFMain** cifMain);
     ICIF* CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion);
     IgcBuffer* CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t size);
     FclOclTranslationCtx* createFclTranslationCtx();

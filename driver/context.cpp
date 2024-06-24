@@ -18,6 +18,8 @@ Context::Context(Device* device)
            workItemsPerWorkGroup{1, 1, 1},
            globalWorkItems{1, 1, 1} {
     this->hwInfo = device->descriptor->pHwInfo;
+    this->fclMain = device->fclMain;
+    this->igcMain = device->igcMain;
     setMaxWorkGroupSize();
     setMaxThreadsForVfe();
 }
@@ -201,7 +203,7 @@ int Context::allocateISAMemory() {
     if (kernelAllocation) {
         hasRequiredAllocationSize = (kernelAllocation->size >= alignedAllocationSize) ? true : false;
     }
-    if (!kernelAllocation || !hasRequiredAllocSize) {
+    if (!kernelAllocation || !hasRequiredAllocationSize) {
         kernelAllocation = allocateBufferObject(alignedAllocationSize);
         if (!kernelAllocation) {
             return KERNEL_ALLOCATION_FAILED;
@@ -226,11 +228,11 @@ int Context::createScratchAllocation() {
     size_t requiredScratchSizeInBytes = requiredScratchSize * computeUnitsUsedForScratch;
     if (requiredScratchSize) {
         size_t alignedAllocationSize = alignUp(requiredScratchSizeInBytes, MemoryConstants::pageSize);
-        BufferObject* scratch = allocateBufferObject(alignedAllocationSize);
-        if (!scratch)
+        scratchAllocation = allocateBufferObject(alignedAllocationSize);
+        if (!scratchAllocation)
             return BUFFER_ALLOCATION_FAILED;
-        scratch->bufferType = BufferType::SCRATCH_SURFACE;
-        allocData.scratchAddress = scratch->gpuAddress;
+        scratchAllocation->bufferType = BufferType::SCRATCH_SURFACE;
+        allocData.scratchAddress = scratchAllocation->gpuAddress;
         requiredScratchSize >>= static_cast<uint32_t>(MemoryConstants::kiloByteShiftSize);
         allocData.perThreadScratchSpace = 0u;
         while (requiredScratchSize >>= 1) {
@@ -249,7 +251,7 @@ int Context::createSurfaceStateHeap() {
     if (!sshAllocation) {
         size_t alignedAllocationSize = alignUp(sshSize, MemoryConstants::pageSize); //TODO: this is not right size
         sshAllocation = allocateBufferObject(alignedAllocationSize);
-        if (!dstSsh)
+        if (!sshAllocation)
             return BUFFER_ALLOCATION_FAILED;
         sshAllocation->bufferType = BufferType::LINEAR_STREAM;
     }
@@ -287,7 +289,7 @@ int Context::createIndirectObjectHeap() {
     }
     //TODO: Terminate program if we have implicitArgs
     uint32_t crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
-    memset(ioh->cpuAddress, 0x00, crossThreadDataSize);
+    memset(iohAllocation->cpuAddress, 0x00, crossThreadDataSize);
 
     size_t localWorkSize = workItemsPerWorkGroup[0] * workItemsPerWorkGroup[1] * workItemsPerWorkGroup[2];
     uint32_t simdSize = kernelData->executionEnvironment->LargestCompiledSIMDSize;
@@ -395,14 +397,14 @@ int Context::createDynamicStateHeap() {
     if (!dshAllocation) {
         size_t dshSize = 16 * MemoryConstants::pageSize;
         dshAllocation = allocateBufferObject(dshSize);
-        if (!dsh)
+        if (!dshAllocation)
             return BUFFER_ALLOCATION_FAILED;
         dshAllocation->bufferType = BufferType::LINEAR_STREAM;
     }
     auto interfaceDescriptor = dshAllocation->ptrOffset<INTERFACE_DESCRIPTOR_DATA*>(sizeof(INTERFACE_DESCRIPTOR_DATA));
     *interfaceDescriptor = INTERFACE_DESCRIPTOR_DATA::init();
 
-    uint64_t kernelStartOffset = reinterpret_cast<uint64_t>(allocData.kernelAddress);
+    uint64_t kernelStartOffset = reinterpret_cast<uint64_t>(kernelAllocation->cpuAddress);
     interfaceDescriptor->Bitfield.KernelStartPointerHigh = kernelStartOffset >> 32;
     interfaceDescriptor->Bitfield.KernelStartPointer = (uint32_t)kernelStartOffset >> 0x6;
     interfaceDescriptor->Bitfield.DenormMode = INTERFACE_DESCRIPTOR_DATA::DENORM_MODE_SETBYKERNEL;
@@ -540,7 +542,7 @@ int Context::createCommandStreamTask() {
     cmd5->Bitfield.DcFlushEnable = true;
 
     cmd5->Bitfield.PostSyncOperation = PIPE_CONTROL::POST_SYNC_OPERATION_WRITE_IMMEDIATE_DATA;
-    uint64_t tagAddress = allocData.tagAddress;
+    uint64_t tagAddress = tagAllocation->gpuAddress;
     cmd5->Bitfield.Address = static_cast<uint32_t>(tagAddress & 0x0000ffffffffull);
     cmd5->Bitfield.AddressHigh = static_cast<uint32_t>(tagAddress >> 32);
 
@@ -606,7 +608,7 @@ int Context::createCommandStreamReceiver() {
     //if (isMidThreadPreemption) {
         auto cmd5 = commandStreamCSR->ptrOffset<GPGPU_CSR_BASE_ADDRESS*>(sizeof(GPGPU_CSR_BASE_ADDRESS));
         *cmd5 = GPGPU_CSR_BASE_ADDRESS::init();
-        cmd5->Bitfield.GpgpuCsrBaseAddress = allocData.preemptionAddress;
+        cmd5->Bitfield.GpgpuCsrBaseAddress = preemptionAllocation->gpuAddress;
     //}
 
     // program VFE state
@@ -618,8 +620,8 @@ int Context::createCommandStreamReceiver() {
         cmd6->Bitfield.UrbEntryAllocationSize = 0x782;
         cmd6->Bitfield.PerThreadScratchSpace = allocData.perThreadScratchSpace;
         cmd6->Bitfield.StackSize = allocData.perThreadScratchSpace;
-        uint32_t lowAddress = static_cast<uint32_t>(0xffffffff & allocData.scratchAddress);
-        uint32_t highAddress = static_cast<uint32_t>(0xffffffff & (allocData.scratchAddress >> 32));
+        uint32_t lowAddress = static_cast<uint32_t>(0xffffffff & scratchAllocation->gpuAddress);
+        uint32_t highAddress = static_cast<uint32_t>(0xffffffff & (scratchAllocation->gpuAddress >> 32));
         cmd6->Bitfield.ScratchSpaceBasePointer = lowAddress;
         cmd6->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
     //}
@@ -647,20 +649,20 @@ int Context::createCommandStreamReceiver() {
 
     cmd9->Bitfield.DynamicStateBaseAddressModifyEnable = true;
     cmd9->Bitfield.DynamicStateBufferSizeModifyEnable = true;
-    cmd9->Bitfield.DynamicStateBaseAddress = allocData.dshAddress;
+    cmd9->Bitfield.DynamicStateBaseAddress = dshAllocation->gpuAddress;
     //cmd9->Bitfield.DynamicStateBufferSize = ;
 
     cmd9->Bitfield.SurfaceStateBaseAddressModifyEnable = true;
-    cmd9->Bitfield.SurfaceStateBaseAddress = allocData.sshAddress;
+    cmd9->Bitfield.SurfaceStateBaseAddress = sshAllocation->gpuAddress;
 
     cmd9->Bitfield.IndirectObjectBaseAddressModifyEnable = true;
     cmd9->Bitfield.IndirectObjectBufferSizeModifyEnable = true;
-    cmd9->Bitfield.IndirectObjectBaseAddress = allocData.iohAddress;
+    cmd9->Bitfield.IndirectObjectBaseAddress = iohAllocation->gpuAddress;
     //cmd9->Bitfield.IndirectObjectBufferSize = ;
 
     cmd9->Bitfield.InstructionBaseAddressModifyEnable = true;
     cmd9->Bitfield.InstructionBufferSizeModifyEnable = true;
-    cmd9->Bitfield.InstructionBaseAddress = allocData.kernelAddress;
+    cmd9->Bitfield.InstructionBaseAddress = kernelAllocation->gpuAddress;
     //cmd9->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
     //cmd9->Bitfield.InstructionMemoryObjectControlState = getMOCS();
 
@@ -676,7 +678,7 @@ int Context::createCommandStreamReceiver() {
     //if (isMidThreadPreemption) {
         auto cmd10 = commandStreamCSR->ptrOffset<STATE_SIP*>(sizeof(STATE_SIP));
         *cmd10 = STATE_SIP::init();
-        //cmd10->Bitfield.SystemInstructionPointer = allocData.sipAddress;
+        cmd10->Bitfield.SystemInstructionPointer = sipAllocation->gpuAddress;
     //}
 
     //TODO: Program Pipe Control
@@ -687,7 +689,7 @@ int Context::createCommandStreamReceiver() {
 
     auto cmd12 = commandStreamCSR->ptrOffset<MI_BATCH_BUFFER_START*>(sizeof(MI_BATCH_BUFFER_START));
     *cmd12 = MI_BATCH_BUFFER_START::init();
-    cmd12->Bitfield.BatchBufferStartAddress_Graphicsaddress47_2 = allocData.commandStreamTaskAddress;
+    cmd12->Bitfield.BatchBufferStartAddress_Graphicsaddress47_2 = commandStreamTask->gpuAddress;
     cmd12->Bitfield.AddressSpaceIndicator = MI_BATCH_BUFFER_START::ADDRESS_SPACE_INDICATOR_PPGTT;
 
     return SUCCESS;
@@ -733,11 +735,7 @@ int Context::emitPinningRequest(BufferObject* bo) {
 }
 */
 
-
-Buffer::Buffer(BufferObject* dataBuffer) {
-    this->mem = dataBuffer->cpuAddress;
-    this->gpuAddress = dataBuffer->gpuAddress;
-    this->size = alignUp(dataBuffer->size, 4);
+Buffer::Buffer() {
 }
 
 

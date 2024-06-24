@@ -13,13 +13,15 @@
 
 API_CALL std::vector<pDevice*> CreateDevices(int* ret) {
     *ret = 0;
-    std::vector<int> devIDs = openDevices(ret);
     std::vector<pDevice*> devices;
-    bool isCompilerInitialized = false;
+    std::vector<int> devIDs = openDevices(ret);
     if (*ret || devIDs.size() == 0)
         return devices;
+    CompilerInfo compilerInfo = initCompiler(ret);
+    if (*ret)
+        return devices;
     for (auto& ID : devIDs) {
-        Device* device = new Device(ID);
+        Device* device = new Device(ID, &compilerInfo);
         *ret = device->initialize();
         if (*ret)
             return devices;     // problem: information loss if previous return value is overwritten
@@ -107,14 +109,15 @@ API_CALL pBuffer* CreateBuffer(pContext* cont,
         return nullptr;
     }
     Context* context = static_cast<Context*>(cont);
-    BufferObject* dataBuffer = context->allocateBufferObject(size);
-    if (!dataBuffer) {
+    Buffer* bufferObj = new Buffer();
+    bufferObj->dataBuffer = context->allocateBufferObject(size);
+    if (!bufferObj->dataBuffer) {
         *ret = BUFFER_ALLOCATION_FAILED;
         return nullptr;
     }
-    dataBuffer->bufferType = BufferType::BUFFER_HOST_MEMORY;
+    bufferObj->mem = bufferObj->dataBuffer->cpuAddress;
+    bufferObj->dataBuffer->bufferType = BufferType::BUFFER_HOST_MEMORY;
     //context->emitPinningRequest(bo);
-    Buffer* bufferObj = new Buffer(dataBuffer);
     pBuffer* buf = static_cast<pBuffer*>(bufferObj);
     return buf;
 }

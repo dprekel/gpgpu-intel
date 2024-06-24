@@ -24,10 +24,10 @@ const DeviceDescriptor deviceDescriptorTable[] = {
     {0, nullptr, nullptr}
 };
 
-Device::Device(int fd) 
-         : fd(fd),
-           igcName("libigc.so.1"),
-           fclName("libigdfcl.so.1") {
+Device::Device(int fd, CompilerInfo* compilerInfo)
+         : fd(fd) {
+    this->fclMain = compilerInfo->fclMain;
+    this->igcMain = compilerInfo->igcMain;
 }
 
 Device::~Device() {
@@ -326,19 +326,13 @@ void Device::checkPreemptionSupport() {
     preemptionSupported = ((0 == ret) && (value & I915_SCHEDULER_CAP_PREEMPTION));
 }
 
-int Device::initCompiler() {
-    int ret = 0;
-    if (!fclMain) {
-        ret = Kernel::loadCompiler(fclName, &fclMain);
-    }
-    if (!igcMain) {
-        ret = Kernel::loadCompiler(igcName, &igcMain);
-    }
-    if (ret)
-        return ret;
-    return SUCCESS;
-}
 
+CompilerInfo initCompiler(int* ret) {
+    CompilerInfo compilerInfo;
+    *ret = Kernel::loadCompiler(compilerInfo.fclName, &compilerInfo.fclMain);
+    *ret = Kernel::loadCompiler(compilerInfo.igcName, &compilerInfo.igcMain);
+    return compilerInfo;
+}
 
 std::vector<int> openDevices(int* err) {
     const char* pciDevicesDirectory = "/dev/dri/by-path";

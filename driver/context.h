@@ -48,7 +48,7 @@ enum ThreadArbitrationPolicy {
 struct BufferObject {
     BufferObject() {}
     ~BufferObject() {
-        printf("BufferObject destructor called!\n");
+        printf("%d BufferObject destructor called!\n", this->bufferType);
     }
     template <typename T>
     T ptrOffset(size_t ptr_offset) {
@@ -56,12 +56,12 @@ struct BufferObject {
         offset += sizeof(ptr_offset);
         return reinterpret_cast<T>(baseAddr + offset);
     }
-    int bufferType      = 0;
-    void* cpuAddress    = nullptr;
+    int bufferType = 0;
+    void* cpuAddress = nullptr;
     uint64_t gpuAddress = 0;
-    size_t offset       = 0;
-    size_t size         = 0;
-    uint32_t handle     = 0;
+    size_t offset = 0;
+    size_t size = 0;
+    uint32_t handle = 0;
 };
 
 struct AllocationData {
@@ -75,10 +75,9 @@ struct AllocationData {
 
 class Buffer : public pBuffer {
   public:
-    Buffer(BufferObject* dataBuffer);
+    Buffer();
     ~Buffer();
-    uint64_t gpuAddress = 0;
-    size_t size = 0;
+    std::unique_ptr<BufferObject> dataBuffer;
 };
 
 
@@ -102,6 +101,9 @@ class Context : public pContext {
 
     Device* device;
     Kernel* kernel = nullptr;
+    CIFMain* igcMain = nullptr;
+    CIFMain* fclMain = nullptr;
+
   private:
     int allocateISAMemory();
     int createScratchAllocation();
@@ -118,8 +120,10 @@ class Context : public pContext {
     //TODO: Load compilers in CreateDevices
     //TODO: Add virtual memory creation to CreateContext
     //TODO: How to set and save data buffers?
-    std::unique_ptr<BufferObject> kernelAllocation;
-    std::unique_ptr<BufferObject> scratchAllocation;
+    //TODO: Check allocation sizes for ssh, ioh, dsh and command buffer
+    //TODO: Check everything in scratchAllocation
+    std::unique_ptr<BufferObject> kernelAllocation;     //TODO: Potential memory leak here
+    std::unique_ptr<BufferObject> scratchAllocation;    //TODO: Potential memory leak here
     std::unique_ptr<BufferObject> sshAllocation;
     std::unique_ptr<BufferObject> iohAllocation;
     std::unique_ptr<BufferObject> dshAllocation;
@@ -139,7 +143,7 @@ class Context : public pContext {
     size_t globalWorkItems[3];
     size_t numWorkGroups[3];
 
-    bool isSipKernelAllocated;
+    bool isSipKernelAllocated = false;
 };
 
 

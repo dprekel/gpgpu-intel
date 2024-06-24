@@ -91,7 +91,7 @@ IgcBuffer* Kernel::CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t si
     return buffer;
 }
 
-static int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
+int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
     void* handle;
     auto dlopenFlag = RTLD_LAZY | RTLD_DEEPBIND;
     handle = dlopen(libName, dlopenFlag);
@@ -114,7 +114,7 @@ static int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
 FclOclTranslationCtx* Kernel::createFclTranslationCtx() {
     uint64_t interfaceID = 95846467711642693;
     uint64_t interfaceVersion = 5;
-    ICIF* DeviceCtx = CreateInterface(fclMain, interfaceID, interfaceVersion);
+    ICIF* DeviceCtx = CreateInterface(context->fclMain, interfaceID, interfaceVersion);
     FclOclDeviceCtx* newDeviceCtx = static_cast<FclOclDeviceCtx*>(DeviceCtx);
     if (newDeviceCtx == nullptr) {
         return nullptr;
@@ -205,7 +205,7 @@ void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTab
 IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
     uint64_t interfaceID = 0x15483dac4ed88c8;
     uint64_t interfaceVersion = 2;
-    ICIF* DeviceCtx = CreateInterface(igcMain, interfaceID, interfaceVersion);
+    ICIF* DeviceCtx = CreateInterface(context->igcMain, interfaceID, interfaceVersion);
     IgcOclDeviceCtx* newDeviceCtx = static_cast<IgcOclDeviceCtx*>(DeviceCtx);
     if (newDeviceCtx == nullptr) {
         return nullptr;
@@ -243,17 +243,17 @@ int Kernel::build(uint16_t chipset_id) {
         descriptor->setupHardwareInfo = dd->setupHardwareInfo;
         descriptor->devName = dd->devName;
     }
-    IgcBuffer* src = CreateIgcBuffer(igcMain, sourceCode.data, sourceCode.dataLength + 1);
-    IgcBuffer* buildOptions = CreateIgcBuffer(igcMain, options.data, options.dataLength + 1);
+    IgcBuffer* src = CreateIgcBuffer(context->igcMain, sourceCode.data, sourceCode.dataLength + 1);
+    IgcBuffer* buildOptions = CreateIgcBuffer(context->igcMain, options.data, options.dataLength + 1);
     printf("options: %s\n", options.data);
 
     //TODO: Look into cl_device_caps.cpp to retrieve these from hardware info
     const char* internal_options = "-ocl-version=300 -cl-disable-zebin -cl-intel-has-buffer-offset-arg -D__IMAGE_SUPPORT__=1 -fpreserve-vec3-type -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_fp16,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_icd,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_intel_command_queue_families,+cl_intel_subgroups,+cl_intel_required_subgroup_size,+cl_intel_subgroups_short,+cl_khr_spir,+cl_intel_accelerator,+cl_intel_driver_diagnostics,+cl_khr_priority_hints,+cl_khr_throttle_hints,+cl_khr_create_command_queue,+cl_intel_subgroups_char,+cl_intel_subgroups_long,+cl_khr_il_program,+cl_intel_mem_force_host_memory,+cl_khr_subgroup_extended_types,+cl_khr_subgroup_non_uniform_vote,+cl_khr_subgroup_ballot,+cl_khr_subgroup_non_uniform_arithmetic,+cl_khr_subgroup_shuffle,+cl_khr_subgroup_shuffle_relative,+cl_khr_subgroup_clustered_reduce,+cl_intel_device_attribute_query,+cl_khr_suggested_local_work_size,+cl_khr_fp64,+cl_khr_subgroups,+cl_intel_spirv_device_side_avc_motion_estimation,+cl_intel_spirv_media_block_io,+cl_intel_spirv_subgroups,+cl_khr_spirv_no_integer_wrap_decoration,+cl_intel_unified_shared_memory_preview,+cl_khr_mipmap_image,+cl_khr_mipmap_image_writes,+cl_intel_planar_yuv,+cl_intel_packed_yuv,+cl_intel_motion_estimation,+cl_intel_device_side_avc_motion_estimation,+cl_intel_advanced_motion_estimation,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_khr_image2d_from_buffer,+cl_khr_depth_images,+cl_khr_3d_image_writes,+cl_intel_media_block_io,+cl_intel_va_api_media_sharing,+cl_intel_sharing_format_query,+cl_khr_pci_bus_info";
     size_t internalOptionsSize = strlen(internal_options) + 1;
-    IgcBuffer* internalOptions = CreateIgcBuffer(igcMain, internal_options, internalOptionsSize);
+    IgcBuffer* internalOptions = CreateIgcBuffer(context->igcMain, internal_options, internalOptionsSize);
     printf("internalOptionsSize: %lu\n", internalOptionsSize);
-    IgcBuffer* idsBuffer = CreateIgcBuffer(igcMain, nullptr, 0);
-    IgcBuffer* valuesBuffer = CreateIgcBuffer(igcMain, nullptr, 0);
+    IgcBuffer* idsBuffer = CreateIgcBuffer(context->igcMain, nullptr, 0);
+    IgcBuffer* valuesBuffer = CreateIgcBuffer(context->igcMain, nullptr, 0);
 
     // Frontend Compilation
     FclOclTranslationCtx* fclTranslationCtx = createFclTranslationCtx();
@@ -456,7 +456,7 @@ int Kernel::setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue) {
 }
 
 //TODO: Add cases for images, command queues, pipes, ...
-//TODO: check CreateBuffer for different buffer sizes
+//TODO: There need to be some changes with the Buffer class so that we don't have to levels of dereferencing
 int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     Buffer* bufferObj = static_cast<Buffer*>(argValue);
     if (bufferObj->magic != 0x373E5A13) {
@@ -485,7 +485,8 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     auto surfaceState = reinterpret_cast<RENDER_SURFACE_STATE*>(ptrOffset(sshLocal.get(), descriptor->bindful));
     *surfaceState = RENDER_SURFACE_STATE::init();
     SURFACE_STATE_BUFFER_LENGTH Length = {0};
-    Length.Length = static_cast<uint32_t>(bufferObj->size - 1);
+    size_t dataBufferSize = alignUp(bufferObj->dataBuffer->size, 4);
+    Length.Length = static_cast<uint32_t>(dataBufferSize - 1);
     surfaceState->Bitfield.Width = Length.SurfaceState.Width;
     surfaceState->Bitfield.Height = Length.SurfaceState.Height;
     surfaceState->Bitfield.Depth = Length.SurfaceState.Depth;
@@ -494,7 +495,7 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     uint32_t mocsIndex = getMocsIndex();
     surfaceState->Bitfield.MemoryObjectControlState_Reserved = mocsIndex; // leads to data loss, I don't know why this is necessary
     surfaceState->Bitfield.MemoryObjectControlState_IndexToMocsTables = (mocsIndex >> 1);
-    surfaceState->Bitfield.SurfaceBaseAddress = bufferObj->gpuAddress;
+    surfaceState->Bitfield.SurfaceBaseAddress = bufferObj->dataBuffer->gpuAddress;
 
     return SUCCESS;
 }
@@ -558,8 +559,8 @@ int Kernel::retrieveSystemRoutineInstructions() {
         deviceCtx = getIgcDeviceCtx();
     uint64_t interfaceID2 = 0xfffe2429681d9502;
     uint64_t interfaceVersion2 = 0x1;
-    ICIF* RoutineBufferCtx = CreateInterface(igcMain, interfaceID2, interfaceVersion2);
-    ICIF* AreaBufferCtx = CreateInterface(igcMain, interfaceID2, interfaceVersion2);
+    ICIF* RoutineBufferCtx = CreateInterface(context->igcMain, interfaceID2, interfaceVersion2);
+    ICIF* AreaBufferCtx = CreateInterface(context->igcMain, interfaceID2, interfaceVersion2);
     IgcBuffer* systemRoutineBuffer = static_cast<IgcBuffer*>(RoutineBufferCtx);
     IgcBuffer* stateSaveAreaBuffer = static_cast<IgcBuffer*>(AreaBufferCtx);
     if (!systemRoutineBuffer || !stateSaveAreaBuffer)
@@ -572,7 +573,7 @@ int Kernel::retrieveSystemRoutineInstructions() {
     const char* sipBinaryRaw = static_cast<const char*>(systemRoutineBuffer->GetMemoryRaw());
     if (!sipSize || !sipBinaryRaw)
         return SIP_ERROR;
-    int ret = createSipAllocation(sipSize, sipBinaryRaw);
+    int ret = context->createSipAllocation(sipSize, sipBinaryRaw);
     if (ret)
         return ret;
     return SUCCESS;
