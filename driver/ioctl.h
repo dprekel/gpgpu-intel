@@ -25,6 +25,7 @@ struct drm_i915_gem_execbuffer2 {
     uint32_t DR4;
     uint32_t num_cliprects;
     uint64_t cliprects_ptr;
+#define I915_EXEC_NO_RELOC      (1<<11)
     uint64_t flags;
     uint64_t rsvd1;
     uint64_t rsvd2;
@@ -35,6 +36,8 @@ struct drm_i915_gem_exec_object2 {
     uint64_t relocs_ptr;
     uint64_t alignment;
     uint64_t offset;
+#define EXEC_OBJECT_SUPPORTS_48B_ADDRESS (1<<3)
+#define EXEC_OBJECT_PINNED      (1<<4)
     uint64_t flags;
     union {
         uint64_t rsvd1;

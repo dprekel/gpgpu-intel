@@ -8,6 +8,7 @@
 
 #include "device.h"
 #include "gpgpu.h"
+#include "ioctl.h"
 #include "kernel.h"
 
 class Device;
@@ -73,12 +74,6 @@ struct AllocationData {
     uint32_t perThreadScratchSpace;
 };
 
-class Buffer : public pBuffer {
-  public:
-    Buffer();
-    ~Buffer();
-    std::unique_ptr<BufferObject> dataBuffer;
-};
 
 
 class Context : public pContext {
@@ -98,6 +93,9 @@ class Context : public pContext {
     int createSipAllocation(size_t sipSize, const char* sipBinaryRaw);
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
     int createGPUAllocations();
+    int populateAndSubmitExecBuffer();
+    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject* execBufferPtrs, size_t residencyCount);
+    int finishExecution();
 
     Device* device;
     Kernel* kernel = nullptr;
@@ -113,11 +111,11 @@ class Context : public pContext {
     int createCommandStreamTask();
     int createCommandStreamReceiver();
     void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize);
+    void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject& bo);
 
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;
 
-    //TODO: Load compilers in CreateDevices
     //TODO: Add virtual memory creation to CreateContext
     //TODO: How to set and save data buffers?
     //TODO: Check allocation sizes for ssh, ioh, dsh and command buffer
@@ -132,7 +130,12 @@ class Context : public pContext {
     std::unique_ptr<BufferObject> sipAllocation;
     std::unique_ptr<BufferObject> commandStreamTask;
     std::unique_ptr<BufferObject> commandStreamCSR;
-    std::vector<std::unique_ptr<BufferObject>> execBuffer;
+
+    //TODO: Is it allowed to copy unique_ptr objects to execBuffer?
+    std::vector<BufferObject> execBuffer;
+    std::vector<drm_i915_gem_exec_object2> execObjects;
+
+    //TODO: Replace AllocationData
     AllocationData allocData;
     uint32_t vmId;
     uint32_t ctxId;

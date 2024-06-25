@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "buffer.h"
 #include "context.h"
 #include "device.h"
 #include "gpgpu.h"
@@ -109,15 +110,10 @@ API_CALL pBuffer* CreateBuffer(pContext* cont,
         return nullptr;
     }
     Context* context = static_cast<Context*>(cont);
-    Buffer* bufferObj = new Buffer();
-    bufferObj->dataBuffer = context->allocateBufferObject(size);
-    if (!bufferObj->dataBuffer) {
-        *ret = BUFFER_ALLOCATION_FAILED;
+    Buffer* bufferObj = new Buffer(context);
+    *ret = bufferObj->allocateAndPinDataBuffer(size);
+    if (ret)
         return nullptr;
-    }
-    bufferObj->mem = bufferObj->dataBuffer->cpuAddress;
-    bufferObj->dataBuffer->bufferType = BufferType::BUFFER_HOST_MEMORY;
-    //context->emitPinningRequest(bo);
     pBuffer* buf = static_cast<pBuffer*>(bufferObj);
     return buf;
 }
@@ -154,7 +150,10 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     ret = context->createGPUAllocations();
     if (ret)
         return ret;
-    context->kernel = nullptr; // this is not good
+    ret = context->populateAndSubmitExecBuffer();
+    if (ret)
+        return ret;
+    context->kernel = nullptr; //TODO: maybe this is not good
     return SUCCESS;
 }
 

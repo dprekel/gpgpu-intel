@@ -695,48 +695,83 @@ int Context::createCommandStreamReceiver() {
     return SUCCESS;
 }
 
-/*
-int Context::pinExecbuffer() {
-    
+
+
+int Context::populateAndSubmitExecBuffer() {
+    execBuffer.push_back(*kernelAllocation);
+    if (scratchAllocation)
+        execBuffer.push_back(*scratchAllocation);
+    execBuffer.push_back(*dshAllocation);
+    execBuffer.push_back(*iohAllocation);
+    execBuffer.push_back(*sshAllocation);
+    execBuffer.push_back(*tagAllocation);
+    //if (midThreadPreemption) {
+        execBuffer.push_back(*preemptionAllocation);
+        execBuffer.push_back(*sipAllocation);
+    //}
+    execBuffer.push_back(*commandStreamCSR);
+    execBuffer.push_back(*commandStreamTask);
+
+    size_t residencyCount = execBuffer.size();
+    execObjects.resize(residencyCount);
+
+    int ret = exec(execObjects.data(), execBuffer.data(), residencyCount);
+    if (ret)
+        return GEM_EXECBUFFER_FAILED;
+    execBuffer.clear();
+
+    return SUCCESS;
 }
 
-int Context::fillExecObject() {
 
+void Context::fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject& bo) {
+    execObject.handle = bo.handle;
+    execObject.relocation_count = 0u;
+    execObject.relocs_ptr = 0ul;
+    execObject.alignment = 0u;
+    execObject.offset = bo.gpuAddress;
+    execObject.flags = EXEC_OBJECT_PINNED | EXEC_OBJECT_SUPPORTS_48B_ADDRESS;
+    execObject.rsvd1 = this->ctxId;
+    execObject.rsvd2 = 0u;
 }
     // DrmCommandStreamReceiver::flush() in drm_command_stream.inl
     // DrmCommandStreamReceiver::flushInternal() in drm_command_stream_bdw_and_later.inl
     // DrmCommandStreamReceiver::exec() in drm_command_stream.inl
     // BufferObject::exec() in drm_buffer_object.cpp
 
-int Context::emitPinningRequest(BufferObject* bo) {
-    drm_i915_gem_exec_object2 execObject = {0};
-    execObject.handle = bo->handle;
-    execObject.relocations_count = 0;
-    execObject.relocs_ptr = 0ul;
-    execObject.alignment = 0;
-    execObject.offset = bo->gpuAddress;
-    execObject.flags = EXEC_OBJECT_PINNED | EXEC_OBJECT_SUPPORTS_48B_ADDRESS;
-    execObject.rsvd1 = this->ctxId;
-    execObject.rsvd2 = 0;
 
+int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject* execBufferPtrs, size_t residencyCount) {
+    for (size_t i = 0; i < residencyCount; i++) {
+        fillExecObject(execObjects[i], execBufferPtrs[i]);
+    }
     drm_i915_gem_execbuffer2 execbuf = {0};
-    execbuf.buffers_ptr = reinterpret_cast<uintptr_t>(&execObject);
-    execbuf.buffer_count = 2u;
+    execbuf.buffers_ptr = reinterpret_cast<uintptr_t>(execObjects);
+    execbuf.buffer_count = static_cast<uint32_t>(residencyCount);
     execbuf.batch_start_offset = 0u;
+    //TODO: Get correct used and engineFlag values
+    uint32_t used = 2;
+    uint32_t engineFlag = 2;
     execbuf.batch_len = alignUp(used, 8);
-    execbuf.flags = flags;
+    execbuf.flags = engineFlag | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
-    int ret = ioctl(fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
+    /*
+    int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
     if (ret) {
-        return -1;
+        return GEM_EXECBUFFER_FAILED;
     }
-    return 0;
+    */
+    return SUCCESS;
 }
-*/
 
-Buffer::Buffer() {
+
+int Context::finishExecution() {
+    //TODO: Clear execObjects vector here
+    return SUCCESS;
 }
+
+
+
 
 
 // Commands in CommandStreamCSR:

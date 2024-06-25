@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstring>
 
+#include "buffer.h"
 #include "commands_gen9.h"
 #include "device.h"
 #include "gpgpu.h"
