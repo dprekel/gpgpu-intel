@@ -94,7 +94,7 @@ class Context : public pContext {
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
     int createGPUAllocations();
     int populateAndSubmitExecBuffer();
-    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject* execBufferPtrs, size_t residencyCount);
+    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject* execBufferPtrs, size_t residencyCount, size_t used);
     int finishExecution();
 
     Device* device;

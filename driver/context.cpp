@@ -611,24 +611,32 @@ int Context::createCommandStreamReceiver() {
         cmd5->Bitfield.GpgpuCsrBaseAddress = preemptionAllocation->gpuAddress;
     //}
 
+    auto cmd6 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
+    *cmd6 = PIPE_CONTROL::init();
+    cmd6->Bitfield.CommandStreamerStallEnable = true;
+    //if (waSendMIFLUSHBeforeVFE) {
+        cmd6->Bitfield.RenderTargetCacheFlushEnable = true;
+        cmd6->Bitfield.DepthCacheFlushEnable = true;
+        cmd6->Bitfield.DcFlushEnable = true;
+    //}
     // program VFE state
     //if (mediaVfeStateDirty) {
-        auto cmd6 = commandStreamCSR->ptrOffset<MEDIA_VFE_STATE*>(sizeof(MEDIA_VFE_STATE));
-        *cmd6 = MEDIA_VFE_STATE::init();
-        cmd6->Bitfield.MaximumNumberOfThreads = allocData.maxVfeThreads;
-        cmd6->Bitfield.NumberOfUrbEntries = 1;
-        cmd6->Bitfield.UrbEntryAllocationSize = 0x782;
-        cmd6->Bitfield.PerThreadScratchSpace = allocData.perThreadScratchSpace;
-        cmd6->Bitfield.StackSize = allocData.perThreadScratchSpace;
+        auto cmd7 = commandStreamCSR->ptrOffset<MEDIA_VFE_STATE*>(sizeof(MEDIA_VFE_STATE));
+        *cmd7 = MEDIA_VFE_STATE::init();
+        cmd7->Bitfield.MaximumNumberOfThreads = allocData.maxVfeThreads;
+        cmd7->Bitfield.NumberOfUrbEntries = 1;
+        cmd7->Bitfield.UrbEntryAllocationSize = 0x782;
+        cmd7->Bitfield.PerThreadScratchSpace = allocData.perThreadScratchSpace;
+        cmd7->Bitfield.StackSize = allocData.perThreadScratchSpace;
         uint32_t lowAddress = static_cast<uint32_t>(0xffffffff & scratchAllocation->gpuAddress);
         uint32_t highAddress = static_cast<uint32_t>(0xffffffff & (scratchAllocation->gpuAddress >> 32));
-        cmd6->Bitfield.ScratchSpaceBasePointer = lowAddress;
-        cmd6->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
+        cmd7->Bitfield.ScratchSpaceBasePointer = lowAddress;
+        cmd7->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
     //}
 
     //TODO: program Preemption again?
-    auto cmd7 = commandStreamCSR->ptrOffset<GPGPU_CSR_BASE_ADDRESS*>(sizeof(GPGPU_CSR_BASE_ADDRESS));
-    *cmd7 = GPGPU_CSR_BASE_ADDRESS::init();
+    auto cmd8 = commandStreamCSR->ptrOffset<GPGPU_CSR_BASE_ADDRESS*>(sizeof(GPGPU_CSR_BASE_ADDRESS));
+    *cmd8 = GPGPU_CSR_BASE_ADDRESS::init();
 
     // Program State Base Address
     // 1. Pipe Control
@@ -638,59 +646,60 @@ int Context::createCommandStreamReceiver() {
     // 5. Program Sip State
 
     //TODO: This Pipe Control
-    auto cmd8 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
-    *cmd8 = PIPE_CONTROL::init();
-    cmd8->Bitfield.CommandStreamerStallEnable = true;
-    cmd8->Bitfield.DcFlushEnable = true;
+    auto cmd9 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
+    *cmd9 = PIPE_CONTROL::init();
+    cmd9->Bitfield.CommandStreamerStallEnable = true;
+    cmd9->Bitfield.DcFlushEnable = true;
 
     //TODO: Program State Base Address
-    auto cmd9 = commandStreamCSR->ptrOffset<STATE_BASE_ADDRESS*>(sizeof(STATE_BASE_ADDRESS));
-    *cmd9 = STATE_BASE_ADDRESS::init();
+    auto cmd10 = commandStreamCSR->ptrOffset<STATE_BASE_ADDRESS*>(sizeof(STATE_BASE_ADDRESS));
+    *cmd10 = STATE_BASE_ADDRESS::init();
 
-    cmd9->Bitfield.DynamicStateBaseAddressModifyEnable = true;
-    cmd9->Bitfield.DynamicStateBufferSizeModifyEnable = true;
-    cmd9->Bitfield.DynamicStateBaseAddress = dshAllocation->gpuAddress;
-    //cmd9->Bitfield.DynamicStateBufferSize = ;
+    cmd10->Bitfield.DynamicStateBaseAddressModifyEnable = true;
+    cmd10->Bitfield.DynamicStateBufferSizeModifyEnable = true;
+    cmd10->Bitfield.DynamicStateBaseAddress = dshAllocation->gpuAddress;
+    cmd10->Bitfield.DynamicStateBufferSize = dshAllocation->size;
 
-    cmd9->Bitfield.SurfaceStateBaseAddressModifyEnable = true;
-    cmd9->Bitfield.SurfaceStateBaseAddress = sshAllocation->gpuAddress;
+    cmd10->Bitfield.SurfaceStateBaseAddressModifyEnable = true;
+    cmd10->Bitfield.SurfaceStateBaseAddress = sshAllocation->gpuAddress;
 
-    cmd9->Bitfield.IndirectObjectBaseAddressModifyEnable = true;
-    cmd9->Bitfield.IndirectObjectBufferSizeModifyEnable = true;
-    cmd9->Bitfield.IndirectObjectBaseAddress = iohAllocation->gpuAddress;
-    //cmd9->Bitfield.IndirectObjectBufferSize = ;
+    cmd10->Bitfield.IndirectObjectBaseAddressModifyEnable = true;
+    cmd10->Bitfield.IndirectObjectBufferSizeModifyEnable = true;
+    cmd10->Bitfield.IndirectObjectBaseAddress = iohAllocation->gpuAddress;
+    cmd10->Bitfield.IndirectObjectBufferSize = iohAllocation->size;
 
-    cmd9->Bitfield.InstructionBaseAddressModifyEnable = true;
-    cmd9->Bitfield.InstructionBufferSizeModifyEnable = true;
-    cmd9->Bitfield.InstructionBaseAddress = kernelAllocation->gpuAddress;
-    //cmd9->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
-    //cmd9->Bitfield.InstructionMemoryObjectControlState = getMOCS();
+    cmd10->Bitfield.InstructionBaseAddressModifyEnable = true;
+    cmd10->Bitfield.InstructionBufferSizeModifyEnable = true;
+    cmd10->Bitfield.InstructionBaseAddress = kernelAllocation->gpuAddress;
+    //cmd10->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
+    //cmd10->Bitfield.InstructionMemoryObjectControlState = getMOCS();
 
-    cmd9->Bitfield.GeneralStateBaseAddressModifyEnable = true;
-    cmd9->Bitfield.GeneralStateBufferSizeModifyEnable = true;
-    //cmd9->Bitfield.GeneralStateBaseAddress = allocData.gshAddress;
-    cmd9->Bitfield.GeneralStateBufferSize = 0xfffff;
+    cmd10->Bitfield.GeneralStateBaseAddressModifyEnable = true;
+    cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
+    //cmd10->Bitfield.GeneralStateBaseAddress = allocData.gshAddress;
+    cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
 
-    //cmd9->Bitfield.StatelessDataPortAccessMemoryObjectControlState = statelessMocsIndex;
+    //cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlState = statelessMocsIndex;
     //TODO: Add missing fields
 
     //TODO: Program State Sip
     //if (isMidThreadPreemption) {
-        auto cmd10 = commandStreamCSR->ptrOffset<STATE_SIP*>(sizeof(STATE_SIP));
-        *cmd10 = STATE_SIP::init();
-        cmd10->Bitfield.SystemInstructionPointer = sipAllocation->gpuAddress;
+        auto cmd11 = commandStreamCSR->ptrOffset<STATE_SIP*>(sizeof(STATE_SIP));
+        *cmd11 = STATE_SIP::init();
+        cmd11->Bitfield.SystemInstructionPointer = sipAllocation->gpuAddress;
     //}
 
     //TODO: Program Pipe Control
-    auto cmd11 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
-    *cmd11 = PIPE_CONTROL::init();
-    cmd11->Bitfield.CommandStreamerStallEnable = true;
-    cmd11->Bitfield.DcFlushEnable = true;
+    auto cmd12 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
+    *cmd12 = PIPE_CONTROL::init();
+    cmd12->Bitfield.CommandStreamerStallEnable = true;
+    cmd12->Bitfield.DcFlushEnable = true;
 
-    auto cmd12 = commandStreamCSR->ptrOffset<MI_BATCH_BUFFER_START*>(sizeof(MI_BATCH_BUFFER_START));
-    *cmd12 = MI_BATCH_BUFFER_START::init();
-    cmd12->Bitfield.BatchBufferStartAddress_Graphicsaddress47_2 = commandStreamTask->gpuAddress;
-    cmd12->Bitfield.AddressSpaceIndicator = MI_BATCH_BUFFER_START::ADDRESS_SPACE_INDICATOR_PPGTT;
+    auto cmd13 = commandStreamCSR->ptrOffset<MI_BATCH_BUFFER_START*>(sizeof(MI_BATCH_BUFFER_START));
+    *cmd13 = MI_BATCH_BUFFER_START::init();
+    cmd13->Bitfield.BatchBufferStartAddress_Graphicsaddress47_2 = commandStreamTask->gpuAddress;
+    cmd13->Bitfield.AddressSpaceIndicator = MI_BATCH_BUFFER_START::ADDRESS_SPACE_INDICATOR_PPGTT;
+    //TODO: align to cache line size
 
     return SUCCESS;
 }
@@ -709,13 +718,15 @@ int Context::populateAndSubmitExecBuffer() {
         execBuffer.push_back(*preemptionAllocation);
         execBuffer.push_back(*sipAllocation);
     //}
-    execBuffer.push_back(*commandStreamCSR);
     execBuffer.push_back(*commandStreamTask);
+    execBuffer.push_back(*commandStreamCSR);
 
     size_t residencyCount = execBuffer.size();
     execObjects.resize(residencyCount);
 
-    int ret = exec(execObjects.data(), execBuffer.data(), residencyCount);
+    //TODO: Calculate used variable
+    size_t used = 320;
+    int ret = exec(execObjects.data(), execBuffer.data(), residencyCount, used);
     if (ret)
         return GEM_EXECBUFFER_FAILED;
     execBuffer.clear();
@@ -740,19 +751,18 @@ void Context::fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject
     // BufferObject::exec() in drm_buffer_object.cpp
 
 
-int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject* execBufferPtrs, size_t residencyCount) {
+int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject* execBufferPtr, size_t residencyCount, size_t used) {
     for (size_t i = 0; i < residencyCount; i++) {
-        fillExecObject(execObjects[i], execBufferPtrs[i]);
+        fillExecObject(execObjects[i], execBufferPtr[i]);
     }
     drm_i915_gem_execbuffer2 execbuf = {0};
     execbuf.buffers_ptr = reinterpret_cast<uintptr_t>(execObjects);
     execbuf.buffer_count = static_cast<uint32_t>(residencyCount);
     execbuf.batch_start_offset = 0u;
-    //TODO: Get correct used and engineFlag values
-    uint32_t used = 2;
-    uint32_t engineFlag = 2;
+    //TODO: Add calculation of used variable to ptrOffset() function
+    //TODO: Cast alignUp() result?
     execbuf.batch_len = alignUp(used, 8);
-    execbuf.flags = engineFlag | I915_EXEC_NO_RELOC;
+    execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
     /*
@@ -775,18 +785,19 @@ int Context::finishExecution() {
 
 
 // Commands in CommandStreamCSR:
-// 1. PIPELINE_SELECT
-// 2. MI_LOAD_REGISTER_IMM
-// 3. PIPE_CONTROL
-// 4. MI_LOAD_REGISTER_IMM
-// 5. GPGPU_CSR_BASE_ADDRESS
-// 6. MEDIA_VFE_STATE
-// 7. GPGPU_CSR_BASE_ADDRESS
-// 8. PIPE_CONTROL
-// 9. STATE_BASE_ADDRESS
-//10. STATE_SIP
-//11. PIPE_CONTROL
-//12. MI_BATCH_BUFFER_START
+// 1. PIPELINE_SELECT                    4
+// 2. MI_LOAD_REGISTER_IMM              12
+// 3. PIPE_CONTROL                      24
+// 4. MI_LOAD_REGISTER_IMM              12
+// 5. GPGPU_CSR_BASE_ADDRESS            12   64
+// 6. PIPE_CONTROL                      24
+// 7. MEDIA_VFE_STATE                   36  124
+// 8. GPGPU_CSR_BASE_ADDRESS            12  136
+// 9. PIPE_CONTROL                      24  160
+//10. STATE_BASE_ADDRESS                76  236
+//11. STATE_SIP                         12  248
+//12. PIPE_CONTROL                      24  272
+//13. MI_BATCH_BUFFER_START             12  284
 
 
 

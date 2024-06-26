@@ -425,14 +425,19 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
 }
 
 
-void Kernel::populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset) {
+void Kernel::populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset, uint32_t dataParamOffset) {
     auto descriptor = static_cast<ArgDescPointer*>(argDescriptor[argNum].get());
     if (kernelData.executionEnvironment->UseBindlessMode) {
-        descriptor->bindless = surfaceStateHeapOffset;
+        descriptor->bindless = static_cast<uint16_t>(surfaceStateHeapOffset);
+        this->hasBindlessMode = true;
     } else {
-        descriptor->bindful = surfaceStateHeapOffset;
+        descriptor->bindful = static_cast<uint16_t>(surfaceStateHeapOffset);
+    }
+    if (dataParamOffset) {
+        descriptor->stateless = static_cast<uint16_t>(dataParamOffset);
     }
 }
+
 
 int Kernel::setArgument(uint32_t argIndex, size_t argSize, void* argValue) {
     if (argIndex >= argDescriptor.size()) {
@@ -459,23 +464,25 @@ int Kernel::setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue) {
 //TODO: Add cases for images, command queues, pipes, ...
 //TODO: There need to be some changes with the Buffer class so that we don't have to levels of dereferencing
 int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
-    Buffer* bufferObj = static_cast<Buffer*>(argValue);
-    if (bufferObj->magic != 0x373E5A13) {
+    if (!argValue)
         return INVALID_KERNEL_ARG;
-    }
+    Buffer* buffer = static_cast<Buffer*>(argValue);
+    if (buffer->magic != 0x373E5A13)
+        return INVALID_KERNEL_ARG;
+    BufferObject bufferObject = buffer->getDataBuffer();
     auto descriptor = static_cast<ArgDescPointer*>(argDescriptor[argIndex].get());
     switch (descriptor->argToken) {
     case PATCH_TOKEN_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT: {
         auto global = reinterpret_cast<const PatchGlobalMemoryObjectKernelArgument*>(descriptor->header);
-        populateKernelArg(argIndex, global->SurfaceStateHeapOffset);
+        populateKernelArg(argIndex, global->SurfaceStateHeapOffset, 0);
         } break;
     case PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT: {
         auto stateless_global = reinterpret_cast<const PatchStatelessGlobalMemoryObjectKernelArgument*>(descriptor->header);
-        populateKernelArg(argIndex, stateless_global->SurfaceStateHeapOffset);
+        populateKernelArg(argIndex, stateless_global->SurfaceStateHeapOffset, stateless_global->DataParamOffset);
         } break;
     case PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT: {
         auto stateless_const = reinterpret_cast<const PatchStatelessConstantMemoryObjectKernelArgument*>(descriptor->header);
-        populateKernelArg(argIndex, stateless_const->SurfaceStateHeapOffset);
+        populateKernelArg(argIndex, stateless_const->SurfaceStateHeapOffset, stateless_const->DataParamOffset);
         } break;
     default:
         break;
@@ -483,10 +490,14 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     //TODO: Check if GROMACS has bindless mode somewhere
     //TODO: Save buffer pointers to crossThreadData, see line 1407 in Kernel::setArgBuffer
     //TODO: Save local work sizes to crossThreadData, see line 214-228, hardware_interface_base.inl
+    if (descriptor->stateless) {
+        uint64_t* patchLocation = reinterpret_cast<uint64_t*>(ptrOffset(crossThreadData.get(), descriptor->stateless));
+        *patchLocation = bufferObject.gpuAddress;
+    }
     auto surfaceState = reinterpret_cast<RENDER_SURFACE_STATE*>(ptrOffset(sshLocal.get(), descriptor->bindful));
     *surfaceState = RENDER_SURFACE_STATE::init();
     SURFACE_STATE_BUFFER_LENGTH Length = {0};
-    size_t dataBufferSize = alignUp(bufferObj->dataBuffer->size, 4);
+    size_t dataBufferSize = alignUp(bufferObject.size, 4);
     Length.Length = static_cast<uint32_t>(dataBufferSize - 1);
     surfaceState->Bitfield.Width = Length.SurfaceState.Width;
     surfaceState->Bitfield.Height = Length.SurfaceState.Height;
@@ -496,7 +507,9 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     uint32_t mocsIndex = getMocsIndex();
     surfaceState->Bitfield.MemoryObjectControlState_Reserved = mocsIndex; // leads to data loss, I don't know why this is necessary
     surfaceState->Bitfield.MemoryObjectControlState_IndexToMocsTables = (mocsIndex >> 1);
-    surfaceState->Bitfield.SurfaceBaseAddress = bufferObj->dataBuffer->gpuAddress;
+    surfaceState->Bitfield.SurfaceBaseAddress = bufferObject.gpuAddress;
+
+    execData.push_back(bufferObject);
 
     return SUCCESS;
 }

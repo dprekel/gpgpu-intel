@@ -15,6 +15,7 @@ class Device;
 class Context;
 class Kernel;
 struct DeviceDescriptor;
+struct BufferObject;
 
 enum PATCH_TOKEN {
     PATCH_TOKEN_SAMPLER_STATE_ARRAY = 5,
@@ -218,6 +219,7 @@ struct ArgDescriptor {
 struct ArgDescPointer : ArgDescriptor {
     uint16_t bindful = 0u;
     uint16_t bindless = 0u;
+    uint16_t stateless = 0u;
 };
 
 struct ArgDescValue : ArgDescriptor {
@@ -257,7 +259,7 @@ class Kernel : public pKernel {
     IgcOclDeviceCtx* getIgcDeviceCtx();
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
-    void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset);
+    void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset, uint32_t dataParamOffset);
     int setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue);
     int setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue);
     uint32_t getMocsIndex();
@@ -281,9 +283,13 @@ class Kernel : public pKernel {
     const uint8_t* kernelInfoBlob = nullptr;
     KernelFromPatchtokens kernelData;
     std::vector<std::unique_ptr<ArgDescriptor>> argDescriptor;
+
     bool unsupportedKernelArgs = false;
+    bool hasBindlessMode = false;
+
     std::unique_ptr<char[]> sshLocal;
     std::unique_ptr<char[]> crossThreadData;
+    std::vector<BufferObject> execData;
 };
 
 

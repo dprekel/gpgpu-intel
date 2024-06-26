@@ -25,6 +25,8 @@ struct drm_i915_gem_execbuffer2 {
     uint32_t DR4;
     uint32_t num_cliprects;
     uint64_t cliprects_ptr;
+#define I915_EXEC_DEFAULT       (0<<0)  //use this if hardware has Compute Command Streamer
+#define I915_EXEC_RENDER        (1<<0)  //use this if hardware has no Compute Command Streamer
 #define I915_EXEC_NO_RELOC      (1<<11)
     uint64_t flags;
     uint64_t rsvd1;

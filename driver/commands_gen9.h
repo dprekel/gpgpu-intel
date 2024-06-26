@@ -420,7 +420,7 @@ struct PIPE_CONTROL {
         uint32_t Address : BITFIELD_RANGE(2, 31);
         //DW3
         uint32_t AddressHigh;
-        //DW4
+        //DW4+DW5
         uint64_t ImmediateData;
     } Bitfield;
     enum {
@@ -754,6 +754,7 @@ union SURFACE_STATE_BUFFER_LENGTH {
 
 struct MI_BATCH_BUFFER_START {
     struct TheStructure {
+        //DW0
         uint32_t DwordLength : BITFIELD_RANGE(0, 7);
         uint32_t AddressSpaceIndicator : BITFIELD_RANGE(8, 8);
         uint32_t Reserved_9 : BITFIELD_RANGE(9, 9);
@@ -765,6 +766,7 @@ struct MI_BATCH_BUFFER_START {
         uint32_t SecondLevelBatchBuffer : BITFIELD_RANGE(22, 22);
         uint32_t MiCommandOpcode : BITFIELD_RANGE(23, 28);
         uint32_t CommandType : BITFIELD_RANGE(29, 31);
+        //Dw1+DW2
         uint64_t Reserved_32 : BITFIELD_RANGE(0, 1);
         uint64_t BatchBufferStartAddress_Graphicsaddress47_2 : BITFIELD_RANGE(2, 47);
         uint64_t BatchBufferStartAddress_Reserved : BITFIELD_RANGE(48, 63);
