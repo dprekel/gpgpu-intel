@@ -94,7 +94,7 @@ class Context : public pContext {
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
     int createGPUAllocations();
     int populateAndSubmitExecBuffer();
-    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject* execBufferPtrs, size_t residencyCount, size_t used);
+    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t residencyCount, size_t used);
     int finishExecution();
 
     Device* device;
@@ -111,7 +111,7 @@ class Context : public pContext {
     int createCommandStreamTask();
     int createCommandStreamReceiver();
     void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize);
-    void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject& bo);
+    void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo);
 
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;
@@ -132,7 +132,7 @@ class Context : public pContext {
     std::unique_ptr<BufferObject> commandStreamCSR;
 
     //TODO: Is it allowed to copy unique_ptr objects to execBuffer?
-    std::vector<BufferObject> execBuffer;
+    std::vector<BufferObject*> execBuffer;
     std::vector<drm_i915_gem_exec_object2> execObjects;
 
     //TODO: Replace AllocationData

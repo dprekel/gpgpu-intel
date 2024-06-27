@@ -34,6 +34,10 @@ char* Kernel::getSurfaceStatePtr() {
     return this->sshLocal.get();
 }
 
+char* Kernel::getCrossThreadData() {
+    return this->crossThreadData.get();
+}
+
 int Kernel::loadProgramSource() {
     FILE* file = fopen(filename, "r");
     if (!file) {
@@ -397,6 +401,34 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
         pointerDesc->KernelArgHandler = &Kernel::setArgBuffer;
         argDescriptor[argNum] = std::move(pointerDesc);
         } break;
+    case DATA_PARAMETER_LOCAL_WORK_SIZE: {
+        uint32_t index = token->SourceOffset >> 2;
+        if (index <= 2)
+            kernelData.crossThreadPayload.localWorkSize[index] = token;
+        } break;
+    case DATA_PARAMETER_GLOBAL_WORK_OFFSET: {
+        uint32_t index = token->SourceOffset >> 2;
+        if (index <= 2)
+            kernelData.crossThreadPayload.globalWorkOffset[index] = token;
+        } break;
+    case DATA_PARAMETER_ENQUEUED_LOCAL_WORK_SIZE: {
+        uint32_t index = token->SourceOffset >> 2;
+        if (index <= 2)
+            kernelData.crossThreadPayload.enqueuedLocalWorkSize[index] = token;
+        } break;
+    case DATA_PARAMETER_GLOBAL_WORK_SIZE: {
+        uint32_t index = token->SourceOffset >> 2;
+        if (index <= 2)
+            kernelData.crossThreadPayload.globalWorkSize[index] = token;
+        } break;
+    case DATA_PARAMETER_NUM_WORK_GROUPS: {
+        uint32_t index = token->SourceOffset >> 2;
+        if (index <= 2)
+            kernelData.crossThreadPayload.numWorkGroups[index] = token;
+        } break;
+    case DATA_PARAMETER_WORK_DIMENSIONS:
+        kernelData.crossThreadPayload.workDimensions = token;
+        break;
     case DATA_PARAMETER_OBJECT_ID:
     case DATA_PARAMETER_IMAGE_WIDTH:
     case DATA_PARAMETER_IMAGE_HEIGHT:
@@ -469,7 +501,7 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     Buffer* buffer = static_cast<Buffer*>(argValue);
     if (buffer->magic != 0x373E5A13)
         return INVALID_KERNEL_ARG;
-    BufferObject bufferObject = buffer->getDataBuffer();
+    BufferObject* bufferObject = buffer->getDataBuffer();
     auto descriptor = static_cast<ArgDescPointer*>(argDescriptor[argIndex].get());
     switch (descriptor->argToken) {
     case PATCH_TOKEN_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT: {
@@ -492,12 +524,12 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     //TODO: Save local work sizes to crossThreadData, see line 214-228, hardware_interface_base.inl
     if (descriptor->stateless) {
         uint64_t* patchLocation = reinterpret_cast<uint64_t*>(ptrOffset(crossThreadData.get(), descriptor->stateless));
-        *patchLocation = bufferObject.gpuAddress;
+        *patchLocation = bufferObject->gpuAddress;
     }
     auto surfaceState = reinterpret_cast<RENDER_SURFACE_STATE*>(ptrOffset(sshLocal.get(), descriptor->bindful));
     *surfaceState = RENDER_SURFACE_STATE::init();
     SURFACE_STATE_BUFFER_LENGTH Length = {0};
-    size_t dataBufferSize = alignUp(bufferObject.size, 4);
+    size_t dataBufferSize = alignUp(bufferObject->size, 4);
     Length.Length = static_cast<uint32_t>(dataBufferSize - 1);
     surfaceState->Bitfield.Width = Length.SurfaceState.Width;
     surfaceState->Bitfield.Height = Length.SurfaceState.Height;
@@ -507,7 +539,7 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     uint32_t mocsIndex = getMocsIndex();
     surfaceState->Bitfield.MemoryObjectControlState_Reserved = mocsIndex; // leads to data loss, I don't know why this is necessary
     surfaceState->Bitfield.MemoryObjectControlState_IndexToMocsTables = (mocsIndex >> 1);
-    surfaceState->Bitfield.SurfaceBaseAddress = bufferObject.gpuAddress;
+    surfaceState->Bitfield.SurfaceBaseAddress = bufferObject->gpuAddress;
 
     execData.push_back(bufferObject);
 

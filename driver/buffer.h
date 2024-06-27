@@ -12,7 +12,7 @@ class Buffer : public pBuffer {
   public:
     Buffer(Context* context);
     ~Buffer();
-    BufferObject getDataBuffer();
+    BufferObject* getDataBuffer();
     int allocateAndPinDataBuffer(size_t size);
 
     Context* context = nullptr;

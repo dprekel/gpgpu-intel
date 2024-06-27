@@ -18,16 +18,17 @@
 #define NO_DEVICE_ERROR                     -10
 #define NO_CONTEXT_ERROR                    -11
 #define NO_KERNEL_ERROR                     -12
-#define FRONTEND_BUILD_ERROR                -13
-#define BACKEND_BUILD_ERROR                 -14
-#define LOAD_SOURCE_FAILED                  -15
-#define NO_DEVICES_FOUND                    -16
-#define COMPILER_LOAD_FAILED                -17
-#define INVALID_KERNEL_FORMAT               -18
-#define INVALID_KERNEL_ARG                  -19
-#define INVALID_KERNEL                      -20
-#define SIP_ERROR                           -21
-#define GEM_EXECBUFFER_FAILED               -22
+#define NO_BUFFER_ERROR                     -13
+#define FRONTEND_BUILD_ERROR                -14
+#define BACKEND_BUILD_ERROR                 -15
+#define LOAD_SOURCE_FAILED                  -16
+#define NO_DEVICES_FOUND                    -17
+#define COMPILER_LOAD_FAILED                -18
+#define INVALID_KERNEL_FORMAT               -19
+#define INVALID_KERNEL_ARG                  -20
+#define INVALID_KERNEL                      -21
+#define SIP_ERROR                           -22
+#define GEM_EXECBUFFER_FAILED               -23
 
 
 class pDevice {
@@ -76,4 +77,5 @@ extern int EnqueueNDRangeKernel(pContext* context,
 extern int ReleaseDevice(pDevice* device);
 extern int ReleaseContext(pContext* context);
 extern int ReleaseKernel(pKernel* kernel);
+extern int ReleaseBuffer(pBuffer* buffer);
 

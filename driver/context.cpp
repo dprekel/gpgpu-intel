@@ -257,7 +257,7 @@ int Context::createSurfaceStateHeap() {
     }
     if (kernelData->bindingTableState->Count == 0)
         return 0;
-    auto srcSsh = kernel->getSurfaceStatePtr();
+    char* srcSsh = kernel->getSurfaceStatePtr();
     memcpy(sshAllocation->cpuAddress, srcSsh, sshSize);
     return SUCCESS;
 }
@@ -288,8 +288,22 @@ int Context::createIndirectObjectHeap() {
         iohAllocation->bufferType = BufferType::INTERNAL_HEAP;
     }
     //TODO: Terminate program if we have implicitArgs
+    char* crossThreadData = kernel->getCrossThreadData();
+    uint32_t* patchPtr;
+    uint32_t patchOffset;
+    for (uint32_t i = 0; i < 3; i++) {
+        patchOffset = kernelData->crossThreadPayload.localWorkSize[i]->Offset;
+        patchPtr = reinterpret_cast<uint32_t*>(ptrOffset(crossThreadData, patchOffset));
+        *patchPtr = static_cast<uint32_t>(workItemsPerWorkGroup[i]);
+        if (kernelData->crossThreadPayload.globalWorkSize[i]) {
+            patchOffset = kernelData->crossThreadPayload.globalWorkSize[i]->Offset;
+            patchPtr = reinterpret_cast<uint32_t*>(ptrOffset(crossThreadData, patchOffset));
+            *patchPtr = static_cast<uint32_t>(globalWorkItems[i]);
+        }
+    }
+    
     uint32_t crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
-    memset(iohAllocation->cpuAddress, 0x00, crossThreadDataSize);
+    memcpy(iohAllocation->cpuAddress, crossThreadData, crossThreadDataSize);
 
     size_t localWorkSize = workItemsPerWorkGroup[0] * workItemsPerWorkGroup[1] * workItemsPerWorkGroup[2];
     uint32_t simdSize = kernelData->executionEnvironment->LargestCompiledSIMDSize;
@@ -466,6 +480,8 @@ int Context::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
 
 
 int Context::createCommandStreamTask() {
+    //TODO: Reset offset value if EnqueueNDRangeKernel is called multiple times
+    //TODO: Always 16 * pageSize?
     if (!commandStreamTask) {
         commandStreamTask = allocateBufferObject(16 * MemoryConstants::pageSize);
         if (!commandStreamTask) {
@@ -566,6 +582,7 @@ int Context::createCommandStreamTask() {
 
 
 int Context::createCommandStreamReceiver() {
+    //TODO: Reset offset value if EnqueueNDRangeKernel is called multiple times
     //TODO: Always 16 * pageSize?
     if (!commandStreamCSR) {
         commandStreamCSR = allocateBufferObject(16 * MemoryConstants::pageSize);
@@ -707,19 +724,20 @@ int Context::createCommandStreamReceiver() {
 
 
 int Context::populateAndSubmitExecBuffer() {
-    execBuffer.push_back(*kernelAllocation);
+    //TODO: Don't copy the objects, instead use raw pointers
+    execBuffer.push_back(kernelAllocation.get());
     if (scratchAllocation)
-        execBuffer.push_back(*scratchAllocation);
-    execBuffer.push_back(*dshAllocation);
-    execBuffer.push_back(*iohAllocation);
-    execBuffer.push_back(*sshAllocation);
-    execBuffer.push_back(*tagAllocation);
+        execBuffer.push_back(scratchAllocation.get());
+    execBuffer.push_back(dshAllocation.get());
+    execBuffer.push_back(iohAllocation.get());
+    execBuffer.push_back(sshAllocation.get());
+    execBuffer.push_back(tagAllocation.get());
     //if (midThreadPreemption) {
-        execBuffer.push_back(*preemptionAllocation);
-        execBuffer.push_back(*sipAllocation);
+        execBuffer.push_back(preemptionAllocation.get());
+        execBuffer.push_back(sipAllocation.get());
     //}
-    execBuffer.push_back(*commandStreamTask);
-    execBuffer.push_back(*commandStreamCSR);
+    execBuffer.push_back(commandStreamTask.get());
+    execBuffer.push_back(commandStreamCSR.get());
 
     size_t residencyCount = execBuffer.size();
     execObjects.resize(residencyCount);
@@ -735,12 +753,12 @@ int Context::populateAndSubmitExecBuffer() {
 }
 
 
-void Context::fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject& bo) {
-    execObject.handle = bo.handle;
+void Context::fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo) {
+    execObject.handle = bo->handle;
     execObject.relocation_count = 0u;
     execObject.relocs_ptr = 0ul;
     execObject.alignment = 0u;
-    execObject.offset = bo.gpuAddress;
+    execObject.offset = bo->gpuAddress;
     execObject.flags = EXEC_OBJECT_PINNED | EXEC_OBJECT_SUPPORTS_48B_ADDRESS;
     execObject.rsvd1 = this->ctxId;
     execObject.rsvd2 = 0u;
@@ -751,7 +769,7 @@ void Context::fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject
     // BufferObject::exec() in drm_buffer_object.cpp
 
 
-int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject* execBufferPtr, size_t residencyCount, size_t used) {
+int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtr, size_t residencyCount, size_t used) {
     for (size_t i = 0; i < residencyCount; i++) {
         fillExecObject(execObjects[i], execBufferPtr[i]);
     }

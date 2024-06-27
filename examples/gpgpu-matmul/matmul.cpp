@@ -50,6 +50,9 @@ int main() {
     err = ReleaseKernel(kernel);
     err = ReleaseContext(context);
     err = ReleaseDevice(devices[0]);
+    err = ReleaseBuffer(matrix_A);
+    err = ReleaseBuffer(matrix_B);
+    err = ReleaseBuffer(matrix_C);
     return 0;
 }
 

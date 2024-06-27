@@ -11,11 +11,11 @@ Buffer::Buffer(Context* context)
 }
 
 Buffer::~Buffer() {
-    printf("Context destructor called!\n");
+    printf("Buffer destructor called!\n");
 }
 
-BufferObject Buffer::getDataBuffer() {
-    return *dataBuffer;
+BufferObject* Buffer::getDataBuffer() {
+    return this->dataBuffer.get();
 }
 
 int Buffer::allocateAndPinDataBuffer(size_t size) {
@@ -26,7 +26,8 @@ int Buffer::allocateAndPinDataBuffer(size_t size) {
     dataBuffer->bufferType = BufferType::BUFFER_HOST_MEMORY;
     
     execObject = {0};
-    int ret = context->exec(&execObject, dataBuffer.get(), 1, 4);
+    BufferObject* dataBufferPtr = dataBuffer.get();
+    int ret = context->exec(&execObject, &dataBufferPtr, 1, 4);
     if (ret)
         return GEM_EXECBUFFER_FAILED;
 

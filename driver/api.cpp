@@ -112,7 +112,7 @@ API_CALL pBuffer* CreateBuffer(pContext* cont,
     Context* context = static_cast<Context*>(cont);
     Buffer* bufferObj = new Buffer(context);
     *ret = bufferObj->allocateAndPinDataBuffer(size);
-    if (ret)
+    if (*ret)
         return nullptr;
     pBuffer* buf = static_cast<pBuffer*>(bufferObj);
     return buf;
@@ -185,7 +185,13 @@ API_CALL int ReleaseKernel(pKernel* kern) {
 }
 
 
-
+API_CALL int ReleaseBuffer(pBuffer* buf) {
+    if (!buf)
+        return NO_BUFFER_ERROR;
+    Buffer* buffer = static_cast<Buffer*>(buf);
+    delete buffer;
+    return SUCCESS;
+}
 
 
 

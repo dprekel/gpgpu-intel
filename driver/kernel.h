@@ -38,6 +38,10 @@ enum PATCH_TOKEN {
 
 enum DATA_PARAMETER {
     DATA_PARAMETER_KERNEL_ARGUMENT = 1,
+    DATA_PARAMETER_LOCAL_WORK_SIZE = 2,
+    DATA_PARAMETER_GLOBAL_WORK_SIZE = 3,
+    DATA_PARAMETER_NUM_WORK_GROUPS = 4,
+    DATA_PARAMETER_WORK_DIMENSIONS = 5,
     DATA_PARAMETER_IMAGE_WIDTH = 9,
     DATA_PARAMETER_IMAGE_HEIGHT = 10,
     DATA_PARAMETER_IMAGE_DEPTH = 11,
@@ -45,6 +49,7 @@ enum DATA_PARAMETER {
     DATA_PARAMETER_IMAGE_CHANNEL_ORDER = 13,
     DATA_PARAMETER_SAMPLER_ADDRESS_MODE = 14,
     DATA_PARAMETER_SAMPLER_NORMALIZED_COORDS = 15,
+    DATA_PARAMETER_GLOBAL_WORK_OFFSET = 16,
     DATA_PARAMETER_IMAGE_ARRAY_SIZE = 18,
     DATA_PARAMETER_IMAGE_NUM_SAMPLES = 20,
     DATA_PARAMETER_SAMPLER_COORDINATE_SNAP_WA_REQUIRED = 21,
@@ -53,6 +58,7 @@ enum DATA_PARAMETER {
     DATA_PARAMETER_VME_SAD_ADJUST_MODE = 25,
     DATA_PARAMETER_VME_SEARCH_PATH_TYPE = 26,
     DATA_PARAMETER_IMAGE_NUM_MIP_LEVELS = 27,
+    DATA_PARAMETER_ENQUEUED_LOCAL_WORK_SIZE = 28,
     DATA_PARAMETER_OBJECT_ID = 35,
     DATA_PARAMETER_BUFFER_STATEFUL = 43,
     DATA_PARAMETER_FLAT_IMAGE_BASEOFFSET = 44,
@@ -208,6 +214,15 @@ struct KernelFromPatchtokens {
     const PatchExecutionEnvironment* executionEnvironment = nullptr;
     const PatchDataParameterStream* dataParameterStream = nullptr;
     const PatchKernelAttributesInfo* kernelAttributesInfo = nullptr;
+    struct {
+        const PatchDataParameterBuffer* localWorkSize[3] = {nullptr, nullptr, nullptr};
+        const PatchDataParameterBuffer* localWorkSize2[3] = {nullptr, nullptr, nullptr};
+        const PatchDataParameterBuffer* enqueuedLocalWorkSize[3] = {nullptr, nullptr, nullptr};
+        const PatchDataParameterBuffer* numWorkGroups[3] = {nullptr, nullptr, nullptr};
+        const PatchDataParameterBuffer* globalWorkOffset[3] = {nullptr, nullptr, nullptr};
+        const PatchDataParameterBuffer* globalWorkSize[3] = {nullptr, nullptr, nullptr};
+        const PatchDataParameterBuffer* workDimensions = nullptr;
+    } crossThreadPayload;
 };
 
 struct ArgDescriptor {
@@ -240,6 +255,7 @@ class Kernel : public pKernel {
     ~Kernel();
     static int loadCompiler(const char* libName, CIFMain** cifMain);
     char* getSurfaceStatePtr();
+    char* getCrossThreadData();
     int loadProgramSource();
     int initialize();
     int build(uint16_t chipset_id);
@@ -289,7 +305,7 @@ class Kernel : public pKernel {
 
     std::unique_ptr<char[]> sshLocal;
     std::unique_ptr<char[]> crossThreadData;
-    std::vector<BufferObject> execData;
+    std::vector<BufferObject*> execData;
 };
 
 
