@@ -203,7 +203,7 @@ void* Device::queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t leng
         return nullptr;
     }
 
-    void* data = malloc(queryItem.length);
+    void* data = malloc(queryItem.length);      //TODO: Memory leak (296 bytes)
     memset(data, 0, queryItem.length);
     queryItem.data_ptr = reinterpret_cast<uint64_t>(data);
 

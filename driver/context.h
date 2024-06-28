@@ -10,6 +10,7 @@
 #include "gpgpu.h"
 #include "ioctl.h"
 #include "kernel.h"
+#include "utils.h"
 
 class Device;
 class Kernel;
@@ -49,6 +50,7 @@ enum ThreadArbitrationPolicy {
 struct BufferObject {
     BufferObject() {}
     ~BufferObject() {
+        alignedFree(cpuAddress);
         printf("%d BufferObject destructor called!\n", this->bufferType);
     }
     template <typename T>
@@ -110,6 +112,7 @@ class Context : public pContext {
     int createDynamicStateHeap();
     int createCommandStreamTask();
     int createCommandStreamReceiver();
+    void patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant);
     void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize);
     void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo);
 
@@ -131,7 +134,6 @@ class Context : public pContext {
     std::unique_ptr<BufferObject> commandStreamTask;
     std::unique_ptr<BufferObject> commandStreamCSR;
 
-    //TODO: Is it allowed to copy unique_ptr objects to execBuffer?
     std::vector<BufferObject*> execBuffer;
     std::vector<drm_i915_gem_exec_object2> execObjects;
 

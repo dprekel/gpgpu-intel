@@ -56,37 +56,33 @@ bool Context::getIsSipKernelAllocated() {
 
 std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size) {
     size_t alignment = MemoryConstants::pageSize;
-    //TODO: What is difference between this alignment and alignment in alignUp() function?
     size_t sizeToAlloc = size + alignment;
     void* pOriginalMemory = new (std::nothrow)char[sizeToAlloc];
-
-    //TODO: Reformat the following if-else statement
-    uintptr_t pAlignedMemory = reinterpret_cast<uintptr_t>(pOriginalMemory);
-    if (pAlignedMemory) {
-        pAlignedMemory += alignment;
-        pAlignedMemory -= pAlignedMemory % alignment;
-        reinterpret_cast<void**>(pAlignedMemory)[-1] = pOriginalMemory;
-    } else {
+    if (!pOriginalMemory)
         return nullptr;
-    }
+    uintptr_t pAlignedMemory = reinterpret_cast<uintptr_t>(pOriginalMemory);
+    pAlignedMemory += alignment;
+    pAlignedMemory -= pAlignedMemory % alignment;
+    reinterpret_cast<void**>(pAlignedMemory)[-1] = pOriginalMemory;
+
     drm_i915_gem_userptr userptr = {0};
     userptr.user_ptr = pAlignedMemory;
     userptr.user_size = size;
     userptr.flags = 0;
 
+    void* pAlignedMemoryPtr = reinterpret_cast<void*>(pAlignedMemory);
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr);
     if (ret) {
+        alignedFree(pAlignedMemoryPtr);
         return nullptr;
     }
-    // add aligned free here
     auto bo = std::make_unique<BufferObject>();
-    bo->cpuAddress = reinterpret_cast<void*>(pAlignedMemory);
-    bo->gpuAddress = canonize(reinterpret_cast<uint64_t>(bo->cpuAddress));
+    bo->cpuAddress = pAlignedMemoryPtr;
+    bo->gpuAddress = canonize(pAlignedMemory);
     bo->size = size;
     bo->handle = userptr.handle;
     return bo;
 }
-
 
 
 int Context::createDrmContext() {
@@ -289,18 +285,12 @@ int Context::createIndirectObjectHeap() {
     }
     //TODO: Terminate program if we have implicitArgs
     char* crossThreadData = kernel->getCrossThreadData();
-    uint32_t* patchPtr;
-    uint32_t patchOffset;
     for (uint32_t i = 0; i < 3; i++) {
-        patchOffset = kernelData->crossThreadPayload.localWorkSize[i]->Offset;
-        patchPtr = reinterpret_cast<uint32_t*>(ptrOffset(crossThreadData, patchOffset));
-        *patchPtr = static_cast<uint32_t>(workItemsPerWorkGroup[i]);
-        if (kernelData->crossThreadPayload.globalWorkSize[i]) {
-            patchOffset = kernelData->crossThreadPayload.globalWorkSize[i]->Offset;
-            patchPtr = reinterpret_cast<uint32_t*>(ptrOffset(crossThreadData, patchOffset));
-            *patchPtr = static_cast<uint32_t>(globalWorkItems[i]);
-        }
+        patchKernelConstant(kernelData->crossThreadPayload.localWorkSize[i], crossThreadData, workItemsPerWorkGroup[i]);
+        patchKernelConstant(kernelData->crossThreadPayload.globalWorkSize[i], crossThreadData, globalWorkItems[i]);
+        patchKernelConstant(kernelData->crossThreadPayload.numWorkGroups[i], crossThreadData, numWorkGroups[i]);
     }
+    patchKernelConstant(kernelData->crossThreadPayload.workDimensions, crossThreadData, workDim);
     
     uint32_t crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
     memcpy(iohAllocation->cpuAddress, crossThreadData, crossThreadDataSize);
@@ -314,6 +304,14 @@ int Context::createIndirectObjectHeap() {
     //generateLocalIDsSimd(iohAllocation->cpuAddress, threadsPerWG, simdSize);
 
     return SUCCESS;
+}
+
+void Context::patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant) {
+    if (info) {
+        uint32_t patchOffset = info->Offset;
+        uint32_t* patchPtr = reinterpret_cast<uint32_t*>(ptrOffset(crossThreadData, patchOffset));
+        *patchPtr = static_cast<uint32_t>(kernelConstant);
+    }
 }
 
 alignas(32)

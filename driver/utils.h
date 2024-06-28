@@ -54,6 +54,13 @@ inline T ptrOffset(T ptrBefore, size_t offset) {
     return reinterpret_cast<T>(addrBefore + offset);
 }
 
+inline void alignedFree(void* ptr) {
+    if (ptr) {
+        auto originalPtr = reinterpret_cast<char**>(ptr)[-1];
+        delete[] originalPtr;
+    }
+}
+
 inline uint64_t canonize(uint64_t address) {
     return static_cast<int64_t>(address << (64 - ADDRESS_WIDTH)) >> (64 - ADDRESS_WIDTH);
 }
@@ -70,6 +77,5 @@ inline uint32_t prevPowerOfTwo(uint32_t value) {
 inline uint64_t maxNBitValue(uint64_t n) {
     return ((1ull << n) - 1);
 }
-
 
 

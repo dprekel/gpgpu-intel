@@ -47,7 +47,7 @@ int Kernel::loadProgramSource() {
     uint64_t size = ftell(file);
     rewind(file);
 
-    char* source = new char[size+1];
+    char* source = new char[size+1];        //TODO: Memory leak (1091 bytes)
     fread(static_cast<void*>(source), 1, size*sizeof(char), file);
     source[size] = '\0';
     fclose(file);
@@ -75,7 +75,7 @@ ICIF* Kernel::CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t i
     //printf("Versions are ok\n");
     chosenVersion = std::min(maxVerSupported, interfaceVersion);
     
-    ICIF* deviceCtx = cifMain->CreateInterfaceImpl(interfaceID, chosenVersion);
+    ICIF* deviceCtx = cifMain->CreateInterfaceImpl(interfaceID, chosenVersion);     //TODO: Memory leak
     return deviceCtx;
 }
 
@@ -85,7 +85,7 @@ IgcBuffer* Kernel::CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t si
     }
     uint64_t interfaceID = 0xfffe2429681d9502;
     uint64_t interfaceVersion = 1;
-    auto buff = CreateInterface(cifMain, interfaceID, interfaceVersion);
+    auto buff = CreateInterface(cifMain, interfaceID, interfaceVersion);    //TODO: Memory leak
     IgcBuffer* buffer = static_cast<IgcBuffer*>(buff);
     if (buffer == nullptr) {
         return nullptr;
@@ -109,7 +109,7 @@ int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
     if (CreateCIFMainFunc == nullptr) {
         return COMPILER_LOAD_FAILED;
     }
-    *cifMain = CreateCIFMainFunc();
+    *cifMain = CreateCIFMainFunc();     //TODO: Memory leak (24 bytes)
     if (*cifMain == nullptr) {
         return COMPILER_LOAD_FAILED;
     }
@@ -119,7 +119,7 @@ int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
 FclOclTranslationCtx* Kernel::createFclTranslationCtx() {
     uint64_t interfaceID = 95846467711642693;
     uint64_t interfaceVersion = 5;
-    ICIF* DeviceCtx = CreateInterface(context->fclMain, interfaceID, interfaceVersion);
+    ICIF* DeviceCtx = CreateInterface(context->fclMain, interfaceID, interfaceVersion);     //TODO: Memory leak (152 bytes)
     FclOclDeviceCtx* newDeviceCtx = static_cast<FclOclDeviceCtx*>(DeviceCtx);
     if (newDeviceCtx == nullptr) {
         return nullptr;
@@ -135,7 +135,7 @@ FclOclTranslationCtx* Kernel::createFclTranslationCtx() {
         TransferPlatformInfo(igcPlatform, descriptor->pHwInfo->platform);
     }
     uint64_t translationCtxVersion = 1;
-    auto fclTranslationCtx = newDeviceCtx->CreateTranslationCtxImpl(translationCtxVersion, srcType, intermediateType);
+    auto fclTranslationCtx = newDeviceCtx->CreateTranslationCtxImpl(translationCtxVersion, srcType, intermediateType);      //TODO: Memory leak (280 bytes)
     return fclTranslationCtx;
 }
 
@@ -210,7 +210,7 @@ void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTab
 IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
     uint64_t interfaceID = 0x15483dac4ed88c8;
     uint64_t interfaceVersion = 2;
-    ICIF* DeviceCtx = CreateInterface(context->igcMain, interfaceID, interfaceVersion);
+    ICIF* DeviceCtx = CreateInterface(context->igcMain, interfaceID, interfaceVersion);     //TODO: Memory leak (32 bytes)
     IgcOclDeviceCtx* newDeviceCtx = static_cast<IgcOclDeviceCtx*>(DeviceCtx);
     if (newDeviceCtx == nullptr) {
         return nullptr;
@@ -248,24 +248,24 @@ int Kernel::build(uint16_t chipset_id) {
         descriptor->setupHardwareInfo = dd->setupHardwareInfo;
         descriptor->devName = dd->devName;
     }
-    IgcBuffer* src = CreateIgcBuffer(context->igcMain, sourceCode.data, sourceCode.dataLength + 1);
-    IgcBuffer* buildOptions = CreateIgcBuffer(context->igcMain, options.data, options.dataLength + 1);
+    IgcBuffer* src = CreateIgcBuffer(context->igcMain, sourceCode.data, sourceCode.dataLength + 1);     //TODO: Memory leak (1202 bytes)
+    IgcBuffer* buildOptions = CreateIgcBuffer(context->igcMain, options.data, options.dataLength + 1);  //TODO: Memory leak (112 bytes)
     printf("options: %s\n", options.data);
 
     //TODO: Look into cl_device_caps.cpp to retrieve these from hardware info
     const char* internal_options = "-ocl-version=300 -cl-disable-zebin -cl-intel-has-buffer-offset-arg -D__IMAGE_SUPPORT__=1 -fpreserve-vec3-type -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_fp16,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_icd,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_intel_command_queue_families,+cl_intel_subgroups,+cl_intel_required_subgroup_size,+cl_intel_subgroups_short,+cl_khr_spir,+cl_intel_accelerator,+cl_intel_driver_diagnostics,+cl_khr_priority_hints,+cl_khr_throttle_hints,+cl_khr_create_command_queue,+cl_intel_subgroups_char,+cl_intel_subgroups_long,+cl_khr_il_program,+cl_intel_mem_force_host_memory,+cl_khr_subgroup_extended_types,+cl_khr_subgroup_non_uniform_vote,+cl_khr_subgroup_ballot,+cl_khr_subgroup_non_uniform_arithmetic,+cl_khr_subgroup_shuffle,+cl_khr_subgroup_shuffle_relative,+cl_khr_subgroup_clustered_reduce,+cl_intel_device_attribute_query,+cl_khr_suggested_local_work_size,+cl_khr_fp64,+cl_khr_subgroups,+cl_intel_spirv_device_side_avc_motion_estimation,+cl_intel_spirv_media_block_io,+cl_intel_spirv_subgroups,+cl_khr_spirv_no_integer_wrap_decoration,+cl_intel_unified_shared_memory_preview,+cl_khr_mipmap_image,+cl_khr_mipmap_image_writes,+cl_intel_planar_yuv,+cl_intel_packed_yuv,+cl_intel_motion_estimation,+cl_intel_device_side_avc_motion_estimation,+cl_intel_advanced_motion_estimation,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_khr_image2d_from_buffer,+cl_khr_depth_images,+cl_khr_3d_image_writes,+cl_intel_media_block_io,+cl_intel_va_api_media_sharing,+cl_intel_sharing_format_query,+cl_khr_pci_bus_info";
     size_t internalOptionsSize = strlen(internal_options) + 1;
-    IgcBuffer* internalOptions = CreateIgcBuffer(context->igcMain, internal_options, internalOptionsSize);
+    IgcBuffer* internalOptions = CreateIgcBuffer(context->igcMain, internal_options, internalOptionsSize); //TODO: Memory leak (112 bytes)
     printf("internalOptionsSize: %lu\n", internalOptionsSize);
-    IgcBuffer* idsBuffer = CreateIgcBuffer(context->igcMain, nullptr, 0);
-    IgcBuffer* valuesBuffer = CreateIgcBuffer(context->igcMain, nullptr, 0);
+    IgcBuffer* idsBuffer = CreateIgcBuffer(context->igcMain, nullptr, 0);       //TODO: Memory leak (112 bytes)
+    IgcBuffer* valuesBuffer = CreateIgcBuffer(context->igcMain, nullptr, 0);    //TODO: Memory leak (112 bytes)
 
     // Frontend Compilation
     FclOclTranslationCtx* fclTranslationCtx = createFclTranslationCtx();
     if (!fclTranslationCtx) {
         return FRONTEND_BUILD_ERROR;
     }
-    auto fclOutput = fclTranslationCtx->TranslateImpl(1, src, buildOptions, internalOptions, nullptr, 0);
+    auto fclOutput = fclTranslationCtx->TranslateImpl(1, src, buildOptions, internalOptions, nullptr, 0);       //TODO: Memory leak (5520 bytes)
     if (!fclOutput) {
         return FRONTEND_BUILD_ERROR;
     }
@@ -292,11 +292,11 @@ int Kernel::build(uint16_t chipset_id) {
         return BACKEND_BUILD_ERROR;
     }
     uint64_t translationCtxVersion = 3;
-    IgcOclTranslationCtx* igcTranslationCtx = deviceCtx->CreateTranslationCtxImpl(translationCtxVersion, intermediateType, outType);
+    IgcOclTranslationCtx* igcTranslationCtx = deviceCtx->CreateTranslationCtxImpl(translationCtxVersion, intermediateType, outType);        //TODO: Memory leak (2620 bytes)
     if (!igcTranslationCtx) {
         return BACKEND_BUILD_ERROR;
     }
-    auto igcOutput = igcTranslationCtx->TranslateImpl(1, fclBuildOutput, idsBuffer, valuesBuffer, buildOptions, internalOptions, nullptr, 0, nullptr);
+    auto igcOutput = igcTranslationCtx->TranslateImpl(1, fclBuildOutput, idsBuffer, valuesBuffer, buildOptions, internalOptions, nullptr, 0, nullptr);  //TODO: Memory leak (16224 bytes)
     if (!igcOutput) {
         return BACKEND_BUILD_ERROR;
     }
@@ -489,12 +489,10 @@ int Kernel::setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue) {
         size_t bytesToCopy = std::min(static_cast<size_t>(argDescValue->size), maxBytesToCopy);
         memcpy(pDest, pSrc, bytesToCopy);
     }
-    //TODO: Initialize crossThreadData once; memcpy immediate arguments to it
     return SUCCESS;
 }
 
 //TODO: Add cases for images, command queues, pipes, ...
-//TODO: There need to be some changes with the Buffer class so that we don't have to levels of dereferencing
 int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     if (!argValue)
         return INVALID_KERNEL_ARG;
@@ -520,8 +518,6 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
         break;
     }
     //TODO: Check if GROMACS has bindless mode somewhere
-    //TODO: Save buffer pointers to crossThreadData, see line 1407 in Kernel::setArgBuffer
-    //TODO: Save local work sizes to crossThreadData, see line 214-228, hardware_interface_base.inl
     if (descriptor->stateless) {
         uint64_t* patchLocation = reinterpret_cast<uint64_t*>(ptrOffset(crossThreadData.get(), descriptor->stateless));
         *patchLocation = bufferObject->gpuAddress;
@@ -580,12 +576,11 @@ int Kernel::extractMetadata() {
     }
     context->setKernelData(&kernelData);
     //TODO: Check if all necessary patchtokens are not nullptr
-    if (kernelData.bindingTableState == nullptr) {
-        return -1;
-    }
+    if (kernelData.bindingTableState == nullptr)
+        return INVALID_KERNEL_FORMAT;
     printf("bindingTableState->Count = %u\n", kernelData.bindingTableState->Count);
-    //TODO: return error if unsupportedKernelArgs is true
-    //TODO: return error if we have implicit args
+    if (unsupportedKernelArgs || hasBindlessMode)
+        return INVALID_KERNEL_FORMAT;
     //TODO: Check if GROMACS uses implicit args
     uint32_t crossThreadDataSize = kernelData.dataParameterStream->DataParameterStreamSize;
     if (crossThreadDataSize) {
@@ -605,8 +600,8 @@ int Kernel::retrieveSystemRoutineInstructions() {
         deviceCtx = getIgcDeviceCtx();
     uint64_t interfaceID2 = 0xfffe2429681d9502;
     uint64_t interfaceVersion2 = 0x1;
-    ICIF* RoutineBufferCtx = CreateInterface(context->igcMain, interfaceID2, interfaceVersion2);
-    ICIF* AreaBufferCtx = CreateInterface(context->igcMain, interfaceID2, interfaceVersion2);
+    ICIF* RoutineBufferCtx = CreateInterface(context->igcMain, interfaceID2, interfaceVersion2);    //TODO: Memory leak (5489 bytes)
+    ICIF* AreaBufferCtx = CreateInterface(context->igcMain, interfaceID2, interfaceVersion2);       //TODO: Memory leak (112 bytes)
     IgcBuffer* systemRoutineBuffer = static_cast<IgcBuffer*>(RoutineBufferCtx);
     IgcBuffer* stateSaveAreaBuffer = static_cast<IgcBuffer*>(AreaBufferCtx);
     if (!systemRoutineBuffer || !stateSaveAreaBuffer)
@@ -629,8 +624,7 @@ int Kernel::retrieveSystemRoutineInstructions() {
 void Kernel::setOptBit(uint32_t& opts, uint32_t bit, bool isSet) {
     if (isSet) {
         opts |= bit;
-    }
-    else {
+    } else {
         opts &= ~bit;
     }
 }
