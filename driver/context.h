@@ -51,13 +51,14 @@ struct BufferObject {
     BufferObject() {}
     ~BufferObject() {
         alignedFree(cpuAddress);
-        printf("%d BufferObject destructor called!\n", this->bufferType);
+        DEBUG_LOG("%d BufferObject destructor called!\n", this->bufferType);
     }
     template <typename T>
     T ptrOffset(size_t ptr_offset) {
         uintptr_t baseAddr = reinterpret_cast<uintptr_t>(cpuAddress);
-        offset += sizeof(ptr_offset);
-        return reinterpret_cast<T>(baseAddr + offset);
+        uintptr_t newAddr = baseAddr + offset;
+        offset += ptr_offset;
+        return reinterpret_cast<T>(newAddr);
     }
     int bufferType = 0;
     void* cpuAddress = nullptr;
@@ -87,7 +88,7 @@ class Context : public pContext {
     bool getIsSipKernelAllocated();
     void setMaxWorkGroupSize();
     void setMaxThreadsForVfe();
-    int createDrmContext();
+    int createDRMContext();
     void setNonPersistentContext();
     std::unique_ptr<BufferObject> allocateBufferObject(size_t size);
     int createTagAllocation();
@@ -123,8 +124,8 @@ class Context : public pContext {
     //TODO: How to set and save data buffers?
     //TODO: Check allocation sizes for ssh, ioh, dsh and command buffer
     //TODO: Check everything in scratchAllocation
-    std::unique_ptr<BufferObject> kernelAllocation;     //TODO: Potential memory leak here
-    std::unique_ptr<BufferObject> scratchAllocation;    //TODO: Potential memory leak here
+    std::unique_ptr<BufferObject> kernelAllocation;
+    std::unique_ptr<BufferObject> scratchAllocation;    //TODO: Memory leak here
     std::unique_ptr<BufferObject> sshAllocation;
     std::unique_ptr<BufferObject> iohAllocation;
     std::unique_ptr<BufferObject> dshAllocation;

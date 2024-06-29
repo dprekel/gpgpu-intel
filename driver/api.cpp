@@ -41,17 +41,14 @@ API_CALL pContext* CreateContext(pDevice* dev, int* ret) {
     }
     Device* device = static_cast<Device*>(dev);
     if (device->context) {
-        return static_cast<pContext*>(device->context);
+        *ret = CONTEXT_ALREADY_EXISTS;
+        return nullptr;
     }
     Context* context = new Context(device);
     device->context = context;
-    *ret = context->createDrmContext();
-    if (*ret) {
+    *ret = context->createDRMContext();
+    if (*ret)
         return nullptr;
-    }
-    if (device->getNonPersistentContextsSupported()) {
-        context->setNonPersistentContext();
-    }
     *ret = context->createTagAllocation();
     if (*ret)
         return nullptr;

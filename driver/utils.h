@@ -61,8 +61,16 @@ inline void alignedFree(void* ptr) {
     }
 }
 
+inline uint64_t maxNBitValue(uint64_t n) {
+    return ((1ull << n) - 1);
+}
+
 inline uint64_t canonize(uint64_t address) {
     return static_cast<int64_t>(address << (64 - ADDRESS_WIDTH)) >> (64 - ADDRESS_WIDTH);
+}
+
+inline uint64_t decanonize(uint64_t address) {
+    return (address & maxNBitValue(64));
 }
 
 inline uint32_t prevPowerOfTwo(uint32_t value) {
@@ -74,8 +82,5 @@ inline uint32_t prevPowerOfTwo(uint32_t value) {
     return (value - (value >> 1));
 }
 
-inline uint64_t maxNBitValue(uint64_t n) {
-    return ((1ull << n) - 1);
-}
 
 

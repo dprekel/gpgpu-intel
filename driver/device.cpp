@@ -31,7 +31,7 @@ Device::Device(int fd, CompilerInfo* compilerInfo)
 }
 
 Device::~Device() {
-    printf("Device destructor called!\n");
+    DEBUG_LOG("Device destructor called!\n");
 }
 
 int Device::initialize() {
@@ -81,11 +81,11 @@ int Device::initialize() {
     this->devName = descriptor->devName;
     SystemInfo* sysInfo = descriptor->pHwInfo->gtSystemInfo;
 
-    LOG("\n");
-    LOG("GPU %d\n", numDevices);
-    LOG("------------------------------------------------------------------\n");
-    LOG("Device ID: \t\t0x%X [%d]\n", this->chipset_id, this->revision_id);
-    LOG("Device Name: \t\t%s\n", this->devName);
+    INFO_LOG("\n");
+    INFO_LOG("GPU %d\n", numDevices);
+    INFO_LOG("------------------------------------------------------------------\n");
+    INFO_LOG("Device ID: \t\t0x%X [%d]\n", this->chipset_id, this->revision_id);
+    INFO_LOG("Device Name: \t\t%s\n", this->devName);
 
     // query topology info
     void* topology = queryIoctl(DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
@@ -105,30 +105,14 @@ int Device::initialize() {
         return NO_SOFTPIN_SUPPORT;
     }
 
-    // Enable Turbo Boost
-    int ret = enableTurboBoost();
-    /*
-    if (ret) {
-        return NO_TURBO_BOOST;
-    }
-    */
-
-    // query memory info here
-
     // query engine info
     engines = queryIoctl(DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
     if (!engines) {
         return QUERY_FAILED;
     }
     
-    // create virtual memory address space
-    ret = createDrmVirtualMemory();
-    if (ret) {
-        return VM_CREATION_FAILED;
-    }
-
     // query GTT (Graphics Translation Table) size
-    ret = queryGttSize();
+    int ret = queryGttSize();
     if (ret) {
         return QUERY_FAILED;
     }
@@ -136,16 +120,9 @@ int Device::initialize() {
     // ask all engines if slice count change is supported
     //getQueueSliceCount(device);
 
-    // check if non-persistent contexts are supported. A non-persistent context gets
-    // destroyed immediately upon closure (through DRM_I915_GEM_CONTEXT_CLOSE, fd destruction 
-    // or process termination). A persistent context can finish the batch before closing.
-    checkNonPersistentContextsSupport();
-
     checkPreemptionSupport();
     
-    // Initialize memory manager here
-
-    LOG("\n");
+    INFO_LOG("\n");
     return SUCCESS;
 }
 
@@ -174,9 +151,8 @@ bool Device::checkDriverVersion() {
         return false;
     }
     name[4] = '\0';
-    //TODO: add driver info to gpuInfo struct
     strncpy(driver_name, name, 5);
-    LOG("Kernel driver: \t\t%s\n", this->driver_name);
+    INFO_LOG("Kernel driver: \t\t%s\n", this->driver_name);
     return strcmp(name, "i915") == 0;
 }
 
@@ -251,10 +227,10 @@ void Device::translateTopologyInfo(drm_i915_query_topology_info* topologyInfo, S
             }
         }
     }
-    LOG("Execution Units: \t%d\n", euCount);
-    LOG("Slices: \t\t%d\n", sliceCount);
-    LOG("Subslices per Slice: \t%d\n", subSliceCountPerSlice);
-    LOG("EUs per Subslice: \t%d\n", euCountPerSubSlice);
+    INFO_LOG("Execution Units: \t%d\n", euCount);
+    INFO_LOG("Slices: \t\t%d\n", sliceCount);
+    INFO_LOG("Subslices per Slice: \t%d\n", subSliceCountPerSlice);
+    INFO_LOG("EUs per Subslice: \t%d\n", euCountPerSubSlice);
     sysInfo->EUCount = euCount;
     sysInfo->SubSliceCount = subSliceCount;
     sysInfo->SliceCount = sliceCount;
@@ -262,29 +238,6 @@ void Device::translateTopologyInfo(drm_i915_query_topology_info* topologyInfo, S
     this->euCountPerSubSlice = euCountPerSubSlice;
 }
 
-int Device::createDrmVirtualMemory() {
-    drm_i915_gem_vm_control ctl = {0};
-    int ret = ioctl(fd, DRM_IOCTL_I915_GEM_VM_CREATE, &ctl);
-    if (ret == 0) {
-        if (ctl.vm_id == 0) {
-            return -1;          // 0 is reserved for invalid/unassigned ppGTT
-        }
-        drmVmId = ctl.vm_id;
-    }
-    return ret;
-}
-
-int Device::enableTurboBoost() {
-    // Even though my test machine (Skylake) has Turbo Boost 2.0, this does not work. 
-    // Do we need to specify a context id first?
-    // use ftrace to see why we get EINVAL error
-    drm_i915_gem_context_param contextParam = {0};
-
-    contextParam.param = I915_CONTEXT_PRIVATE_PARAM_BOOST;
-    contextParam.value = 1;
-    int ret = ioctl(fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &contextParam);
-    return ret;
-}
 
 int Device::queryGttSize() {
     drm_i915_gem_context_param contextParam = {0};
@@ -298,22 +251,6 @@ int Device::queryGttSize() {
     return ret;
 }
 
-void Device::checkNonPersistentContextsSupport() {
-    drm_i915_gem_context_param contextParam = {0};
-    contextParam.param = I915_CONTEXT_PARAM_PERSISTENCE;
-
-    int ret = ioctl(fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &contextParam);
-    if (ret == 0 && contextParam.value == 1) {
-        nonPersistentContextsSupported = true;
-    }
-    else {
-        nonPersistentContextsSupported = false;
-    }
-}
-
-bool Device::getNonPersistentContextsSupported() {
-    return nonPersistentContextsSupported;
-}
 
 DeviceDescriptor* Device::getDeviceDescriptor() {
     return descriptor.get();

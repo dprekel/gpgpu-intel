@@ -25,7 +25,7 @@ Context::Context(Device* device)
 }
 
 Context::~Context() {
-    printf("Context destructor called!\n");
+    DEBUG_LOG("Context destructor called!\n");
 }
 
 void Context::setMaxWorkGroupSize() {
@@ -60,17 +60,21 @@ std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size) {
     void* pOriginalMemory = new (std::nothrow)char[sizeToAlloc];
     if (!pOriginalMemory)
         return nullptr;
+    // The allocated memory must be aligned to a page boundary in order to be correctly 
+    // bound into the ppGTT.
     uintptr_t pAlignedMemory = reinterpret_cast<uintptr_t>(pOriginalMemory);
     pAlignedMemory += alignment;
     pAlignedMemory -= pAlignedMemory % alignment;
     reinterpret_cast<void**>(pAlignedMemory)[-1] = pOriginalMemory;
+    void* pAlignedMemoryPtr = reinterpret_cast<void*>(pAlignedMemory);
 
+    // This ioctl allows the kernel driver to keep track of all buffer objects (BOs). 
+    // A handle for each BO is created, but the BOs are not yet mapped into the ppGTT
+    // (this is done by DRM_IOCTL_I915_GEM_EXECBUFFER2 ioctl).
     drm_i915_gem_userptr userptr = {0};
     userptr.user_ptr = pAlignedMemory;
     userptr.user_size = size;
     userptr.flags = 0;
-
-    void* pAlignedMemoryPtr = reinterpret_cast<void*>(pAlignedMemory);
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr);
     if (ret) {
         alignedFree(pAlignedMemoryPtr);
@@ -85,34 +89,54 @@ std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size) {
 }
 
 
-int Context::createDrmContext() {
-    int ret;
-    vmId = device->drmVmId;
-    
-    drm_i915_gem_context_create_ext gcc = {0};
-    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT, &gcc);
-    if (ret) {
+int Context::createDRMContext() {
+    // Create a per-process Graphics Translation Table (ppGTT). This is a process-assigned
+    // page table that the IOMMU uses to translate virtual GPU addresses.
+    drm_i915_gem_vm_control vmCtrl = {0};
+    int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_VM_CREATE, &vmCtrl);
+    if (ret || vmCtrl.vm_id == 0)
         return CONTEXT_CREATION_FAILED;
-    }
-    if (vmId > 0) {
-        drm_i915_gem_context_param param = {0};
-        param.ctx_id = gcc.ctx_id;
-        param.value = vmId;
-        param.param = I915_CONTEXT_PARAM_VM;
-        ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &param);
-        if (ret) {
-            return CONTEXT_CREATION_FAILED;
-        }
-    }
-    ctxId = gcc.ctx_id;
-    return SUCCESS;
-}
+    
+    // Create a DRM context.
+    drm_i915_gem_context_create_ext drmCtx = {0};
+    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT, &drmCtx);
+    ctxId = drmCtx.ctx_id;
+    if (ret)
+        return CONTEXT_CREATION_FAILED;
 
-void Context::setNonPersistentContext() {
-    drm_i915_gem_context_param contextParam = {0};
-    contextParam.ctx_id = ctxId;
-    contextParam.param = I915_CONTEXT_PARAM_PERSISTENCE;
-    ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &contextParam);
+    // Assign the ppGTT to the newly created context.
+    drm_i915_gem_context_param paramVm = {0};
+    paramVm.ctx_id = drmCtx.ctx_id;
+    paramVm.value = vmCtrl.vm_id;
+    paramVm.param = I915_CONTEXT_PARAM_VM;
+    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &paramVm);
+    if (ret)
+        return CONTEXT_CREATION_FAILED;
+
+    // Check if non-persistent contexts are supported. A non-persistent context gets
+    // destroyed immediately upon closure (through DRM_I915_GEM_CONTEXT_CLOSE, device file
+    // closure or process termination). A persistent context can finish the batch despite
+    // closing.
+    drm_i915_gem_context_param paramPers = {0};
+    paramPers.param = I915_CONTEXT_PARAM_PERSISTENCE;
+    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &paramPers);
+    if (ret == 0 && paramPers.value == 1) {
+        // Makes the context non-persistent
+        drm_i915_gem_context_param paramSetPers = {0};
+        paramSetPers.ctx_id = drmCtx.ctx_id;
+        paramSetPers.param = I915_CONTEXT_PARAM_PERSISTENCE;
+        ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &paramSetPers);
+    }
+
+    // Even though my test machine (Skylake) has Turbo Boost 2.0, this does not work. 
+    // Use ftrace to see why we get EINVAL error
+    drm_i915_gem_context_param paramBoost = {0};
+    paramBoost.ctx_id = drmCtx.ctx_id;
+    paramBoost.param = I915_CONTEXT_PRIVATE_PARAM_BOOST;
+    paramBoost.value = 1;
+    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &paramBoost);
+
+    return SUCCESS;
 }
 
 
@@ -200,6 +224,7 @@ int Context::allocateISAMemory() {
         hasRequiredAllocationSize = (kernelAllocation->size >= alignedAllocationSize) ? true : false;
     }
     if (!kernelAllocation || !hasRequiredAllocationSize) {
+        kernelAllocation.reset(); // after freeing, the kernel driver still holds a handle to this object, but I don't think this causes issues
         kernelAllocation = allocateBufferObject(alignedAllocationSize);
         if (!kernelAllocation) {
             return KERNEL_ALLOCATION_FAILED;
@@ -589,22 +614,24 @@ int Context::createCommandStreamReceiver() {
         }
         commandStreamCSR->bufferType = BufferType::COMMAND_BUFFER;
     }
-    //TODO: program Pipeline Select
-    //if (mediaSamplerConfigChanged || !isPreambleSent) {
-        auto cmd1 = commandStreamCSR->ptrOffset<PIPELINE_SELECT*>(sizeof(PIPELINE_SELECT));
-        *cmd1 = PIPELINE_SELECT::init();
-        //cmd1->Bitfield.MaskBits = mask;
-        cmd1->Bitfield.PipelineSelection = PIPELINE_SELECT::PIPELINE_SELECTION_GPGPU;
-        //cmd1->Bitfield.MediaSamplerDopClockGateEnable = !pipelineSelectArgs.mediaSamplerRequired;
-    //}
+    auto cmd1 = commandStreamCSR->ptrOffset<PIPELINE_SELECT*>(sizeof(PIPELINE_SELECT));
+    *cmd1 = PIPELINE_SELECT::init();
+    uint32_t enablePipelineSelectMaskBits = 0x3;
+    uint32_t mediaSamplerDopClockGateMaskBits = 0x10;
+    cmd1->Bitfield.MaskBits = enablePipelineSelectMaskBits | mediaSamplerDopClockGateMaskBits;
+    cmd1->Bitfield.PipelineSelection = PIPELINE_SELECT::PIPELINE_SELECTION_GPGPU;
+    // Clock Gating is a technique to dynamically adjust the clock frequency of the Media
+    // Pipeline Hardware. It contains texture mapping units (TMUs) which are responsible for
+    // texture sampling. Since this driver doesn't support sampler objects, it makes sense
+    // to enable Clock Gating to save power.
+    cmd1->Bitfield.MediaSamplerDopClockGateEnable = true;
 
-    // program Preamble:
     // program L3 cache:
     auto cmd2 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
     *cmd2 = MI_LOAD_REGISTER_IMM::init();
     uint32_t L3RegisterOffset = 0x7034;
     uint32_t L3ValueNoSLM = 0x80000340;
-    cmd2->Bitfield.RegisterOffset = L3RegisterOffset;
+    cmd2->Bitfield.RegisterOffset = L3RegisterOffset >> 0x2;
     cmd2->Bitfield.DataDword = L3ValueNoSLM;
 
     // program Thread Arbitration
@@ -616,7 +643,7 @@ int Context::createCommandStreamReceiver() {
     *cmd4 = MI_LOAD_REGISTER_IMM::init();
     uint32_t debugControlReg2Offset = 0xe404;
     uint32_t requiredThreadArbitrationPolicy = ThreadArbitrationPolicy::RoundRobin;
-    cmd4->Bitfield.RegisterOffset = debugControlReg2Offset;
+    cmd4->Bitfield.RegisterOffset = debugControlReg2Offset >> 0x2;
     cmd4->Bitfield.DataDword = requiredThreadArbitrationPolicy;
 
     // program Preemption
@@ -689,20 +716,21 @@ int Context::createCommandStreamReceiver() {
     //cmd10->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
     //cmd10->Bitfield.InstructionMemoryObjectControlState = getMOCS();
 
-    cmd10->Bitfield.GeneralStateBaseAddressModifyEnable = true;
-    cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
-    //cmd10->Bitfield.GeneralStateBaseAddress = allocData.gshAddress;
-    cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
+    if (scratchAllocation) {
+        size_t scratchSpaceOffset = 4096;
+        uint64_t gshAddress = scratchAllocation->gpuAddress - scratchSpaceOffset;
+        cmd10->Bitfield.GeneralStateBaseAddressModifyEnable = true;
+        cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
+        cmd10->Bitfield.GeneralStateBaseAddress = decanonize(gshAddress);
+        cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
+    }
 
     //cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlState = statelessMocsIndex;
     //TODO: Add missing fields
 
-    //TODO: Program State Sip
-    //if (isMidThreadPreemption) {
-        auto cmd11 = commandStreamCSR->ptrOffset<STATE_SIP*>(sizeof(STATE_SIP));
-        *cmd11 = STATE_SIP::init();
-        cmd11->Bitfield.SystemInstructionPointer = sipAllocation->gpuAddress;
-    //}
+    auto cmd11 = commandStreamCSR->ptrOffset<STATE_SIP*>(sizeof(STATE_SIP));
+    *cmd11 = STATE_SIP::init();
+    cmd11->Bitfield.SystemInstructionPointer = sipAllocation->gpuAddress;
 
     //TODO: Program Pipe Control
     auto cmd12 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
@@ -722,7 +750,7 @@ int Context::createCommandStreamReceiver() {
 
 
 int Context::populateAndSubmitExecBuffer() {
-    //TODO: Don't copy the objects, instead use raw pointers
+    //execBuffer = kernel->execData;
     execBuffer.push_back(kernelAllocation.get());
     if (scratchAllocation)
         execBuffer.push_back(scratchAllocation.get());

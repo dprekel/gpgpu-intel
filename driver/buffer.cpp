@@ -11,7 +11,7 @@ Buffer::Buffer(Context* context)
 }
 
 Buffer::~Buffer() {
-    printf("Buffer destructor called!\n");
+    DEBUG_LOG("Buffer destructor called!\n");
 }
 
 BufferObject* Buffer::getDataBuffer() {

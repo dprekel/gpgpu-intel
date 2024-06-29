@@ -10,10 +10,15 @@
 #include "ioctl.h"
 #include "kernel.h"
 
-#ifdef DEBUG
-#define LOG(...) printf(__VA_ARGS__)
+#ifdef INFO
+#define INFO_LOG(...) printf(__VA_ARGS__)
 #else
-#define LOG(...) do {} while (0)
+#define INFO_LOG(...) do {} while (0)
+#endif
+#ifdef DEBUG
+#define DEBUG_LOG(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_LOG(...) do {} while (0)
 #endif
 
 class Context;
@@ -25,7 +30,6 @@ struct DeviceDescriptor {
     void (*setupHardwareInfo)(const HardwareInfo*);
     const char* devName;
 };
-
 struct CompilerInfo {
     const char* igcName = "libigc.so.1";
     const char* fclName = "libigdfcl.so.1";
@@ -41,7 +45,6 @@ class Device : public pDevice {
     Device(int fd, CompilerInfo* compilerInfo);
     ~Device();
     int initialize();
-    bool getNonPersistentContextsSupported();
     //TODO: Only one function that returns DeviceDescriptor
     //TODO: Either initialize values in initializer list or in class body, be consistent!
     //TODO: Try to make all member variables private
@@ -52,7 +55,6 @@ class Device : public pDevice {
     CIFMain* igcMain = nullptr;
     CIFMain* fclMain = nullptr;
     int fd;
-    int drmVmId;                            // unique identifier for ppGTT
     std::unique_ptr<DeviceDescriptor> descriptor;
   private:
     bool checkDriverVersion();
@@ -61,9 +63,7 @@ class Device : public pDevice {
     void translateTopologyInfo(drm_i915_query_topology_info* topologyInfo, SystemInfo* sysInfo);
     int createDrmVirtualMemory();
     int queryGttSize();
-    void checkNonPersistentContextsSupport();
     void checkPreemptionSupport();
-    int enableTurboBoost();
     
     uint32_t numDevices = 0;
     char driver_name[5];
@@ -78,7 +78,6 @@ class Device : public pDevice {
     int supportsSoftPin;
     void* engines = nullptr;                        // list of GPU engines (command streamers)
     uint64_t gttSize;
-    bool nonPersistentContextsSupported;
     bool preemptionSupported;
     int schedulerValue;
 };

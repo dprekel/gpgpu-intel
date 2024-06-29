@@ -10,7 +10,7 @@
 #define QUERY_FAILED                         -2
 #define NO_SOFTPIN_SUPPORT                   -3
 #define NO_TURBO_BOOST                       -4
-#define VM_CREATION_FAILED                   -5
+#define CONTEXT_ALREADY_EXISTS               -5
 #define CONTEXT_CREATION_FAILED              -6
 #define BUFFER_ALLOCATION_FAILED             -7
 #define KERNEL_ALLOCATION_FAILED             -8

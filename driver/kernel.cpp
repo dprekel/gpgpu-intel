@@ -27,7 +27,7 @@ Kernel::Kernel(Context* context, const char* filename, const char* options)
 }
 
 Kernel::~Kernel() {
-    printf("Kernel destructor called!\n");
+    DEBUG_LOG("Kernel destructor called!\n");
 }
 
 char* Kernel::getSurfaceStatePtr() {
