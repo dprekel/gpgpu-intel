@@ -1,7 +1,10 @@
 CC = g++
-CFLAGS = -Wall -fPIC -fvisibility=hidden -mavx2 -std=c++11
+CFLAGS = -Wall -fPIC -fvisibility=hidden -mavx2 -std=c++17
 LDFLAGS = -shared
 PREFIX = /usr/local
+ifeq ($(INFO), 1)
+	CFLAGS += -DINFO
+endif
 ifeq ($(DEBUG), 1)
 	CFLAGS += -g -DDEBUG
 endif

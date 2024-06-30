@@ -35,6 +35,12 @@ namespace MemoryConstants {
     constexpr size_t cacheLineSize = 64; 
 };
 
+namespace MMIOAddresses {
+    constexpr uint32_t L3Register = 0x7034;
+    constexpr uint32_t debugControlReg2 = 0xe404;
+    constexpr uint32_t preemptConfigReg = 0x2580;
+};
+
 enum class DebugPauseState : uint32_t {
     disabled,
     waitingForFirstSemaphore
@@ -42,17 +48,14 @@ enum class DebugPauseState : uint32_t {
 
 enum ThreadArbitrationPolicy {
     AgeBased = 0x0,
-    RoundRobin = 0x1,
-    RoundRobinAfterDependency = 0x2,
-    NotPresent = 0xffff
+    RoundRobin = 0x100,
+    RoundRobinAfterDependency = 0x0,
+    NotPresent = 0x0
 };
 
 struct BufferObject {
-    BufferObject() {}
-    ~BufferObject() {
-        alignedFree(cpuAddress);
-        DEBUG_LOG("%d BufferObject destructor called!\n", this->bufferType);
-    }
+    BufferObject();
+    ~BufferObject();
     template <typename T>
     T ptrOffset(size_t ptr_offset) {
         uintptr_t baseAddr = reinterpret_cast<uintptr_t>(cpuAddress);
@@ -69,12 +72,7 @@ struct BufferObject {
 };
 
 struct AllocationData {
-    uint64_t scratchAddress;
-    uint64_t commandStreamTaskAddress;
-
     size_t hwThreadsPerWorkGroup;
-    uint32_t maxVfeThreads;
-    uint32_t perThreadScratchSpace;
 };
 
 
@@ -89,7 +87,6 @@ class Context : public pContext {
     void setMaxWorkGroupSize();
     void setMaxThreadsForVfe();
     int createDRMContext();
-    void setNonPersistentContext();
     std::unique_ptr<BufferObject> allocateBufferObject(size_t size);
     int createTagAllocation();
     int createPreemptionAllocation();
@@ -120,7 +117,6 @@ class Context : public pContext {
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;
 
-    //TODO: Add virtual memory creation to CreateContext
     //TODO: How to set and save data buffers?
     //TODO: Check allocation sizes for ssh, ioh, dsh and command buffer
     //TODO: Check everything in scratchAllocation
@@ -140,11 +136,12 @@ class Context : public pContext {
 
     //TODO: Replace AllocationData
     AllocationData allocData;
-    uint32_t vmId;
-    uint32_t ctxId;
+    uint32_t ctxId = 0u;
+    uint32_t maxVfeThreads = 0u;
+    uint32_t perThreadScratchSpace = 0u;
 
-    uint32_t workDim;
-    uint32_t maxWorkItemsPerWorkGroup;
+    uint32_t workDim = 0u;
+    uint32_t maxWorkItemsPerWorkGroup = 0u;
     size_t workItemsPerWorkGroup[3];
     size_t globalWorkItems[3];
     size_t numWorkGroups[3];

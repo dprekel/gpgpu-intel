@@ -11,7 +11,7 @@ Buffer::Buffer(Context* context)
 }
 
 Buffer::~Buffer() {
-    DEBUG_LOG("Buffer destructor called!\n");
+    DEBUG_LOG("[DEBUG] Buffer destructor called!\n");
 }
 
 BufferObject* Buffer::getDataBuffer() {

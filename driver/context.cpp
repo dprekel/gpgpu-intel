@@ -25,7 +25,15 @@ Context::Context(Device* device)
 }
 
 Context::~Context() {
-    DEBUG_LOG("Context destructor called!\n");
+    DEBUG_LOG("[DEBUG] Context destructor called!\n");
+}
+
+BufferObject::BufferObject() {
+}
+
+BufferObject::~BufferObject() {
+    alignedFree(cpuAddress);
+    DEBUG_LOG("[DEBUG] BufferObject destructor called for type [%d]\n", this->bufferType);
 }
 
 void Context::setMaxWorkGroupSize() {
@@ -38,7 +46,7 @@ void Context::setMaxWorkGroupSize() {
 void Context::setMaxThreadsForVfe() {
     // For GEN11 and GEN12, there is another term (extraQuantityThreadsPerEU) that must be added to numThreadsPerEU
     uint32_t numThreadsPerEU = hwInfo->gtSystemInfo->ThreadCount / hwInfo->gtSystemInfo->EUCount;
-    allocData.maxVfeThreads = hwInfo->gtSystemInfo->EUCount * numThreadsPerEU;
+    maxVfeThreads = hwInfo->gtSystemInfo->EUCount * numThreadsPerEU;
 }
 
 void Context::setKernelData(KernelFromPatchtokens* kernelData) {
@@ -239,7 +247,6 @@ int Context::allocateISAMemory() {
 //TODO: Check why Intels GEMM uses no Scratch Space
 //TODO: Check necessary alignment size
 //TODO: Make sure that mediaVfeState[0] is never nullptr
-//TODO: Unify BUFFER_ALLOCATION_FAILED like macros
 int Context::createScratchAllocation() {
     uint32_t computeUnitsUsedForScratch = hwInfo->gtSystemInfo->MaxSubSlicesSupported
                                         * hwInfo->gtSystemInfo->MaxEuPerSubSlice
@@ -253,16 +260,13 @@ int Context::createScratchAllocation() {
         if (!scratchAllocation)
             return BUFFER_ALLOCATION_FAILED;
         scratchAllocation->bufferType = BufferType::SCRATCH_SURFACE;
-        allocData.scratchAddress = scratchAllocation->gpuAddress;
         requiredScratchSize >>= static_cast<uint32_t>(MemoryConstants::kiloByteShiftSize);
-        allocData.perThreadScratchSpace = 0u;
         while (requiredScratchSize >>= 1) {
-            allocData.perThreadScratchSpace++;
+            perThreadScratchSpace++;
         }
         return SUCCESS;
     }
-    allocData.scratchAddress = 0u;
-    allocData.perThreadScratchSpace = 0u;
+    perThreadScratchSpace = 0u;
     return SUCCESS;
 }
 
@@ -448,7 +452,7 @@ int Context::createDynamicStateHeap() {
     interfaceDescriptor->Bitfield.BindingTablePointer = static_cast<uint32_t>(kernelData->bindingTableState->Offset) >> 0x5;
     interfaceDescriptor->Bitfield.SharedLocalMemorySize = 0u;
     interfaceDescriptor->Bitfield.NumberOfThreadsInGpgpuThreadGroup = static_cast<uint32_t>(allocData.hwThreadsPerWorkGroup);
-    // one general purpose register file (GRF) has 32 bytes on GEN9
+    // One general purpose register file (GRF) has 32 bytes on GEN9.
     uint32_t grfSize = 32;
     size_t crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
     interfaceDescriptor->Bitfield.CrossThreadConstantDataReadLength = static_cast<uint32_t>(crossThreadDataSize / grfSize);
@@ -596,7 +600,6 @@ int Context::createCommandStreamTask() {
     //TODO: Add noop
     //TODO: align to cache line size
 
-    allocData.commandStreamTaskAddress = commandStreamTask->gpuAddress;
     return SUCCESS;
 }
 
@@ -614,6 +617,7 @@ int Context::createCommandStreamReceiver() {
         }
         commandStreamCSR->bufferType = BufferType::COMMAND_BUFFER;
     }
+    // Program Pipeline Selection
     auto cmd1 = commandStreamCSR->ptrOffset<PIPELINE_SELECT*>(sizeof(PIPELINE_SELECT));
     *cmd1 = PIPELINE_SELECT::init();
     uint32_t enablePipelineSelectMaskBits = 0x3;
@@ -626,74 +630,69 @@ int Context::createCommandStreamReceiver() {
     // to enable Clock Gating to save power.
     cmd1->Bitfield.MediaSamplerDopClockGateEnable = true;
 
-    // program L3 cache:
+    // Program L3 Cache:
     auto cmd2 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
     *cmd2 = MI_LOAD_REGISTER_IMM::init();
-    uint32_t L3RegisterOffset = 0x7034;
     uint32_t L3ValueNoSLM = 0x80000340;
-    cmd2->Bitfield.RegisterOffset = L3RegisterOffset >> 0x2;
+    cmd2->Bitfield.RegisterOffset = MMIOAddresses::L3Register >> 0x2;
     cmd2->Bitfield.DataDword = L3ValueNoSLM;
 
-    // program Thread Arbitration
+    // Program Thread Arbitration
     auto cmd3 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
     *cmd3 = PIPE_CONTROL::init();
     cmd3->Bitfield.CommandStreamerStallEnable = true;
 
     auto cmd4 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
     *cmd4 = MI_LOAD_REGISTER_IMM::init();
-    uint32_t debugControlReg2Offset = 0xe404;
     uint32_t requiredThreadArbitrationPolicy = ThreadArbitrationPolicy::RoundRobin;
-    cmd4->Bitfield.RegisterOffset = debugControlReg2Offset >> 0x2;
+    cmd4->Bitfield.RegisterOffset = MMIOAddresses::debugControlReg2 >> 0x2;
     cmd4->Bitfield.DataDword = requiredThreadArbitrationPolicy;
 
-    // program Preemption
-    //if (isMidThreadPreemption) {
-        auto cmd5 = commandStreamCSR->ptrOffset<GPGPU_CSR_BASE_ADDRESS*>(sizeof(GPGPU_CSR_BASE_ADDRESS));
-        *cmd5 = GPGPU_CSR_BASE_ADDRESS::init();
-        cmd5->Bitfield.GpgpuCsrBaseAddress = preemptionAllocation->gpuAddress;
-    //}
+    // Program Preemption
+    auto cmd5 = commandStreamCSR->ptrOffset<GPGPU_CSR_BASE_ADDRESS*>(sizeof(GPGPU_CSR_BASE_ADDRESS));
+    *cmd5 = GPGPU_CSR_BASE_ADDRESS::init();
+    cmd5->Bitfield.GpgpuCsrBaseAddress = preemptionAllocation->gpuAddress >> 0xc;
 
+    // Program Pipe Control
     auto cmd6 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
     *cmd6 = PIPE_CONTROL::init();
     cmd6->Bitfield.CommandStreamerStallEnable = true;
-    //if (waSendMIFLUSHBeforeVFE) {
-        cmd6->Bitfield.RenderTargetCacheFlushEnable = true;
-        cmd6->Bitfield.DepthCacheFlushEnable = true;
-        cmd6->Bitfield.DcFlushEnable = true;
-    //}
-    // program VFE state
-    //if (mediaVfeStateDirty) {
-        auto cmd7 = commandStreamCSR->ptrOffset<MEDIA_VFE_STATE*>(sizeof(MEDIA_VFE_STATE));
-        *cmd7 = MEDIA_VFE_STATE::init();
-        cmd7->Bitfield.MaximumNumberOfThreads = allocData.maxVfeThreads;
-        cmd7->Bitfield.NumberOfUrbEntries = 1;
-        cmd7->Bitfield.UrbEntryAllocationSize = 0x782;
-        cmd7->Bitfield.PerThreadScratchSpace = allocData.perThreadScratchSpace;
-        cmd7->Bitfield.StackSize = allocData.perThreadScratchSpace;
-        uint32_t lowAddress = static_cast<uint32_t>(0xffffffff & scratchAllocation->gpuAddress);
-        uint32_t highAddress = static_cast<uint32_t>(0xffffffff & (scratchAllocation->gpuAddress >> 32));
-        cmd7->Bitfield.ScratchSpaceBasePointer = lowAddress;
-        cmd7->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
-    //}
+    cmd6->Bitfield.RenderTargetCacheFlushEnable = true;
+    cmd6->Bitfield.DepthCacheFlushEnable = true;
+    cmd6->Bitfield.DcFlushEnable = true;
 
-    //TODO: program Preemption again?
-    auto cmd8 = commandStreamCSR->ptrOffset<GPGPU_CSR_BASE_ADDRESS*>(sizeof(GPGPU_CSR_BASE_ADDRESS));
-    *cmd8 = GPGPU_CSR_BASE_ADDRESS::init();
+    // Program VFE state
+    auto cmd7 = commandStreamCSR->ptrOffset<MEDIA_VFE_STATE*>(sizeof(MEDIA_VFE_STATE));
+    *cmd7 = MEDIA_VFE_STATE::init();
+    cmd7->Bitfield.MaximumNumberOfThreads = this->maxVfeThreads - 1;
+    cmd7->Bitfield.NumberOfUrbEntries = 0x1;
+    cmd7->Bitfield.UrbEntryAllocationSize = 0x782;
+    cmd7->Bitfield.PerThreadScratchSpace = this->perThreadScratchSpace;
+    cmd7->Bitfield.StackSize = this->perThreadScratchSpace;
+    size_t scratchSpaceOffset = 4096u;
+    uint32_t lowAddress = static_cast<uint32_t>(0xffffffff & scratchSpaceOffset);
+    uint32_t highAddress = static_cast<uint32_t>(0xffffffff & (scratchSpaceOffset >> 32));
+    cmd7->Bitfield.ScratchSpaceBasePointer = lowAddress >> 0xa;
+    cmd7->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
 
-    // Program State Base Address
-    // 1. Pipe Control
-    // 2. Additional Pipeline Select (if 3DPipelineSelectWARequired)
-    // 3. Program State Base Address
-    // 4. Additional Pipeline Select (if 3DPipelineSelectWARequired)
-    // 5. Program Sip State
+    // Program register for preemption
+    auto cmd8 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
+    uint32_t preemptMask = ((1 << 1) | (1 << 2)) << 16;
+    uint32_t preemptValue = 0 | preemptMask;
+    *cmd8 = MI_LOAD_REGISTER_IMM::init();
+    cmd8->Bitfield.RegisterOffset = MMIOAddresses::preemptConfigReg >> 0x2;
+    cmd8->Bitfield.DataDword = preemptValue;
 
-    //TODO: This Pipe Control
+    // Program Pipe Control
     auto cmd9 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
     *cmd9 = PIPE_CONTROL::init();
+    //TODO: One field is missing
     cmd9->Bitfield.CommandStreamerStallEnable = true;
     cmd9->Bitfield.DcFlushEnable = true;
 
-    //TODO: Program State Base Address
+    //TODO: Additional Pipeline Select (if 3DPipelineSelectWARequired)
+
+    // Program State Base Address
     auto cmd10 = commandStreamCSR->ptrOffset<STATE_BASE_ADDRESS*>(sizeof(STATE_BASE_ADDRESS));
     *cmd10 = STATE_BASE_ADDRESS::init();
 
@@ -717,7 +716,6 @@ int Context::createCommandStreamReceiver() {
     //cmd10->Bitfield.InstructionMemoryObjectControlState = getMOCS();
 
     if (scratchAllocation) {
-        size_t scratchSpaceOffset = 4096;
         uint64_t gshAddress = scratchAllocation->gpuAddress - scratchSpaceOffset;
         cmd10->Bitfield.GeneralStateBaseAddressModifyEnable = true;
         cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
@@ -728,6 +726,9 @@ int Context::createCommandStreamReceiver() {
     //cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlState = statelessMocsIndex;
     //TODO: Add missing fields
 
+    //TODO: Additional Pipeline Select (if 3DPipelineSelectWARequired)
+
+    // Program State Base Address
     auto cmd11 = commandStreamCSR->ptrOffset<STATE_SIP*>(sizeof(STATE_SIP));
     *cmd11 = STATE_SIP::init();
     cmd11->Bitfield.SystemInstructionPointer = sipAllocation->gpuAddress;
@@ -750,6 +751,7 @@ int Context::createCommandStreamReceiver() {
 
 
 int Context::populateAndSubmitExecBuffer() {
+    //TODO: Add data buffer BOs
     //execBuffer = kernel->execData;
     execBuffer.push_back(kernelAllocation.get());
     if (scratchAllocation)
@@ -774,6 +776,7 @@ int Context::populateAndSubmitExecBuffer() {
     if (ret)
         return GEM_EXECBUFFER_FAILED;
     execBuffer.clear();
+    //TODO: Reset offset values of BOs
 
     return SUCCESS;
 }
@@ -836,7 +839,7 @@ int Context::finishExecution() {
 // 5. GPGPU_CSR_BASE_ADDRESS            12   64
 // 6. PIPE_CONTROL                      24
 // 7. MEDIA_VFE_STATE                   36  124
-// 8. GPGPU_CSR_BASE_ADDRESS            12  136
+// 8. MI_LOAD_REGISTER_IMM              12  136
 // 9. PIPE_CONTROL                      24  160
 //10. STATE_BASE_ADDRESS                76  236
 //11. STATE_SIP                         12  248
