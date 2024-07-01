@@ -791,6 +791,26 @@ struct MI_BATCH_BUFFER_START {
     }
 };
 
+struct MI_BATCH_BUFFER_END {
+    struct TheStructure {
+        //DW0
+        uint32_t Reserved_0 : BITFIELD_RANGE(0, 22);
+        uint32_t MiCommandOpcode : BITFIELD_RANGE(23, 28);
+        uint32_t CommandType : BITFIELD_RANGE(29, 31);
+    } Bitfield;
+    enum {
+        MI_COMMAND_OPCODE_MI_BATCH_BUFFER_END = 0xa,
+        COMMAND_TYPE_MI_COMMAND = 0x0
+    };
+    static MI_BATCH_BUFFER_END init() {
+        MI_BATCH_BUFFER_END state;
+        memset(&state, 0, sizeof(state));
+        state.Bitfield.MiCommandOpcode = MI_COMMAND_OPCODE_MI_BATCH_BUFFER_END;
+        state.Bitfield.CommandType = COMMAND_TYPE_MI_COMMAND;
+        return state;
+    }
+};
+
 #pragma pack()
 
 

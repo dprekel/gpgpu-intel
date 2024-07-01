@@ -281,7 +281,7 @@ int Kernel::build(uint16_t chipset_id) {
     if (!intermediateRepresentation.data) {
         return FRONTEND_BUILD_ERROR; 
     }
-    DEBUG_LOG("[DEBUG] FCL output: %s\n", intermediateRepresentation.data);
+    DEBUG_LOG("[DEBUG] FCL Success: %s\n", intermediateRepresentation.data);
     fclBuildOutput->Retain();
 
     // Backend Compilation
@@ -312,7 +312,7 @@ int Kernel::build(uint16_t chipset_id) {
     if (!deviceBinary.data) {
         return BACKEND_BUILD_ERROR;
     }
-    DEBUG_LOG("[DEBUG] IGC output: %s\n", deviceBinary.data);
+    DEBUG_LOG("[DEBUG] IGC Success: %s\n", deviceBinary.data);
     return SUCCESS;
 }
 
@@ -576,7 +576,7 @@ int Kernel::extractMetadata() {
     //TODO: Check if all necessary patchtokens are not nullptr
     if (kernelData.bindingTableState == nullptr)
         return INVALID_KERNEL_FORMAT;
-    DEBUG_LOG("[DEBUG] bindingTableState->Count = %u\n", kernelData.bindingTableState->Count);
+    DEBUG_LOG("[DEBUG] Binding Table States: %u\n", kernelData.bindingTableState->Count);
     if (unsupportedKernelArgs || hasBindlessMode)
         return INVALID_KERNEL_FORMAT;
     //TODO: Check if GROMACS uses implicit args
@@ -590,6 +590,7 @@ int Kernel::extractMetadata() {
         sshLocal = std::make_unique<char[]>(sshSize);
         memcpy(sshLocal.get(), kernelData.surfaceState, sshSize);
     }
+    DEBUG_LOG("[DEBUG] Processing Patchtokens successful!\n");
     return SUCCESS;
 }
 

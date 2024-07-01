@@ -50,7 +50,7 @@ inline size_t alignUp(size_t before, size_t alignment) {
 
 template <typename T>
 inline T ptrOffset(T ptrBefore, size_t offset) {
-    auto addrBefore = reinterpret_cast<uintptr_t>(ptrBefore);
+    uintptr_t addrBefore = reinterpret_cast<uintptr_t>(ptrBefore);
     return reinterpret_cast<T>(addrBefore + offset);
 }
 

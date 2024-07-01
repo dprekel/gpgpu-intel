@@ -31,8 +31,10 @@ namespace MemoryConstants {
     constexpr uint64_t kiloByte = 1024;
     constexpr uint64_t kiloByteShiftSize = 10;
     constexpr uint64_t megaByte = 1024 * kiloByte;
+    constexpr uint64_t gigaByte = 1024 * megaByte;
     constexpr size_t pageSize = 4 * kiloByte;
-    constexpr size_t cacheLineSize = 64; 
+    constexpr size_t cacheLineSize = 64;
+    constexpr uint32_t sizeOf4GBinPageEntities = (gigaByte * 4 - pageSize) / pageSize;
 };
 
 namespace MMIOAddresses {
@@ -65,16 +67,11 @@ struct BufferObject {
     }
     int bufferType = 0;
     void* cpuAddress = nullptr;
-    uint64_t gpuAddress = 0;
-    size_t offset = 0;
-    size_t size = 0;
-    uint32_t handle = 0;
+    uint64_t gpuAddress = 0u;
+    size_t offset = 0u;
+    size_t size = 0u;
+    uint32_t handle = 0u;
 };
-
-struct AllocationData {
-    size_t hwThreadsPerWorkGroup;
-};
-
 
 
 class Context : public pContext {
@@ -112,6 +109,7 @@ class Context : public pContext {
     int createCommandStreamReceiver();
     void patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant);
     void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize);
+    void alignToCacheLine(BufferObject* commandBuffer);
     void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo);
 
     const HardwareInfo* hwInfo = nullptr;
@@ -134,18 +132,15 @@ class Context : public pContext {
     std::vector<BufferObject*> execBuffer;
     std::vector<drm_i915_gem_exec_object2> execObjects;
 
-    //TODO: Replace AllocationData
-    AllocationData allocData;
     uint32_t ctxId = 0u;
-    uint32_t maxVfeThreads = 0u;
-    uint32_t perThreadScratchSpace = 0u;
-
     uint32_t workDim = 0u;
     uint32_t maxWorkItemsPerWorkGroup = 0u;
     size_t workItemsPerWorkGroup[3];
     size_t globalWorkItems[3];
     size_t numWorkGroups[3];
-
+    size_t hwThreadsPerWorkGroup = 0u;
+    uint32_t maxVfeThreads = 0u;
+    uint32_t perThreadScratchSpace = 0u;
     bool isSipKernelAllocated = false;
 };
 
