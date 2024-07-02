@@ -343,6 +343,9 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
     case PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO:
         kernelData->kernelAttributesInfo = reinterpret_cast<const PatchKernelAttributesInfo*>(token);
         break;
+    case PATCH_TOKEN_THREAD_PAYLOAD:
+        kernelData->threadPayload = reinterpret_cast<const PatchThreadPayload*>(token);
+        break;
     case PATCH_TOKEN_DATA_PARAMETER_STREAM:
         kernelData->dataParameterStream = reinterpret_cast<const PatchDataParameterStream*>(token);
         break;
@@ -530,7 +533,7 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     surfaceState->Bitfield.Depth = Length.SurfaceState.Depth;
     surfaceState->Bitfield.VerticalLineStride = 0u;
     surfaceState->Bitfield.VerticalLineStrideOffset = 0u;
-    uint32_t mocsIndex = getMocsIndex();
+    uint32_t mocsIndex = context->getMocsIndex();
     surfaceState->Bitfield.MemoryObjectControlState_Reserved = mocsIndex; // leads to data loss, I don't know why this is necessary
     surfaceState->Bitfield.MemoryObjectControlState_IndexToMocsTables = (mocsIndex >> 1);
     surfaceState->Bitfield.SurfaceBaseAddress = bufferObject->gpuAddress;
@@ -540,11 +543,6 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     return SUCCESS;
 }
 
-uint32_t Kernel::getMocsIndex() {
-    //TODO: Add switch-case for index determination
-    uint32_t index = 4u;
-    return index;
-}
 
 int Kernel::extractMetadata() {
     // The following usage of reinterpret_cast could lead to undefined behaviour. Checking the header magic

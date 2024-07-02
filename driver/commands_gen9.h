@@ -362,7 +362,8 @@ struct GPGPU_WALKER {
         SIMD_SIZE_SIMD16 = 0x1,
         SIMD_SIZE_SIMD32 = 0x2,
         INDIRECTDATASTARTADDRESS_BYTEOFFSET = 0xc,
-        INDIRECTDATASTARTADDRESS_INDEX = 0x3
+        INDIRECTDATASTARTADDRESS_INDEX = 0x3,
+        INDIRECTDATASTARTADDRESS_ALIGN_SIZE = 0x40
     };
     static GPGPU_WALKER init() {
         GPGPU_WALKER state;
@@ -560,12 +561,14 @@ struct INTERFACE_DESCRIPTOR_DATA {
         uint32_t Reserved_96 : BITFIELD_RANGE(0, 1);
         uint32_t SamplerCount : BITFIELD_RANGE(2, 4);
         uint32_t SamplerStatePointer : BITFIELD_RANGE(5, 31);
+        //DW4
         uint32_t BindingTableEntryCount : BITFIELD_RANGE(0, 4);
         uint32_t BindingTablePointer : BITFIELD_RANGE(5, 15);
         uint32_t Reserved_144 : BITFIELD_RANGE(16, 31);
-        //DW4
+        //DW5
         uint32_t ConstantUrbEntryReadOffset : BITFIELD_RANGE(0, 15);
         uint32_t ConstantIndirectUrbEntryReadLength : BITFIELD_RANGE(16, 31);
+        //DW6
         uint32_t NumberOfThreadsInGpgpuThreadGroup : BITFIELD_RANGE(0, 9);
         uint32_t Reserved_202 : BITFIELD_RANGE(10, 14);
         uint32_t GlobalBarrierEnable : BITFIELD_RANGE(15, 15);
@@ -573,13 +576,13 @@ struct INTERFACE_DESCRIPTOR_DATA {
         uint32_t BarrierEnable : BITFIELD_RANGE(21, 21);
         uint32_t RoundingMode : BITFIELD_RANGE(22, 23);
         uint32_t Reserved_216 : BITFIELD_RANGE(24, 31);
-        //DW5
+        //DW7
         uint32_t CrossThreadConstantDataReadLength : BITFIELD_RANGE(0, 7);
         uint32_t Reserved_232 : BITFIELD_RANGE(8, 31); 
     } Bitfield;
     enum {
         FLOATING_POINT_MODE_IEEE_754 = 0x0,
-        THREAD_PRIORITY_NORMAL_PRIORITY = 0x1,
+        THREAD_PRIORITY_NORMAL_PRIORITY = 0x0,
         SINGLE_PROGRAM_FLOW_MULTIPLE = 0x0,
         DENORM_MODE_FTZ = 0x0,
         DENORM_MODE_SETBYKERNEL = 0x1,

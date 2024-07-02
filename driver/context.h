@@ -90,6 +90,7 @@ class Context : public pContext {
     int createSipAllocation(size_t sipSize, const char* sipBinaryRaw);
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
     int createGPUAllocations();
+    uint32_t getMocsIndex();
     int populateAndSubmitExecBuffer();
     int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t residencyCount, size_t used);
     int finishExecution();
@@ -109,6 +110,7 @@ class Context : public pContext {
     int createCommandStreamReceiver();
     void patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant);
     void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize);
+    void generateLocalIDs(BufferObject* ioh);
     void alignToCacheLine(BufferObject* commandBuffer);
     void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo);
 
@@ -134,13 +136,17 @@ class Context : public pContext {
 
     uint32_t ctxId = 0u;
     uint32_t workDim = 0u;
-    uint32_t maxWorkItemsPerWorkGroup = 0u;
     size_t workItemsPerWorkGroup[3];
     size_t globalWorkItems[3];
     size_t numWorkGroups[3];
+
     size_t hwThreadsPerWorkGroup = 0u;
+    uint32_t maxWorkItemsPerWorkGroup = 0u;
     uint32_t maxVfeThreads = 0u;
     uint32_t perThreadScratchSpace = 0u;
+    uint32_t GRFSize = 0u;
+    uint32_t crossThreadDataSize = 0u;
+    uint32_t perThreadDataSize = 0u;
     bool isSipKernelAllocated = false;
 };
 

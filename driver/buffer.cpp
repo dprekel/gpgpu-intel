@@ -15,7 +15,7 @@ Buffer::~Buffer() {
 }
 
 BufferObject* Buffer::getDataBuffer() {
-    return this->dataBuffer.get();
+    return dataBuffer.get();
 }
 
 int Buffer::allocateAndPinDataBuffer(size_t size) {

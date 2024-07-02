@@ -27,6 +27,7 @@ enum PATCH_TOKEN {
     PATCH_TOKEN_MEDIA_VFE_STATE = 18,
     PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD = 19,
     PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA = 21,
+    PATCH_TOKEN_THREAD_PAYLOAD = 22,
     PATCH_TOKEN_EXECUTION_ENVIRONMENT = 23,
     PATCH_TOKEN_DATA_PARAMETER_STREAM = 25,
     PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO = 27,
@@ -155,6 +156,23 @@ struct PatchExecutionEnvironment : PatchItemHeader {
 struct PatchKernelAttributesInfo : PatchItemHeader {
     uint32_t AttributesSize;
 };
+struct PatchThreadPayload : PatchItemHeader {
+    uint32_t HeaderPresent;
+    uint32_t LocalIDXPresent;
+    uint32_t LocalIDYPresent;
+    uint32_t LocalIDZPresent;
+    uint32_t LocalIDFlattenedPresent;
+    uint32_t IndirectPayloadStorage;
+    uint32_t UnusedPerThreadConstantPresent;
+    uint32_t GetLocalIDPresent;
+    uint32_t GetGroupIDPresent;
+    uint32_t GetGlobalOffsetPresent;
+    uint32_t StageInGridOriginPresent;
+    uint32_t StageInGridSizePresent;
+    uint32_t OffsetToSkipPerThreadDataLoad;
+    uint32_t OffsetToSkipSetFFIDGP;
+    uint32_t PassInlineData;
+};
 struct PatchDataParameterStream : PatchItemHeader {
     uint32_t DataParameterStreamSize;
 };
@@ -214,6 +232,7 @@ struct KernelFromPatchtokens {
     const PatchExecutionEnvironment* executionEnvironment = nullptr;
     const PatchDataParameterStream* dataParameterStream = nullptr;
     const PatchKernelAttributesInfo* kernelAttributesInfo = nullptr;
+    const PatchThreadPayload* threadPayload = nullptr;
     struct {
         const PatchDataParameterBuffer* localWorkSize[3] = {nullptr, nullptr, nullptr};
         const PatchDataParameterBuffer* localWorkSize2[3] = {nullptr, nullptr, nullptr};
@@ -278,7 +297,6 @@ class Kernel : public pKernel {
     void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset, uint32_t dataParamOffset);
     int setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue);
     int setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue);
-    uint32_t getMocsIndex();
     void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
 
     std::unique_ptr<DeviceDescriptor> descriptor;

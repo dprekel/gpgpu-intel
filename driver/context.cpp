@@ -16,7 +16,8 @@
 Context::Context(Device* device) 
          : device(device),
            workItemsPerWorkGroup{1, 1, 1},
-           globalWorkItems{1, 1, 1} {
+           globalWorkItems{1, 1, 1},
+           numWorkGroups{1, 1, 1} {             //TODO: Check if all ones is correct here
     this->hwInfo = device->descriptor->pHwInfo;
     this->fclMain = device->fclMain;
     this->igcMain = device->igcMain;
@@ -286,29 +287,13 @@ int Context::createSurfaceStateHeap() {
 
 
 int Context::createIndirectObjectHeap() {
-    /*
-    size_t localWorkSize = 16;            // from clEnqueueNDRangeKernel argument
-    uint8_t numChannels = 3;             // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.numLocalIdChannels
-    uint32_t grfSize = 32;                // from sizeof(typename GfxFamily::GRF)
-    uint32_t crossThreadDataSize = 96;    // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.crossThreadDataSize
-    uint32_t simdSize = 16;               // from kernel.kernelInfo.kernelDescriptor.kernelAttributes.simdSize
-
-    uint32_t numGRFsPerThread = (simdSize == 32 && grfSize == 32) ? 2 : 1;
-    uint32_t perThreadSizeLocalIDs = numGRFsPerThread * grfSize * (simdSize == 1 ? 1u : numChannels);
-    perThreadSizeLocalIDs = std::max(perThreadSizeLocalIDs, grfSize);
-    uint64_t threadsPerWG = simdSize + localWorkSize - 1;
-    threadsPerWG >>= simdSize == 32 ? 5 : simdSize == 16 ? 4 : simdSize == 8 ? 3 : 0;
-
-    // in matmul test example, size will be 192
-    uint64_t size = crossThreadDataSize + threadsPerWG * perThreadSizeLocalIDs;
-    */
     if (!iohAllocation) {
-        size_t iohSize = 16 * MemoryConstants::pageSize;
-        iohAllocation = allocateBufferObject(iohSize);
+        iohAllocation = allocateBufferObject(16 * MemoryConstants::pageSize);
         if (!iohAllocation)
             return BUFFER_ALLOCATION_FAILED;
         iohAllocation->bufferType = BufferType::INTERNAL_HEAP;
     }
+    // Patch CrossThreadData
     char* crossThreadData = kernel->getCrossThreadData();
     for (uint32_t i = 0; i < 3; i++) {
         patchKernelConstant(kernelData->crossThreadPayload.localWorkSize[i], crossThreadData, workItemsPerWorkGroup[i]);
@@ -316,17 +301,29 @@ int Context::createIndirectObjectHeap() {
         patchKernelConstant(kernelData->crossThreadPayload.numWorkGroups[i], crossThreadData, numWorkGroups[i]);
     }
     patchKernelConstant(kernelData->crossThreadPayload.workDimensions, crossThreadData, workDim);
-    
-    uint32_t crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
+    this->crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
     memcpy(iohAllocation->cpuAddress, crossThreadData, crossThreadDataSize);
 
+    // Calculate number of hardware threads needed for one work group
     size_t localWorkSize = workItemsPerWorkGroup[0] * workItemsPerWorkGroup[1] * workItemsPerWorkGroup[2];
     uint32_t simdSize = kernelData->executionEnvironment->LargestCompiledSIMDSize;
     uint64_t threadsPerWG = simdSize + localWorkSize - 1;
     threadsPerWG >>= simdSize == 32 ? 5 : simdSize == 16 ? 4 : simdSize == 8 ? 3 : 0;
-    hwThreadsPerWorkGroup = threadsPerWG;
+    this->hwThreadsPerWorkGroup = threadsPerWG;
 
+    iohAllocation->offset = static_cast<size_t>(crossThreadDataSize);
     //generateLocalIDsSimd(iohAllocation->cpuAddress, threadsPerWG, simdSize);
+    generateLocalIDs(iohAllocation.get());
+
+    // Calculate total size of PerThreadData
+    this->GRFSize = 32; // one general purpose register file (GRF) has 32 bytes on GEN9
+    uint32_t numLocalIdChannels = kernelData->threadPayload->LocalIDXPresent
+                                + kernelData->threadPayload->LocalIDYPresent
+                                + kernelData->threadPayload->LocalIDZPresent;
+    uint32_t numGRFsPerThread = (simdSize == 32 && GRFSize == 32) ? 2 : 1;
+    uint32_t localIDSizePerThread = numGRFsPerThread * GRFSize * (simdSize == 1 ? 1u : numLocalIdChannels);
+    localIDSizePerThread = std::max(localIDSizePerThread, GRFSize);
+    this->perThreadDataSize = this->hwThreadsPerWorkGroup * localIDSizePerThread;
 
     return SUCCESS;
 }
@@ -336,6 +333,14 @@ void Context::patchKernelConstant(const PatchDataParameterBuffer* info, char* cr
         uint32_t patchOffset = info->Offset;
         uint32_t* patchPtr = reinterpret_cast<uint32_t*>(ptrOffset(crossThreadData, patchOffset));
         *patchPtr = static_cast<uint32_t>(kernelConstant);
+    }
+}
+
+void Context::generateLocalIDs(BufferObject* ioh) {
+    uint16_t* iohOffset = static_cast<uint16_t*>(ptrOffset(ioh->cpuAddress, crossThreadDataSize));
+    memset(iohOffset, 0x0, 96);
+    for (int i = 0; i < 16; i++) {
+        iohOffset[i] = i;
     }
 }
 
@@ -430,34 +435,28 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint
 
 
 int Context::createDynamicStateHeap() {
-    //TODO: Why 16 times pageSize?
     if (!dshAllocation) {
-        size_t dshSize = 16 * MemoryConstants::pageSize;
-        dshAllocation = allocateBufferObject(dshSize);
+        dshAllocation = allocateBufferObject(16 * MemoryConstants::pageSize);
         if (!dshAllocation)
             return BUFFER_ALLOCATION_FAILED;
         dshAllocation->bufferType = BufferType::LINEAR_STREAM;
     }
     auto interfaceDescriptor = dshAllocation->ptrOffset<INTERFACE_DESCRIPTOR_DATA*>(sizeof(INTERFACE_DESCRIPTOR_DATA));
     *interfaceDescriptor = INTERFACE_DESCRIPTOR_DATA::init();
-
-    uint64_t kernelStartOffset = reinterpret_cast<uint64_t>(kernelAllocation->cpuAddress);
-    interfaceDescriptor->Bitfield.KernelStartPointerHigh = kernelStartOffset >> 32;
-    interfaceDescriptor->Bitfield.KernelStartPointer = (uint32_t)kernelStartOffset >> 0x6;
+    uint64_t kernelStartOffset = reinterpret_cast<uint64_t>(kernelAllocation->gpuAddress);
+    interfaceDescriptor->Bitfield.KernelStartPointerHigh = kernelStartOffset >> 32;         //TODO: Is this correct?
+    interfaceDescriptor->Bitfield.KernelStartPointer = (uint32_t)kernelStartOffset >> 0x6;  //TODO: Is this correct?
     interfaceDescriptor->Bitfield.DenormMode = INTERFACE_DESCRIPTOR_DATA::DENORM_MODE_SETBYKERNEL;
-    interfaceDescriptor->Bitfield.BindingTablePointer = static_cast<uint32_t>(kernelData->bindingTableState->Offset) >> 0x5;
+    interfaceDescriptor->Bitfield.BindingTableEntryCount = std::min(kernelData->bindingTableState->Count, 31u);
+    interfaceDescriptor->Bitfield.BindingTablePointer = static_cast<uint32_t>(kernelData->bindingTableState->Offset) >> 0x5;    //TODO: Is this correct?
     interfaceDescriptor->Bitfield.SharedLocalMemorySize = 0u;
     interfaceDescriptor->Bitfield.NumberOfThreadsInGpgpuThreadGroup = static_cast<uint32_t>(this->hwThreadsPerWorkGroup);
-    // One general purpose register file (GRF) has 32 bytes on GEN9.
-    uint32_t grfSize = 32;
-    size_t crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
-    interfaceDescriptor->Bitfield.CrossThreadConstantDataReadLength = static_cast<uint32_t>(crossThreadDataSize / grfSize);
-    //TODO: Retrieve perThreadDataSize from ioh
-    size_t perThreadDataSize = 60;
-    uint32_t numGrfPerThreadData = static_cast<uint32_t>(perThreadDataSize / grfSize);
+    interfaceDescriptor->Bitfield.CrossThreadConstantDataReadLength = this->crossThreadDataSize / this->GRFSize;
+    uint32_t numGrfPerThreadData = static_cast<uint32_t>(this->perThreadDataSize / this->GRFSize);
     numGrfPerThreadData = std::max(numGrfPerThreadData, 1u);
     interfaceDescriptor->Bitfield.ConstantIndirectUrbEntryReadLength = numGrfPerThreadData;
     interfaceDescriptor->Bitfield.BarrierEnable = kernelData->executionEnvironment->HasBarriers;
+
     return SUCCESS;
 }
 
@@ -504,31 +503,31 @@ int Context::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
 
 int Context::createCommandStreamTask() {
     //TODO: Reset offset value if EnqueueNDRangeKernel is called multiple times
-    //TODO: Always 16 * pageSize?
     if (!commandStreamTask) {
         commandStreamTask = allocateBufferObject(16 * MemoryConstants::pageSize);
-        if (!commandStreamTask) {
+        if (!commandStreamTask)
             return BUFFER_ALLOCATION_FAILED;
-        }
         commandStreamTask->bufferType = BufferType::COMMAND_BUFFER;
     }
+    // Program MEDIA_STATE_FLUSH
     auto cmd1 = commandStreamTask->ptrOffset<MEDIA_STATE_FLUSH*>(sizeof(MEDIA_STATE_FLUSH));
     *cmd1 = MEDIA_STATE_FLUSH::init();
 
+    // Program MEDIA_INTERFACE_DESCRIPTOR_LOAD
     auto cmd2 = commandStreamTask->ptrOffset<MEDIA_INTERFACE_DESCRIPTOR_LOAD*>(sizeof(MEDIA_INTERFACE_DESCRIPTOR_LOAD));
     *cmd2 = MEDIA_INTERFACE_DESCRIPTOR_LOAD::init();
     cmd2->Bitfield.InterfaceDescriptorDataStartAddress = 0u;
     cmd2->Bitfield.InterfaceDescriptorTotalLength = sizeof(INTERFACE_DESCRIPTOR_DATA);
 
-    // we need a variable that stores the preemption mode we are using
-    // we don't need to dispatch workarounds on Skylake, but maybe on other architectures
+    // Program GPGPU_WALKER
     auto cmd3 = commandStreamTask->ptrOffset<GPGPU_WALKER*>(sizeof(GPGPU_WALKER));
     *cmd3 = GPGPU_WALKER::init();
-    //TODO: Get Indirect Data values
-    //cmd3->Bitfield.IndirectDataStartAddress = static_cast<uint32_t>(offsetCrossThreadData);
-    //cmd3->Bitfield.InterfaceDescriptorOffset = interfaceDescriptorIndex;
-    //cmd3->Bitfield.IndirectDataLength = indirectDataLength;
-    cmd3->Bitfield.ThreadWidthCounterMaximum = static_cast<uint32_t>(this->hwThreadsPerWorkGroup);
+    cmd3->Bitfield.IndirectDataStartAddress = static_cast<uint32_t>(iohAllocation->gpuAddress);     //TODO: Is this really correct?
+    uint32_t interfaceDescriptorIndex = 0u;
+    uint32_t indirectDataLength = alignUp(crossThreadDataSize + perThreadDataSize, GPGPU_WALKER::INDIRECTDATASTARTADDRESS_ALIGN_SIZE);
+    cmd3->Bitfield.InterfaceDescriptorOffset = interfaceDescriptorIndex;
+    cmd3->Bitfield.IndirectDataLength = indirectDataLength;
+    cmd3->Bitfield.ThreadWidthCounterMaximum = static_cast<uint32_t>(this->hwThreadsPerWorkGroup) - 1;
     cmd3->Bitfield.ThreadGroupIdXDimension = static_cast<uint32_t>(numWorkGroups[0]);
     cmd3->Bitfield.ThreadGroupIdYDimension = static_cast<uint32_t>(numWorkGroups[1]);
     cmd3->Bitfield.ThreadGroupIdZDimension = static_cast<uint32_t>(numWorkGroups[2]);
@@ -536,6 +535,8 @@ int Context::createCommandStreamTask() {
     uint32_t simdSize = kernelData->executionEnvironment->LargestCompiledSIMDSize;
     auto remainderSimdLanes = localWorkSize & (simdSize - 1);
     uint64_t executionMask = maxNBitValue(remainderSimdLanes);
+    if (!executionMask)
+        executionMask = ~executionMask;
     cmd3->Bitfield.RightExecutionMask = static_cast<uint32_t>(executionMask);
     cmd3->Bitfield.BottomExecutionMask = static_cast<uint32_t>(0xffffffff);
     cmd3->Bitfield.SimdSize = (simdSize == 1) ? (32 >> 4) : (simdSize >> 4);
@@ -546,23 +547,28 @@ int Context::createCommandStreamTask() {
     // Program Media State Flush
     auto cmd4 = commandStreamTask->ptrOffset<MEDIA_STATE_FLUSH*>(sizeof(MEDIA_STATE_FLUSH));
     *cmd4 = MEDIA_STATE_FLUSH::init();
-    cmd4->Bitfield.InterfaceDescriptorOffset = 0u;
+    cmd4->Bitfield.InterfaceDescriptorOffset = interfaceDescriptorIndex;
 
-    // Program Pipe Control with Post Sync Operation
+    // Program Pipe Control Workaround
     auto cmd5 = commandStreamTask->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
     *cmd5 = PIPE_CONTROL::init();
     cmd5->Bitfield.CommandStreamerStallEnable = true;
-    cmd5->Bitfield.NotifyEnable = true;
-    cmd5->Bitfield.DcFlushEnable = true;
-    cmd5->Bitfield.PostSyncOperation = PIPE_CONTROL::POST_SYNC_OPERATION_WRITE_IMMEDIATE_DATA;
+
+    // Program Pipe Control with Post Sync Operation
+    auto cmd6 = commandStreamTask->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
+    *cmd6 = PIPE_CONTROL::init();
+    cmd6->Bitfield.CommandStreamerStallEnable = true;
+    cmd6->Bitfield.NotifyEnable = true;
+    cmd6->Bitfield.DcFlushEnable = true;
+    cmd6->Bitfield.PostSyncOperation = PIPE_CONTROL::POST_SYNC_OPERATION_WRITE_IMMEDIATE_DATA;
     uint64_t tagAddress = tagAllocation->gpuAddress;
-    cmd5->Bitfield.Address = static_cast<uint32_t>(tagAddress & 0x0000ffffffffull);
-    cmd5->Bitfield.AddressHigh = static_cast<uint32_t>(tagAddress >> 32);
-    cmd5->Bitfield.ImmediateData = 1u;
+    cmd6->Bitfield.Address = static_cast<uint32_t>(tagAddress & 0x0000ffffffffull) >> 0x2;
+    cmd6->Bitfield.AddressHigh = static_cast<uint32_t>(tagAddress >> 32);
+    cmd6->Bitfield.ImmediateData = 1u;
 
     // Program MI_BATCH_BUFFER_END
-    auto cmd6 = commandStreamTask->ptrOffset<MI_BATCH_BUFFER_END*>(sizeof(MI_BATCH_BUFFER_END));
-    *cmd6 = MI_BATCH_BUFFER_END::init();
+    auto cmd7 = commandStreamTask->ptrOffset<MI_BATCH_BUFFER_END*>(sizeof(MI_BATCH_BUFFER_END));
+    *cmd7 = MI_BATCH_BUFFER_END::init();
 
     alignToCacheLine(commandStreamTask.get());
 
@@ -574,7 +580,6 @@ int Context::createCommandStreamTask() {
 
 int Context::createCommandStreamReceiver() {
     //TODO: Reset offset value if EnqueueNDRangeKernel is called multiple times
-    //TODO: Always 16 * pageSize?
     if (!commandStreamCSR) {
         commandStreamCSR = allocateBufferObject(16 * MemoryConstants::pageSize);
         if (!commandStreamCSR) {
@@ -678,7 +683,10 @@ int Context::createCommandStreamReceiver() {
     cmd10->Bitfield.InstructionBufferSizeModifyEnable = true;
     cmd10->Bitfield.InstructionBaseAddress = kernelAllocation->gpuAddress >> 0xc;
     cmd10->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
-    //cmd10->Bitfield.InstructionMemoryObjectControlState = mocs;
+    //TODO: Set MOCS value
+    uint32_t mocsValue = getMocsIndex();
+    cmd10->Bitfield.InstructionMemoryObjectControlState_Reserved = mocsValue;
+    cmd10->Bitfield.InstructionMemoryObjectControlState_IndexToMocsTables = mocsValue >> 1;
 
     if (scratchAllocation) {
         uint64_t gshAddress = scratchAllocation->gpuAddress - scratchSpaceOffset;
@@ -688,10 +696,13 @@ int Context::createCommandStreamReceiver() {
         cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
     }
 
-    //cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlStateReserved = statelessMocsIndex;
+    //TODO: Set MOCS value
+    cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlState_Reserved = mocsValue;
+    cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlState_IndexToMocsTables = mocsValue >> 1;
 
     cmd10->Bitfield.BindlessSurfaceStateBaseAddressModifyEnable = true;
     cmd10->Bitfield.BindlessSurfaceStateBaseAddress = sshAllocation->gpuAddress >> 0xc;
+    //TODO: Calculate maxAvailableSpace
     //uint32_t bindlessSize = static_cast<uint32_t>(maxAvailableSpace / 64) - 1;
     //cmd10->Bitfield.BindlessSurfaceStateSize = bindlessSize;
 
@@ -734,6 +745,13 @@ void Context::alignToCacheLine(BufferObject* commandBuffer) {
 }
 
 
+uint32_t Context::getMocsIndex() {
+    //TODO: Add switch-case for index determination
+    uint32_t index = 4u;
+    return index;
+}
+
+
 int Context::populateAndSubmitExecBuffer() {
     //TODO: Add data buffer BOs
     //execBuffer = kernel->execData;
@@ -760,7 +778,7 @@ int Context::populateAndSubmitExecBuffer() {
         return GEM_EXECBUFFER_FAILED;
     execBuffer.clear();
     //TODO: Reset offset values of BOs
-    //TODO: Does ssh need an offset reset?
+    //TODO: Do ssh, dsh and ioh need an offset reset?
     commandStreamTask->offset = 0u;
     commandStreamCSR->offset = 0u;
 
