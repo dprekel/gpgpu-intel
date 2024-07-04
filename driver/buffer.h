@@ -3,10 +3,10 @@
 #include <stdint.h>
 
 #include <memory>
+#include <vector>
 
 #include "context.h"
 
-//TODO: Check if kernel arguments are set properly if EnqueueNDRangeKernel is called
 
 class Buffer : public pBuffer {
   public:
@@ -18,6 +18,9 @@ class Buffer : public pBuffer {
     Context* context = nullptr;
   private:
     std::unique_ptr<BufferObject> dataBuffer;
-    drm_i915_gem_exec_object2 execObject;
+    std::unique_ptr<BufferObject> batchBuffer;
+
+    std::vector<BufferObject*> execBuffer;
+    std::vector<drm_i915_gem_exec_object2> execObjects;
 };
 

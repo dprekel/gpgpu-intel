@@ -85,7 +85,7 @@ class Context : public pContext {
     void setMaxWorkGroupSize();
     void setMaxThreadsForVfe();
     int createDRMContext();
-    std::unique_ptr<BufferObject> allocateBufferObject(size_t size);
+    std::unique_ptr<BufferObject> allocateBufferObject(size_t size, int bufferType);
     int createTagAllocation();
     int createPreemptionAllocation();
     int createSipAllocation(size_t sipSize, const char* sipBinaryRaw);

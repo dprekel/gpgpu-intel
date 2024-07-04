@@ -63,7 +63,7 @@ bool Context::getIsSipKernelAllocated() {
 }
 
 
-std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size) {
+std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size, int bufferType) {
     size_t alignment = MemoryConstants::pageSize;
     size_t sizeToAlloc = size + alignment;
     void* pOriginalMemory = new (std::nothrow)char[sizeToAlloc];
@@ -90,6 +90,7 @@ std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size) {
         return nullptr;
     }
     auto bo = std::make_unique<BufferObject>();
+    bo->bufferType = bufferType;
     bo->cpuAddress = pAlignedMemoryPtr;
     bo->gpuAddress = canonize(pAlignedMemory);
     bo->size = size;
@@ -232,11 +233,9 @@ int Context::allocateISAMemory() {
     }
     if (!kernelAllocation || !hasRequiredAllocationSize) {
         kernelAllocation.reset(); // after freeing, the kernel driver still holds a handle to this object, but I don't think this causes issues
-        kernelAllocation = allocateBufferObject(alignedAllocationSize);
-        if (!kernelAllocation) {
+        kernelAllocation = allocateBufferObject(alignedAllocationSize, BufferType::KERNEL_ISA);
+        if (!kernelAllocation)
             return KERNEL_ALLOCATION_FAILED;
-        }
-        kernelAllocation->bufferType = BufferType::KERNEL_ISA;
     }
     memcpy(kernelAllocation->cpuAddress, kernelData->isa, kernelISASize);
     return SUCCESS;
@@ -255,10 +254,9 @@ int Context::createScratchAllocation() {
     size_t requiredScratchSizeInBytes = requiredScratchSize * computeUnitsUsedForScratch;
     if (requiredScratchSize) {
         size_t alignedAllocationSize = alignUp(requiredScratchSizeInBytes, MemoryConstants::pageSize);
-        scratchAllocation = allocateBufferObject(alignedAllocationSize);
+        scratchAllocation = allocateBufferObject(alignedAllocationSize, BufferType::SCRATCH_SURFACE);
         if (!scratchAllocation)
             return BUFFER_ALLOCATION_FAILED;
-        scratchAllocation->bufferType = BufferType::SCRATCH_SURFACE;
         requiredScratchSize >>= static_cast<uint32_t>(MemoryConstants::kiloByteShiftSize);
         while (requiredScratchSize >>= 1) {
             perThreadScratchSpace++;
@@ -273,10 +271,9 @@ int Context::createScratchAllocation() {
 int Context::createSurfaceStateHeap() {
     size_t sshSize = static_cast<size_t>(kernelData->header->SurfaceStateHeapSize);
     if (!sshAllocation) {
-        sshAllocation = allocateBufferObject(16 * MemoryConstants::pageSize);
+        sshAllocation = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::LINEAR_STREAM);
         if (!sshAllocation)
             return BUFFER_ALLOCATION_FAILED;
-        sshAllocation->bufferType = BufferType::LINEAR_STREAM;
     }
     uint32_t numberOfBindingTableStates = kernelData->bindingTableState->Count;
     if (numberOfBindingTableStates == 0)
@@ -302,10 +299,9 @@ int Context::createSurfaceStateHeap() {
 
 int Context::createIndirectObjectHeap() {
     if (!iohAllocation) {
-        iohAllocation = allocateBufferObject(16 * MemoryConstants::pageSize);
+        iohAllocation = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::INTERNAL_HEAP);
         if (!iohAllocation)
             return BUFFER_ALLOCATION_FAILED;
-        iohAllocation->bufferType = BufferType::INTERNAL_HEAP;
     }
     // Patch CrossThreadData
     char* crossThreadData = kernel->getCrossThreadData();
@@ -450,10 +446,9 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint
 
 int Context::createDynamicStateHeap() {
     if (!dshAllocation) {
-        dshAllocation = allocateBufferObject(16 * MemoryConstants::pageSize);
+        dshAllocation = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::LINEAR_STREAM);
         if (!dshAllocation)
             return BUFFER_ALLOCATION_FAILED;
-        dshAllocation->bufferType = BufferType::LINEAR_STREAM;
     }
     auto interfaceDescriptor = dshAllocation->ptrOffset<INTERFACE_DESCRIPTOR_DATA*>(sizeof(INTERFACE_DESCRIPTOR_DATA));
     *interfaceDescriptor = INTERFACE_DESCRIPTOR_DATA::init();
@@ -479,21 +474,17 @@ int Context::createDynamicStateHeap() {
 
 int Context::createPreemptionAllocation() {
     size_t preemptionSize = hwInfo->gtSystemInfo->CsrSizeInMb * MemoryConstants::megaByte;
-    preemptionAllocation = allocateBufferObject(preemptionSize);
-    if (!preemptionAllocation) {
+    preemptionAllocation = allocateBufferObject(preemptionSize, BufferType::PREEMPTION);
+    if (!preemptionAllocation)
         return BUFFER_ALLOCATION_FAILED;
-    }
-    preemptionAllocation->bufferType = BufferType::PREEMPTION;
     return SUCCESS;
 }
 
 
 int Context::createTagAllocation() {
-    tagAllocation = allocateBufferObject(MemoryConstants::pageSize);
-    if (!tagAllocation) {
+    tagAllocation = allocateBufferObject(MemoryConstants::pageSize, BufferType::TAG_BUFFER);
+    if (!tagAllocation)
         return BUFFER_ALLOCATION_FAILED;
-    }
-    tagAllocation->bufferType = BufferType::TAG_BUFFER;
     uint32_t* tagAddress = reinterpret_cast<uint32_t*>(tagAllocation->cpuAddress);
     uint32_t initialHardwareTag = 0u;
     *tagAddress = initialHardwareTag;
@@ -507,10 +498,9 @@ int Context::createTagAllocation() {
 
 int Context::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
     size_t sipAllocSize = alignUp(sipSize, MemoryConstants::pageSize);
-    sipAllocation = allocateBufferObject(sipAllocSize);
+    sipAllocation = allocateBufferObject(sipAllocSize, BufferType::KERNEL_ISA_INTERNAL);
     if (!sipAllocation)
         return BUFFER_ALLOCATION_FAILED;
-    sipAllocation->bufferType = BufferType::KERNEL_ISA_INTERNAL;
     memcpy(sipAllocation->cpuAddress, sipBinaryRaw, sipSize);
     isSipKernelAllocated = true;
     return SUCCESS;
@@ -520,10 +510,9 @@ int Context::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
 int Context::createCommandStreamTask() {
     //TODO: Reset offset value if EnqueueNDRangeKernel is called multiple times
     if (!commandStreamTask) {
-        commandStreamTask = allocateBufferObject(16 * MemoryConstants::pageSize);
+        commandStreamTask = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
         if (!commandStreamTask)
             return BUFFER_ALLOCATION_FAILED;
-        commandStreamTask->bufferType = BufferType::COMMAND_BUFFER;
     }
     // Program MEDIA_STATE_FLUSH
     auto cmd1 = commandStreamTask->ptrOffset<MEDIA_STATE_FLUSH*>(sizeof(MEDIA_STATE_FLUSH));
@@ -598,11 +587,9 @@ int Context::createCommandStreamTask() {
 int Context::createCommandStreamReceiver() {
     //TODO: Reset offset value if EnqueueNDRangeKernel is called multiple times
     if (!commandStreamCSR) {
-        commandStreamCSR = allocateBufferObject(16 * MemoryConstants::pageSize);
-        if (!commandStreamCSR) {
+        commandStreamCSR = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
+        if (!commandStreamCSR)
             return BUFFER_ALLOCATION_FAILED;
-        }
-        commandStreamCSR->bufferType = BufferType::COMMAND_BUFFER;
     }
     // Program Pipeline Selection
     auto cmd1 = commandStreamCSR->ptrOffset<PIPELINE_SELECT*>(sizeof(PIPELINE_SELECT));
@@ -714,12 +701,12 @@ int Context::createCommandStreamReceiver() {
     cmd10->Bitfield.InstructionMemoryObjectControlState_IndexToMocsTables = mocsValue >> 1;
 
     if (scratchAllocation) {
-        uint64_t gshAddress = scratchAllocation->gpuAddress; //- scratchSpaceOffset;
+        uint64_t gshAddress = scratchAllocation->gpuAddress - scratchSpaceOffset;
         cmd10->Bitfield.GeneralStateBaseAddressModifyEnable = true;
         cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
         cmd10->Bitfield.GeneralStateBaseAddress = decanonize(gshAddress) >> 0xc;    //TODO: Not correct
-        //cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
-        cmd10->Bitfield.GeneralStateBufferSize = scratchAllocation->size / MemoryConstants::pageSize;
+        cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
+        //cmd10->Bitfield.GeneralStateBufferSize = scratchAllocation->size / MemoryConstants::pageSize;
     }
 
     //TODO: Set MOCS value
@@ -779,7 +766,6 @@ uint32_t Context::getMocsIndex() {
 
 
 int Context::populateAndSubmitExecBuffer() {
-    //TODO: Add data buffer BOs
     execBuffer = kernel->getExecData();
     execBuffer.push_back(kernelAllocation.get());
     if (scratchAllocation)
@@ -800,8 +786,11 @@ int Context::populateAndSubmitExecBuffer() {
 
     size_t used = commandStreamCSR->offset;
     int ret = exec(execObjects.data(), execBuffer.data(), residencyCount, used);
-    if (ret)
+    if (ret) {
+        execBuffer.clear();
+        //TODO: What else must be done here?
         return GEM_EXECBUFFER_FAILED;
+    }
     execBuffer.clear();
     //TODO: Reset offset values of BOs
     //TODO: Do ssh, dsh and ioh need an offset reset?
@@ -849,7 +838,6 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     drm_i915_gem_execbuffer2 execbuf = {0};
     execbuf.buffers_ptr = reinterpret_cast<uintptr_t>(execObjects);
     execbuf.buffer_count = static_cast<uint32_t>(residencyCount);
-    //TODO: Check if batch_start_offset remains 0 if we run clEnqueueNDRangeKernel in a loop
     execbuf.batch_start_offset = 0u;
     execbuf.batch_len = static_cast<uint32_t>(alignUp(used, 8));
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
