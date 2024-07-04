@@ -38,6 +38,10 @@ char* Kernel::getCrossThreadData() {
     return this->crossThreadData.get();
 }
 
+std::vector<BufferObject*> Kernel::getExecData() {
+    return this->execData;
+}
+
 int Kernel::loadProgramSource() {
     FILE* file = fopen(filename, "r");
     if (!file) {

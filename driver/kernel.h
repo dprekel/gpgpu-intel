@@ -275,6 +275,7 @@ class Kernel : public pKernel {
     static int loadCompiler(const char* libName, CIFMain** cifMain);
     char* getSurfaceStatePtr();
     char* getCrossThreadData();
+    std::vector<BufferObject*> getExecData();
     int loadProgramSource();
     int initialize();
     int build(uint16_t chipset_id);

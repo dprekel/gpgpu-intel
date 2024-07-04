@@ -70,7 +70,7 @@ inline uint64_t canonize(uint64_t address) {
 }
 
 inline uint64_t decanonize(uint64_t address) {
-    return (address & maxNBitValue(64));
+    return (address & maxNBitValue(ADDRESS_WIDTH));
 }
 
 inline uint32_t prevPowerOfTwo(uint32_t value) {

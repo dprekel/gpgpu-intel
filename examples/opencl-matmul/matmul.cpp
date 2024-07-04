@@ -166,7 +166,7 @@ int main() {
     const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
 
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 1; i++) {
         uint64_t start = nanos();
         err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, 0, 0);
         printf("err: %d\n", err);

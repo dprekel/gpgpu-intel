@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <string>
 #include <vector>
@@ -28,6 +29,15 @@ int main() {
     pBuffer* matrix_A = CreateBuffer(context, matrix_memory_size, &err);
     pBuffer* matrix_B = CreateBuffer(context, matrix_memory_size, &err);
     pBuffer* matrix_C = CreateBuffer(context, matrix_memory_size, &err);
+    // Initialize matrices A and B with ones
+    size_t matrix_size = size*size;
+    float* matAMem = (float*)(matrix_A->mem);
+    float* matBMem = (float*)(matrix_B->mem);
+    float* matCMem = (float*)(matrix_C->mem);
+    for (size_t i = 0; i < matrix_size; i++) {
+        matAMem[i] = 1.0;
+        matBMem[i] = 1.0;
+    }
 
     err = SetKernelArg(kernel, 0, sizeof(matrix_A), static_cast<void*>(matrix_A));
     err = SetKernelArg(kernel, 1, sizeof(int),      static_cast<void*>(&size));
@@ -41,6 +51,15 @@ int main() {
     // total number of work items in each dimension
     const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
     err = EnqueueNDRangeKernel(context, kernel, 2, global, local);
+    if (err) {
+        printf("ExecBuffer failed!\n");
+    }
+
+    sleep(100);
+    printf("result_C[0] = %f\n", matCMem[0]);
+    printf("result_C[size*100] = %f\n", matCMem[size *100]);
+    printf("result_C[matrix_size-1] = %f\n", matCMem[matrix_size - 1]);
+    printf("result_C[matrix_size] = %f\n", matCMem[matrix_size]);
 
     err = ReleaseKernel(kernel);
     err = ReleaseContext(context);

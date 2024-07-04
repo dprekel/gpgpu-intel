@@ -67,6 +67,7 @@ struct BufferObject {
     }
     int bufferType = 0;
     void* cpuAddress = nullptr;
+    uint64_t gpuBaseAddress = 0u;
     uint64_t gpuAddress = 0u;
     size_t offset = 0u;
     size_t size = 0u;
