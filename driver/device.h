@@ -16,9 +16,9 @@
 #define INFO_LOG(...) do {} while (0)
 #endif
 #ifdef DEBUG
-#define DEBUG_LOG(...) printf(__VA_ARGS__)
+#define DBG_LOG(...) printf(__VA_ARGS__)
 #else
-#define DEBUG_LOG(...) do {} while (0)
+#define DBG_LOG(...) do {} while (0)
 #endif
 
 class Context;

@@ -12,7 +12,7 @@ Buffer::Buffer(Context* context)
 }
 
 Buffer::~Buffer() {
-    DEBUG_LOG("[DEBUG] Buffer destructor called!\n");
+    DBG_LOG("[DEBUG] Buffer destructor called!\n");
 }
 
 BufferObject* Buffer::getDataBuffer() {
@@ -25,18 +25,9 @@ int Buffer::allocateAndPinDataBuffer(size_t size) {
     if (!dataBuffer)
         return BUFFER_ALLOCATION_FAILED;
     mem = dataBuffer->cpuAddress;
-    batchBuffer = context->allocateBufferObject(MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
-    if (!batchBuffer)
-        return BUFFER_ALLOCATION_FAILED;
-    // Program MI_BATCH_BUFFER_END
-    auto cmd1 = batchBuffer->ptrOffset<MI_BATCH_BUFFER_END*>(sizeof(MI_BATCH_BUFFER_END));
-    *cmd1 = MI_BATCH_BUFFER_END::init();
-    // Program NOOP
-    auto cmd2 = batchBuffer->ptrOffset<uint32_t*>(sizeof(uint32_t));
-    *cmd2 = 0u;
 
     execBuffer.push_back(dataBuffer.get());
-    execBuffer.push_back(batchBuffer.get());
+    execBuffer.push_back(context->getBatchBuffer());
 
     size_t residencyCount = execBuffer.size();
     execObjects.resize(residencyCount);

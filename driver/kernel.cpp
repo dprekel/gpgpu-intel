@@ -27,7 +27,7 @@ Kernel::Kernel(Context* context, const char* filename, const char* options)
 }
 
 Kernel::~Kernel() {
-    DEBUG_LOG("[DEBUG] Kernel destructor called!\n");
+    DBG_LOG("[DEBUG] Kernel destructor called!\n");
 }
 
 char* Kernel::getSurfaceStatePtr() {
@@ -277,7 +277,7 @@ int Kernel::build(uint16_t chipset_id) {
     IgcBuffer* fclBuildLog = fclOutput->GetBuildLogImpl(1);
     const char* fclBuildLogMem = reinterpret_cast<const char*>(fclBuildLog->GetMemoryRaw());
     if (fclBuildLogMem) {
-        DEBUG_LOG("[DEBUG] FCL build log: %s\n", fclBuildLogMem);
+        DBG_LOG("[DEBUG] FCL build log: %s\n", fclBuildLogMem);
     }
     IgcBuffer* fclBuildOutput = fclOutput->GetOutputImpl(1);
     intermediateRepresentation.data = reinterpret_cast<const char*>(fclBuildOutput->GetMemoryRaw());
@@ -285,7 +285,7 @@ int Kernel::build(uint16_t chipset_id) {
     if (!intermediateRepresentation.data) {
         return FRONTEND_BUILD_ERROR; 
     }
-    DEBUG_LOG("[DEBUG] FCL Success: %s\n", intermediateRepresentation.data);
+    DBG_LOG("[DEBUG] FCL Success: %s\n", intermediateRepresentation.data);
     fclBuildOutput->Retain();
 
     // Backend Compilation
@@ -308,7 +308,7 @@ int Kernel::build(uint16_t chipset_id) {
     IgcBuffer* igcBuildLog = igcOutput->GetBuildLogImpl(1);
     const char* igcBuildLogMem = reinterpret_cast<const char*>(igcBuildLog->GetMemoryRaw());
     if (igcBuildLogMem) {
-        DEBUG_LOG("[DEBUG] IGC build log: %s\n", igcBuildLogMem);
+        DBG_LOG("[DEBUG] IGC build log: %s\n", igcBuildLogMem);
     }
     IgcBuffer* igcBuildOutput = igcOutput->GetOutputImpl(1);
     deviceBinary.data = reinterpret_cast<const char*>(igcBuildOutput->GetMemoryRaw());
@@ -316,7 +316,7 @@ int Kernel::build(uint16_t chipset_id) {
     if (!deviceBinary.data) {
         return BACKEND_BUILD_ERROR;
     }
-    DEBUG_LOG("[DEBUG] IGC Success: %s\n", deviceBinary.data);
+    DBG_LOG("[DEBUG] IGC Success: %s\n", deviceBinary.data);
     return SUCCESS;
 }
 
@@ -578,7 +578,7 @@ int Kernel::extractMetadata() {
     //TODO: Check if all necessary patchtokens are not nullptr
     if (kernelData.bindingTableState == nullptr)
         return INVALID_KERNEL_FORMAT;
-    DEBUG_LOG("[DEBUG] Binding Table States: %u\n", kernelData.bindingTableState->Count);
+    DBG_LOG("[DEBUG] Binding Table States: %u\n", kernelData.bindingTableState->Count);
     if (unsupportedKernelArgs || hasBindlessMode)
         return INVALID_KERNEL_FORMAT;
     //TODO: Check if GROMACS uses implicit args
@@ -592,7 +592,7 @@ int Kernel::extractMetadata() {
         sshLocal = std::make_unique<char[]>(sshSize);
         memcpy(sshLocal.get(), kernelData.surfaceState, sshSize);
     }
-    DEBUG_LOG("[DEBUG] Processing Patchtokens successful!\n");
+    DBG_LOG("[DEBUG] Processing Patchtokens successful!\n");
     return SUCCESS;
 }
 

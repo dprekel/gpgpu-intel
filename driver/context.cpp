@@ -28,7 +28,7 @@ Context::Context(Device* device)
 }
 
 Context::~Context() {
-    DEBUG_LOG("[DEBUG] Context destructor called!\n");
+    DBG_LOG("[DEBUG] Context destructor called!\n");
 }
 
 BufferObject::BufferObject() {
@@ -36,7 +36,7 @@ BufferObject::BufferObject() {
 
 BufferObject::~BufferObject() {
     alignedFree(cpuAddress);
-    DEBUG_LOG("[DEBUG] BufferObject destructor called for type [%d]\n", this->bufferType);
+    DBG_LOG("[DEBUG] BufferObject destructor called for type [%d]\n", this->bufferType);
 }
 
 void Context::setMaxWorkGroupSize() {
@@ -57,7 +57,11 @@ void Context::setKernelData(KernelFromPatchtokens* kernelData) {
 }
 
 KernelFromPatchtokens* Context::getKernelData() {
-    return this->kernelData;
+    return kernelData;
+}
+
+BufferObject* Context::getBatchBuffer() {
+    return dataBatchBuffer.get();
 }
 
 bool Context::getIsSipKernelAllocated() {
@@ -141,7 +145,7 @@ int Context::createDRMContext() {
     }
 
     // Even though my test machine (Skylake) has Turbo Boost 2.0, this does not work. 
-    // Use ftrace to see why we get EINVAL error
+    // TODO: Use ftrace to see why we get EINVAL error
     drm_i915_gem_context_param paramBoost = {0};
     paramBoost.ctx_id = drmCtx.ctx_id;
     paramBoost.param = I915_CONTEXT_PRIVATE_PARAM_BOOST;
@@ -151,6 +155,41 @@ int Context::createDRMContext() {
     return SUCCESS;
 }
 
+
+int Context::allocateReusableBufferObjects() {
+    // Before a GPU context switch, the current state of the GPU (registers, instruction
+    // pointer, etc.) is being copied into the preemption buffer.
+    size_t preemptionSize = hwInfo->gtSystemInfo->CsrSizeInMb * MemoryConstants::megaByte;
+    preemptionAllocation = allocateBufferObject(preemptionSize, BufferType::PREEMPTION);
+    if (!preemptionAllocation)
+        return BUFFER_ALLOCATION_FAILED;
+
+    // When kernel execution has finished, the hardware (or kernel driver, I'm not sure)
+    // notifies this to userspace by placing a tag value into this tag buffer.
+    tagAllocation = allocateBufferObject(MemoryConstants::pageSize, BufferType::TAG_BUFFER);
+    if (!tagAllocation)
+        return BUFFER_ALLOCATION_FAILED;
+    uint32_t* tagAddress = reinterpret_cast<uint32_t*>(tagAllocation->cpuAddress);
+    uint32_t initialHardwareTag = 0u;
+    *tagAddress = initialHardwareTag;
+    uint8_t* tagAdd = reinterpret_cast<uint8_t*>(tagAllocation->cpuAddress);
+    DebugPauseState* debugPauseStateAddress = reinterpret_cast<DebugPauseState*>(tagAdd + MemoryConstants::cacheLineSize);
+    *debugPauseStateAddress = DebugPauseState::waitingForFirstSemaphore;
+
+    // CreateBuffer API pins data buffer objects directly into GPU address space. This
+    // will be the batch buffer for this operation.
+    dataBatchBuffer = allocateBufferObject(MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
+    if (!dataBatchBuffer)
+        return BUFFER_ALLOCATION_FAILED;
+    // Program MI_BATCH_BUFFER_END
+    auto cmd1 = dataBatchBuffer->ptrOffset<MI_BATCH_BUFFER_END*>(sizeof(MI_BATCH_BUFFER_END));
+    *cmd1 = MI_BATCH_BUFFER_END::init();
+    // Program NOOP
+    auto cmd2 = dataBatchBuffer->ptrOffset<uint32_t*>(sizeof(uint32_t));
+    *cmd2 = 0u;
+
+    return SUCCESS;
+}
 
 
 /*
@@ -199,9 +238,8 @@ int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_siz
 }
 
 
-int Context::createGPUAllocations() {
-    int ret = 0;
-    ret = allocateISAMemory();
+int Context::constructBufferObjects() {
+    int ret = allocateISAMemory();
     if (ret)
         return ret;
     ret = createScratchAllocation();
@@ -474,31 +512,6 @@ int Context::createDynamicStateHeap() {
 }
 
 
-int Context::createPreemptionAllocation() {
-    size_t preemptionSize = hwInfo->gtSystemInfo->CsrSizeInMb * MemoryConstants::megaByte;
-    preemptionAllocation = allocateBufferObject(preemptionSize, BufferType::PREEMPTION);
-    if (!preemptionAllocation)
-        return BUFFER_ALLOCATION_FAILED;
-    return SUCCESS;
-}
-
-
-int Context::createTagAllocation() {
-    tagAllocation = allocateBufferObject(MemoryConstants::pageSize, BufferType::TAG_BUFFER);
-    if (!tagAllocation)
-        return BUFFER_ALLOCATION_FAILED;
-    memset(tagAllocation->cpuAddress, 0x0, 1000);
-    uint32_t* tagAddress = reinterpret_cast<uint32_t*>(tagAllocation->cpuAddress);
-    uint32_t initialHardwareTag = 0u;
-    *tagAddress = initialHardwareTag;
-
-    uint8_t* tagAdd = reinterpret_cast<uint8_t*>(tagAllocation->cpuAddress);
-    DebugPauseState* debugPauseStateAddress = reinterpret_cast<DebugPauseState*>(tagAdd + MemoryConstants::cacheLineSize);
-    *debugPauseStateAddress = DebugPauseState::waitingForFirstSemaphore;
-    return SUCCESS;
-}
-
-
 int Context::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
     size_t sipAllocSize = alignUp(sipSize, MemoryConstants::pageSize);
     sipAllocation = allocateBufferObject(sipAllocSize, BufferType::KERNEL_ISA_INTERNAL);
@@ -743,7 +756,7 @@ int Context::createCommandStreamReceiver() {
 
     alignToCacheLine(commandStreamCSR.get());
 
-    DEBUG_LOG("[DEBUG] BatchBuffer creation successful!\n");
+    DBG_LOG("[DEBUG] BatchBuffer creation successful!\n");
     return SUCCESS;
 }
 

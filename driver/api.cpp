@@ -49,10 +49,7 @@ API_CALL pContext* CreateContext(pDevice* dev, int* ret) {
     *ret = context->createDRMContext();
     if (*ret)
         return nullptr;
-    *ret = context->createTagAllocation();
-    if (*ret)
-        return nullptr;
-    *ret = context->createPreemptionAllocation();
+    *ret = context->allocateReusableBufferObjects();
     if (*ret)
         return nullptr;
     pContext* cont = static_cast<pContext*>(context);
@@ -144,7 +141,7 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     int ret = context->validateWorkGroups(work_dim, global_work_size, local_work_size);
     if (ret)
         return ret;
-    ret = context->createGPUAllocations();
+    ret = context->constructBufferObjects();
     if (ret)
         return ret;
     ret = context->populateAndSubmitExecBuffer();

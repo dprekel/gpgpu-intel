@@ -31,7 +31,7 @@ Device::Device(int fd, CompilerInfo* compilerInfo)
 }
 
 Device::~Device() {
-    DEBUG_LOG("[DEBUG] Device destructor called!\n");
+    DBG_LOG("[DEBUG] Device destructor called!\n");
 }
 
 int Device::initialize() {

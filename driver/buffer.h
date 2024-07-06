@@ -18,7 +18,6 @@ class Buffer : public pBuffer {
     Context* context = nullptr;
   private:
     std::unique_ptr<BufferObject> dataBuffer;
-    std::unique_ptr<BufferObject> batchBuffer;
 
     std::vector<BufferObject*> execBuffer;
     std::vector<drm_i915_gem_exec_object2> execObjects;

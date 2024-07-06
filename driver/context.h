@@ -81,16 +81,16 @@ class Context : public pContext {
     ~Context();
     void setKernelData(KernelFromPatchtokens* kernelData);
     KernelFromPatchtokens* getKernelData();
+    BufferObject* getBatchBuffer();
     bool getIsSipKernelAllocated();
     void setMaxWorkGroupSize();
     void setMaxThreadsForVfe();
-    int createDRMContext();
     std::unique_ptr<BufferObject> allocateBufferObject(size_t size, int bufferType);
-    int createTagAllocation();
-    int createPreemptionAllocation();
+    int createDRMContext();
+    int allocateReusableBufferObjects();
     int createSipAllocation(size_t sipSize, const char* sipBinaryRaw);
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
-    int createGPUAllocations();
+    int constructBufferObjects();
     uint32_t getMocsIndex();
     int populateAndSubmitExecBuffer();
     int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t residencyCount, size_t used);
@@ -119,16 +119,15 @@ class Context : public pContext {
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;
 
-    //TODO: How to set and save data buffers?
-    //TODO: Check allocation sizes for ssh, ioh, dsh and command buffer
     //TODO: Check everything in scratchAllocation
+    std::unique_ptr<BufferObject> preemptionAllocation;
+    std::unique_ptr<BufferObject> tagAllocation;
+    std::unique_ptr<BufferObject> dataBatchBuffer;
     std::unique_ptr<BufferObject> kernelAllocation;
     std::unique_ptr<BufferObject> scratchAllocation;    //TODO: Memory leak here
     std::unique_ptr<BufferObject> sshAllocation;
     std::unique_ptr<BufferObject> iohAllocation;
     std::unique_ptr<BufferObject> dshAllocation;
-    std::unique_ptr<BufferObject> tagAllocation;
-    std::unique_ptr<BufferObject> preemptionAllocation;
     std::unique_ptr<BufferObject> sipAllocation;
     std::unique_ptr<BufferObject> commandStreamTask;
     std::unique_ptr<BufferObject> commandStreamCSR;
