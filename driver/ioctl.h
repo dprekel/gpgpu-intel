@@ -3,18 +3,19 @@
 #include <asm/ioctl.h>
 #include <stdint.h>
 
-#define __user
+
 struct drm_version {
     int version_major;
     int version_minor;
     int version_patchlevel;
     size_t name_len;
-    char __user* name;
+    char* name;
     size_t data_len;
-    char __user* date;
+    char* date;
     size_t desc_len;
-    char __user* desc;
+    char* desc;
 };
+
 
 struct drm_i915_gem_execbuffer2 {
     uint64_t buffers_ptr;
@@ -32,6 +33,8 @@ struct drm_i915_gem_execbuffer2 {
     uint64_t rsvd1;
     uint64_t rsvd2;
 };
+
+
 struct drm_i915_gem_exec_object2 {
     uint32_t handle;
     uint32_t relocation_count;
@@ -48,16 +51,19 @@ struct drm_i915_gem_exec_object2 {
     uint64_t rsvd2;
 };
 
+
 struct drm_i915_gem_context_create_ext {
     uint32_t ctx_id;
     uint32_t flags;
     uint64_t extensions;
 };
 
+
 struct drm_i915_reg_read {
     uint64_t offset;
     uint64_t val;
 };
+
 
 struct drm_i915_gem_userptr {
     uint64_t user_ptr;
@@ -65,6 +71,7 @@ struct drm_i915_gem_userptr {
     uint32_t flags;
     uint32_t handle;
 };
+
 
 struct drm_i915_gem_context_param {
 #define I915_CONTEXT_PRIVATE_PARAM_BOOST    0x80000000
@@ -78,45 +85,25 @@ struct drm_i915_gem_context_param {
     uint64_t value;
 };
 
+
+struct drm_i915_getparam {
 #define I915_PARAM_CHIPSET_ID           4
 #define I915_PARAM_REVISION             32
 #define I915_PARAM_HAS_EXEC_SOFTPIN     37
 #define I915_PARAM_HAS_SCHEDULER        41
 #define  I915_SCHEDULER_CAP_PREEMPTION  (1ul << 2)
-struct drm_i915_getparam {
     int32_t param;
     int* value;
 }; 
 
 
-/**
- * struct drm_i915_query - Supply an array of struct drm_i915_query_item for the
- * kernel to fill out.
- *
- * Note that this is generally a two step process for each struct
- * drm_i915_query_item in the array:
- *
- * 1. Call the DRM_IOCTL_I915_QUERY, giving it our array of struct
- *    drm_i915_query_item, with &drm_i915_query_item.length set to zero. The
- *    kernel will then fill in the size, in bytes, which tells userspace how
- *    memory it needs to allocate for the blob(say for an array of properties).
- *
- * 2. Next we call DRM_IOCTL_I915_QUERY again, this time with the
- *    &drm_i915_query_item.data_ptr equal to our newly allocated blob. Note that
- *    the &drm_i915_query_item.length should still be the same as what the
- *    kernel previously set. At this point the kernel can fill in the blob.
- *
- * Note that for some query items it can make sense for userspace to just pass
- * in a buffer/blob equal to or larger than the required size. In this case only
- * a single ioctl call is needed. For some smaller query items this can work
- * quite well.
- *
- */
 struct drm_i915_query {
     uint32_t num_items;
     uint32_t flags;
     uint64_t items_ptr;
 };
+
+
 struct drm_i915_query_item {
     uint64_t query_id;
 #define DRM_I915_QUERY_TOPOLOGY_INFO        1
@@ -128,6 +115,8 @@ struct drm_i915_query_item {
     uint32_t flags;
     uint64_t data_ptr;
 };
+
+
 struct drm_i915_query_topology_info {
     uint16_t flags;
     uint16_t max_slices;
@@ -140,6 +129,7 @@ struct drm_i915_query_topology_info {
     uint8_t data[];
 };
 
+
 enum drm_i915_gem_engine_class {
     I915_ENGINE_CLASS_RENDER        = 0,
     I915_ENGINE_CLASS_COPY          = 1,
@@ -149,10 +139,12 @@ enum drm_i915_gem_engine_class {
     I915_ENGINE_CLASS_INVALID       = -1
 };
 
+
 struct i915_engine_class_instance {
     uint16_t engine_class; // see enum drm_i915_gem_engine_class
     uint16_t engine_instance;
 };
+
 
 struct drm_i915_engine_info {
     struct i915_engine_class_instance engine;
@@ -165,17 +157,27 @@ struct drm_i915_engine_info {
     uint64_t rsvd1[4];
 };
 
+
 struct drm_i915_query_engine_info {
     uint32_t num_engines;
     uint32_t rsvd[3];
     struct drm_i915_engine_info engines[];
 };
 
+
 struct drm_i915_gem_vm_control {
     uint64_t extensions;
     uint32_t flags;
     uint32_t vm_id;
 };
+
+
+struct drm_i915_gem_wait {
+    uint32_t bo_handle;
+    uint32_t flags;
+    uint32_t timeout_ns;
+};
+
 
 #define DRM_COMMAND_BASE                        0x40
 #define DRM_IOCTL_BASE                          'd'
@@ -187,6 +189,7 @@ struct drm_i915_gem_vm_control {
 #define DRM_IOCTL_VERSION                       DRM_IOWR(0x00, struct drm_version)
 #define DRM_IOCTL_I915_GETPARAM                 DRM_IOWR(DRM_COMMAND_BASE + 0x06, struct drm_i915_getparam)
 #define DRM_IOCTL_I915_GEM_EXECBUFFER2          DRM_IOW(DRM_COMMAND_BASE + 0x29, struct drm_i915_gem_execbuffer2)
+#define DRM_IOCTL_I915_GEM_WAIT                 DRM_IOWR(DRM_COMMAND_BASE + 0x2c, struct drm_i915_gem_wait)
 #define DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT   DRM_IOWR(DRM_COMMAND_BASE + 0x2d, struct drm_i915_gem_context_create_ext)
 #define DRM_IOCTL_I915_REG_READ                 DRM_IOWR(DRM_COMMAND_BASE + 0x31, struct drm_i915_reg_read)
 #define DRM_IOCTL_I915_GEM_USERPTR              DRM_IOWR(DRM_COMMAND_BASE + 0x33, struct drm_i915_gem_userptr)

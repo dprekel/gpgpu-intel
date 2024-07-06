@@ -1,8 +1,10 @@
+#include <sched.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 
+#include <chrono>
 #include <memory>
 #include <vector>
 
@@ -485,6 +487,7 @@ int Context::createTagAllocation() {
     tagAllocation = allocateBufferObject(MemoryConstants::pageSize, BufferType::TAG_BUFFER);
     if (!tagAllocation)
         return BUFFER_ALLOCATION_FAILED;
+    memset(tagAllocation->cpuAddress, 0x0, 1000);
     uint32_t* tagAddress = reinterpret_cast<uint32_t*>(tagAllocation->cpuAddress);
     uint32_t initialHardwareTag = 0u;
     *tagAddress = initialHardwareTag;
@@ -851,11 +854,43 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
 }
 
 
-int Context::finishExecution() {
+int Context::finishExecution(int64_t timeoutMicroseconds) {
     //TODO: Clear execObjects vector here
+    //TODO: Check if polling also works if this ioctl isn't sent
+    //TODO: How long does this process stay in kernel mode after calling the ioctl?
+    drm_i915_gem_wait wait = {0};
+    wait.bo_handle = commandStreamCSR->handle;
+    wait.timeout_ns = -1;
+    int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_WAIT, &wait);
+    if (ret)
+        return ret; //TODO: Return value
+
+    // baseWaitFunction() in command_stream_receiver.cpp
+    //TODO: What is activePartitions variable in CommandStreamReceiver class?
+    std::chrono::high_resolution_clock::time_point time1, time2;
+    int64_t timeDiff = 0;
+    time1 = std::chrono::high_resolution_clock::now();
+
+    uint32_t* pollAddress = static_cast<uint32_t*>(tagAllocation->cpuAddress);
+    while (timeDiff <= timeoutMicroseconds) {
+        if (waitFunction(pollAddress)) {
+            break;
+        }
+        time2 = std::chrono::high_resolution_clock::now();
+        timeDiff = std::chrono::duration_cast<std::chrono::microseconds>(time2 - time1).count();
+    }
     return SUCCESS;
 }
 
+
+bool Context::waitFunction(uint32_t* pollAddress) {
+    //TODO: Check waitCount variable
+    //_mm_pause();
+    if (pollAddress && (*pollAddress >= 1))
+        return true;
+    sched_yield();
+    return false;
+}
 
 
 

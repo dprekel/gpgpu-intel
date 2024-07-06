@@ -119,13 +119,6 @@ int main() {
     cl_kernel kernel = clCreateKernel(program, kernel_name, &err);
     printf("err: %d\n", err);
 
-    printf("Begin test allocation\n");
-    float* mem1 = (float*)alignedMalloc(1000);
-    float* mem2 = (float*)alignedMalloc(4100);
-    cl_mem buffer1 = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_USE_HOST_PTR, 1000, mem1, &err);
-    cl_mem buffer2 = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_USE_HOST_PTR, 4100, mem2, &err);
-    printf("End test allocation\n");
-
     // Allocating memory for matrices
     size_t size = 3968;
     size_t matrix_memory_size = size*size*sizeof(float);
@@ -166,22 +159,22 @@ int main() {
     const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
 
 
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 5; i++) {
         uint64_t start = nanos();
         err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, 0, 0);
         printf("err: %d\n", err);
-        err = clFinish(queue);
-        //sleep(30);
+        //err = clFinish(queue);
         uint64_t end = nanos();
         double time = (end - start)/1e6;
         printf("Runtime: %f ms\n", time);
         // we need to use clEnqueueReadBuffer because the memory was remapped by clCreateBuffer
         float* result_C = (float*)malloc(matrix_memory_size);
         err = clEnqueueReadBuffer(queue, bufferC, CL_TRUE, 0, matrix_memory_size, result_C, 0, NULL, NULL);
-        printf("result_C[0] = %f\n", result_C[0]);
-        printf("result_C[size*100] = %f\n", result_C[size *100]);
-        printf("result_C[matrix_size-1] = %f\n", result_C[matrix_size - 1]);
-        printf("result_C[matrix_size] = %f\n", result_C[matrix_size]);
+        sleep(15);
+        printf("matrix_C[0] = %f\n", matrix_C[0]);
+        printf("matrix_C[size*100] = %f\n", matrix_C[size *100]);
+        printf("matrix_C[matrix_size-1] = %f\n", matrix_C[matrix_size - 1]);
+        printf("matrix_C[matrix_size] = %f\n", matrix_C[matrix_size]);
         free(result_C);
     }
 

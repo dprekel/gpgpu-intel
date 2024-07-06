@@ -94,7 +94,7 @@ class Context : public pContext {
     uint32_t getMocsIndex();
     int populateAndSubmitExecBuffer();
     int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t residencyCount, size_t used);
-    int finishExecution();
+    int finishExecution(int64_t timeoutMicroseconds);
 
     Device* device;
     Kernel* kernel = nullptr;
@@ -114,6 +114,7 @@ class Context : public pContext {
     void generateLocalIDs(BufferObject* ioh);
     void alignToCacheLine(BufferObject* commandBuffer);
     void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo);
+    bool waitFunction(uint32_t* pollAddress);
 
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;

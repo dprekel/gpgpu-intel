@@ -1,4 +1,4 @@
-TARGET = gpgpu
+TARGET = gpgpu-intel
 CC = g++
 CFLAGS = -g -Wall
 LDFLAGS = -lOpenCL

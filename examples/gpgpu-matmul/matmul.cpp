@@ -55,10 +55,10 @@ int main() {
         printf("ExecBuffer failed!\n");
     }
 
-    sleep(100);
+    sleep(12);
     printf("result_C[0] = %f\n", matCMem[0]);
     printf("result_C[size*100] = %f\n", matCMem[size *100]);
-    printf("result_C[matrix_size-1] = %f\n", matCMem[matrix_size - 1]);
+    printf("result_C[matrix_size-10] = %f\n", matCMem[matrix_size - 10]);
     printf("result_C[matrix_size] = %f\n", matCMem[matrix_size]);
 
     err = ReleaseKernel(kernel);

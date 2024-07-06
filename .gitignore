@@ -6,5 +6,6 @@
 lkernel
 cif
 gpgpu
+gpgpu-intel
 a.out
 test

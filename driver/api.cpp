@@ -150,7 +150,7 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     ret = context->populateAndSubmitExecBuffer();
     if (ret)
         return ret;
-    ret = context->finishExecution();
+    ret = context->finishExecution(5000);
     if (ret)
         return ret;
     context->kernel = nullptr; //TODO: maybe this is not good
