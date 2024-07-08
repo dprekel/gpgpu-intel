@@ -175,7 +175,7 @@ struct drm_i915_gem_vm_control {
 struct drm_i915_gem_wait {
     uint32_t bo_handle;
     uint32_t flags;
-    uint32_t timeout_ns;
+    int64_t timeout_ns;
 };
 
 

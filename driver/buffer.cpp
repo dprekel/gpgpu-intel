@@ -31,9 +31,9 @@ int Buffer::allocateAndPinDataBuffer(size_t size) {
 
     size_t residencyCount = execBuffer.size();
     execObjects.resize(residencyCount);
-    size_t used = sizeof(MI_BATCH_BUFFER_END);
+    size_t batchSize = sizeof(MI_BATCH_BUFFER_END);
     
-    int ret = context->exec(execObjects.data(), execBuffer.data(), residencyCount, used);
+    int ret = context->exec(execObjects.data(), execBuffer.data(), residencyCount, batchSize);
     if (ret) {
         execBuffer.clear();
         //TODO: What else must be done here?

@@ -159,7 +159,7 @@ int main() {
     const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
 
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 1; i++) {
         uint64_t start = nanos();
         err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, 0, 0);
         printf("err: %d\n", err);
@@ -170,7 +170,7 @@ int main() {
         // we need to use clEnqueueReadBuffer because the memory was remapped by clCreateBuffer
         float* result_C = (float*)malloc(matrix_memory_size);
         err = clEnqueueReadBuffer(queue, bufferC, CL_TRUE, 0, matrix_memory_size, result_C, 0, NULL, NULL);
-        sleep(15);
+        //sleep(15);
         printf("matrix_C[0] = %f\n", matrix_C[0]);
         printf("matrix_C[size*100] = %f\n", matrix_C[size *100]);
         printf("matrix_C[matrix_size-1] = %f\n", matrix_C[matrix_size - 1]);

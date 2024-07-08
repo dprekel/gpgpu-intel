@@ -50,16 +50,17 @@ int main() {
     const size_t local[2] = {TILE_GROUP_M, TILE_GROUP_N};
     // total number of work items in each dimension
     const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
-    err = EnqueueNDRangeKernel(context, kernel, 2, global, local);
-    if (err) {
-        printf("ExecBuffer failed!\n");
-    }
 
-    sleep(12);
-    printf("result_C[0] = %f\n", matCMem[0]);
-    printf("result_C[size*100] = %f\n", matCMem[size *100]);
-    printf("result_C[matrix_size-10] = %f\n", matCMem[matrix_size - 10]);
-    printf("result_C[matrix_size] = %f\n", matCMem[matrix_size]);
+    for (int i = 0; i < 1; i++) {
+        err = EnqueueNDRangeKernel(context, kernel, 2, global, local);
+        if (err) {
+            printf("ExecBuffer failed!\n");
+        }
+        printf("  matCMem[0] = %f\n", matCMem[0]);
+        printf("  matCMem[size*100] = %f\n", matCMem[size *100]);
+        printf("  matCMem[matrix_size-10] = %f\n", matCMem[matrix_size - 10]);
+        printf("  matCMem[matrix_size] = %f\n", matCMem[matrix_size]);
+    }
 
     err = ReleaseKernel(kernel);
     err = ReleaseContext(context);

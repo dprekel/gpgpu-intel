@@ -93,8 +93,8 @@ class Context : public pContext {
     int constructBufferObjects();
     uint32_t getMocsIndex();
     int populateAndSubmitExecBuffer();
-    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t residencyCount, size_t used);
-    int finishExecution(int64_t timeoutMicroseconds);
+    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t residencyCount, size_t batchSize);
+    int finishExecution();
 
     Device* device;
     Kernel* kernel = nullptr;
@@ -107,14 +107,13 @@ class Context : public pContext {
     int createSurfaceStateHeap();
     int createIndirectObjectHeap();
     int createDynamicStateHeap();
-    int createCommandStreamTask();
+    //int createCommandStreamTask();
     int createCommandStreamReceiver();
     void patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant);
     void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize);
     void generateLocalIDs(BufferObject* ioh);
     void alignToCacheLine(BufferObject* commandBuffer);
     void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo);
-    bool waitFunction(uint32_t* pollAddress);
 
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;
@@ -129,7 +128,7 @@ class Context : public pContext {
     std::unique_ptr<BufferObject> iohAllocation;
     std::unique_ptr<BufferObject> dshAllocation;
     std::unique_ptr<BufferObject> sipAllocation;
-    std::unique_ptr<BufferObject> commandStreamTask;
+    //std::unique_ptr<BufferObject> commandStreamTask;
     std::unique_ptr<BufferObject> commandStreamCSR;
 
     std::vector<BufferObject*> execBuffer;
@@ -148,6 +147,8 @@ class Context : public pContext {
     uint32_t GRFSize = 0u;
     uint32_t crossThreadDataSize = 0u;
     uint32_t perThreadDataSize = 0u;
+    uint64_t gpuBaseAddress = 0u;
+    uint32_t completionTag = 0u;
     bool isSipKernelAllocated = false;
 };
 

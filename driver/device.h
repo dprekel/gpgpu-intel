@@ -48,38 +48,35 @@ class Device : public pDevice {
     //TODO: Only one function that returns DeviceDescriptor
     //TODO: Either initialize values in initializer list or in class body, be consistent!
     //TODO: Try to make all member variables private
-    std::unique_ptr<DeviceDescriptor> getDevInfoFromDescriptorTable(uint16_t chipset_id);
+    std::unique_ptr<DeviceDescriptor> getDeviceInfoFromDescriptorTable(uint16_t chipsetID);
     DeviceDescriptor* getDeviceDescriptor();
 
     Context* context = nullptr;
     CIFMain* igcMain = nullptr;
     CIFMain* fclMain = nullptr;
-    int fd;
+    int fd = 0;
     std::unique_ptr<DeviceDescriptor> descriptor;
+    uint64_t gpuBaseAddress = 0u;
   private:
     bool checkDriverVersion();
+    void getDeviceInfoFromHardwareConfigBlob();
+    int retrieveTopologyInfo(SystemInfo* sysInfo);
+    int calculateGraphicsBaseAddress();
     int getParamIoctl(int param, int* paramValue);
     void* queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length);
-    void translateTopologyInfo(drm_i915_query_topology_info* topologyInfo, SystemInfo* sysInfo);
-    int createDrmVirtualMemory();
-    int queryGttSize();
     void checkPreemptionSupport();
     
-    uint32_t numDevices = 0;
+    uint32_t numDevices = 0u;
     char driver_name[5];
-    int chipset_id;
-    int revision_id;
+    int chipsetID = 0;
+    int revisionID = 0;
+    uint16_t subSliceCountPerSlice = 0u;
+    uint16_t euCountPerSubSlice = 0u;
+    bool hardwareConfigBlobSupported = false;
+    bool preemptionSupported = false;
 
-    void* HWConfigTable = nullptr;                  // if this is nullptr, it is not supported
-
-    uint16_t subSliceCountPerSlice;
-    uint16_t euCountPerSubSlice;
-
-    int supportsSoftPin;
-    void* engines = nullptr;                        // list of GPU engines (command streamers)
-    uint64_t gttSize;
-    bool preemptionSupported;
-    int schedulerValue;
+    int schedulerValue = 0;
+    void* engines = nullptr; // list of GPU command streamer engines
 };
 
 

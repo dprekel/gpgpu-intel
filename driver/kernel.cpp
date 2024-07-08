@@ -243,7 +243,7 @@ int Kernel::build(uint16_t chipset_id) {
     if (ret)
         return ret;
     if (chipset_id) {
-        descriptor = context->device->getDevInfoFromDescriptorTable(chipset_id);
+        descriptor = context->device->getDeviceInfoFromDescriptorTable(chipset_id);
     }
     else {
         descriptor = std::make_unique<DeviceDescriptor>();

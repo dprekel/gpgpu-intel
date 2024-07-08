@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#include <unistd.h>
 
 #include <chrono>
 #include <memory>
@@ -98,9 +99,14 @@ std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size, int buf
     auto bo = std::make_unique<BufferObject>();
     bo->bufferType = bufferType;
     bo->cpuAddress = pAlignedMemoryPtr;
-    bo->gpuAddress = canonize(pAlignedMemory);
-    bo->size = size;
     bo->handle = userptr.handle;
+    bo->size = size;
+    if (bufferType == BufferType::INTERNAL_HEAP || bufferType == BufferType::KERNEL_ISA || bufferType == BufferType::KERNEL_ISA_INTERNAL) {
+        //TODO: Reserve memory to pin to
+        bo->gpuBaseAddress = device->gpuBaseAddress;
+    } else {
+        bo->gpuAddress = reinterpret_cast<uint64_t>(pAlignedMemory);
+    }
     return bo;
 }
 
@@ -132,7 +138,7 @@ int Context::createDRMContext() {
     // Check if non-persistent contexts are supported. A non-persistent context gets
     // destroyed immediately upon closure (through DRM_I915_GEM_CONTEXT_CLOSE, device file
     // closure or process termination). A persistent context can finish the batch despite
-    // closing.
+    // closure of the underlying CPU process.
     drm_i915_gem_context_param paramPers = {0};
     paramPers.param = I915_CONTEXT_PARAM_PERSISTENCE;
     ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &paramPers);
@@ -254,9 +260,11 @@ int Context::constructBufferObjects() {
     ret = createDynamicStateHeap();
     if (ret)
         return ret;
+    /*
     ret = createCommandStreamTask();
     if (ret)
         return ret;
+        */
     ret = createCommandStreamReceiver();
     if (ret)
         return ret;
@@ -277,6 +285,7 @@ int Context::allocateISAMemory() {
         if (!kernelAllocation)
             return KERNEL_ALLOCATION_FAILED;
     }
+    kernelAllocation->gpuAddress = canonize(140746078199808);
     memcpy(kernelAllocation->cpuAddress, kernelData->isa, kernelISASize);
     return SUCCESS;
 }
@@ -343,6 +352,7 @@ int Context::createIndirectObjectHeap() {
         if (!iohAllocation)
             return BUFFER_ALLOCATION_FAILED;
     }
+    iohAllocation->gpuAddress = canonize(140746078134272);
     // Patch CrossThreadData
     char* crossThreadData = kernel->getCrossThreadData();
     for (uint32_t i = 0; i < 3; i++) {
@@ -492,14 +502,13 @@ int Context::createDynamicStateHeap() {
     }
     auto interfaceDescriptor = dshAllocation->ptrOffset<INTERFACE_DESCRIPTOR_DATA*>(sizeof(INTERFACE_DESCRIPTOR_DATA));
     *interfaceDescriptor = INTERFACE_DESCRIPTOR_DATA::init();
-    //uint64_t kernelStartOffset = reinterpret_cast<uint64_t>(kernelAllocation->gpuAddress);
-    uint64_t kernelStartOffset = 0u;
-    interfaceDescriptor->Bitfield.KernelStartPointerHigh = kernelStartOffset >> 32;         //TODO: Is this correct?
-    interfaceDescriptor->Bitfield.KernelStartPointer = (uint32_t)kernelStartOffset >> 0x6;  //TODO: Is this correct?
+    uint64_t kernelStartOffset = kernelAllocation->gpuAddress - kernelAllocation->gpuBaseAddress;
+    interfaceDescriptor->Bitfield.KernelStartPointerHigh = kernelStartOffset >> 32;
+    interfaceDescriptor->Bitfield.KernelStartPointer = (uint32_t)kernelStartOffset >> 0x6;
     interfaceDescriptor->Bitfield.DenormMode = INTERFACE_DESCRIPTOR_DATA::DENORM_MODE_SETBYKERNEL;
     interfaceDescriptor->Bitfield.BindingTableEntryCount = std::min(kernelData->bindingTableState->Count, 31u);
     uint32_t bindingTableOffset = kernelData->bindingTableState->Offset + sizeof(RENDER_SURFACE_STATE);
-    interfaceDescriptor->Bitfield.BindingTablePointer = bindingTableOffset >> 0x5;    //TODO: Is this correct?
+    interfaceDescriptor->Bitfield.BindingTablePointer = bindingTableOffset >> 0x5;
     interfaceDescriptor->Bitfield.SharedLocalMemorySize = 0u;
     interfaceDescriptor->Bitfield.NumberOfThreadsInGpgpuThreadGroup = static_cast<uint32_t>(this->hwThreadsPerWorkGroup);
     interfaceDescriptor->Bitfield.CrossThreadConstantDataReadLength = this->crossThreadDataSize / this->GRFSize;
@@ -517,12 +526,13 @@ int Context::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
     sipAllocation = allocateBufferObject(sipAllocSize, BufferType::KERNEL_ISA_INTERNAL);
     if (!sipAllocation)
         return BUFFER_ALLOCATION_FAILED;
+    sipAllocation->gpuAddress = canonize(140746078216192);
     memcpy(sipAllocation->cpuAddress, sipBinaryRaw, sipSize);
     isSipKernelAllocated = true;
     return SUCCESS;
 }
 
-
+/*
 int Context::createCommandStreamTask() {
     //TODO: Reset offset value if EnqueueNDRangeKernel is called multiple times
     if (!commandStreamTask) {
@@ -543,8 +553,8 @@ int Context::createCommandStreamTask() {
     // Program GPGPU_WALKER
     auto cmd3 = commandStreamTask->ptrOffset<GPGPU_WALKER*>(sizeof(GPGPU_WALKER));
     *cmd3 = GPGPU_WALKER::init();
-    //cmd3->Bitfield.IndirectDataStartAddress = static_cast<uint32_t>(iohAllocation->gpuAddress) >> 0x6;     //TODO: Is this really correct?
-    cmd3->Bitfield.IndirectDataStartAddress = 0x0 >> 0x6;
+    uint64_t iohAddressOffset = iohAllocation->gpuAddress - iohAllocation->gpuBaseAddress;
+    cmd3->Bitfield.IndirectDataStartAddress = iohAddressOffset >> 0x6;
     uint32_t interfaceDescriptorIndex = 0u;
     uint32_t indirectDataLength = alignUp(crossThreadDataSize + perThreadDataSize, GPGPU_WALKER::INDIRECTDATASTARTADDRESS_ALIGN_SIZE);
     cmd3->Bitfield.InterfaceDescriptorOffset = interfaceDescriptorIndex;
@@ -586,7 +596,8 @@ int Context::createCommandStreamTask() {
     uint64_t tagAddress = tagAllocation->gpuAddress;
     cmd6->Bitfield.Address = static_cast<uint32_t>(tagAddress & 0x0000ffffffffull) >> 0x2;
     cmd6->Bitfield.AddressHigh = static_cast<uint32_t>(tagAddress >> 32);
-    cmd6->Bitfield.ImmediateData = 1u;
+    this->completionTag = 1u;
+    cmd6->Bitfield.ImmediateData = this->completionTag;
 
     // Program MI_BATCH_BUFFER_END
     auto cmd7 = commandStreamTask->ptrOffset<MI_BATCH_BUFFER_END*>(sizeof(MI_BATCH_BUFFER_END));
@@ -596,12 +607,12 @@ int Context::createCommandStreamTask() {
 
     return SUCCESS;
 }
-
-
+*/
 
 
 int Context::createCommandStreamReceiver() {
     //TODO: Reset offset value if EnqueueNDRangeKernel is called multiple times
+    //TODO: This doesn't seem to work if it runs in a loop more than two times
     if (!commandStreamCSR) {
         commandStreamCSR = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
         if (!commandStreamCSR)
@@ -696,21 +707,13 @@ int Context::createCommandStreamReceiver() {
 
     cmd10->Bitfield.IndirectObjectBaseAddressModifyEnable = true;
     cmd10->Bitfield.IndirectObjectBufferSizeModifyEnable = true;
-    cmd10->Bitfield.IndirectObjectBaseAddress = iohAllocation->gpuAddress >> 0xc;
-    //uint64_t iohBase = 18446603344810975232;
-    //uint64_t iohBase2 = canonize(0x555556207000);
-    //cmd10->Bitfield.IndirectObjectBaseAddress = iohBase >> 0xc;
-    cmd10->Bitfield.IndirectObjectBufferSize = iohAllocation->size / MemoryConstants::pageSize;
+    cmd10->Bitfield.IndirectObjectBaseAddress = iohAllocation->gpuBaseAddress >> 0xc;
+    cmd10->Bitfield.IndirectObjectBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
 
     cmd10->Bitfield.InstructionBaseAddressModifyEnable = true;
     cmd10->Bitfield.InstructionBufferSizeModifyEnable = true;
-    //uint64_t instrGpuAddress = 18446603344811040768;
-    //uint64_t instrGpuBaseAddress = 18446603340516163584;
-    //uint64_t instructionHeapBaseAddress = 140741783322624;
-    cmd10->Bitfield.InstructionBaseAddress = kernelAllocation->gpuAddress >> 0xc;
-    //cmd10->Bitfield.InstructionBaseAddress = instructionHeapBaseAddress >> 0xc;
-    //cmd10->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
-    cmd10->Bitfield.InstructionBufferSize = kernelAllocation->size / MemoryConstants::pageSize;
+    cmd10->Bitfield.InstructionBaseAddress = decanonize(kernelAllocation->gpuBaseAddress) >> 0xc;
+    cmd10->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
     //TODO: Set MOCS value
     uint32_t mocsValue = getMocsIndex();
     cmd10->Bitfield.InstructionMemoryObjectControlState_Reserved = mocsValue;
@@ -720,7 +723,7 @@ int Context::createCommandStreamReceiver() {
         uint64_t gshAddress = scratchAllocation->gpuAddress - scratchSpaceOffset;
         cmd10->Bitfield.GeneralStateBaseAddressModifyEnable = true;
         cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
-        cmd10->Bitfield.GeneralStateBaseAddress = decanonize(gshAddress) >> 0xc;    //TODO: Not correct
+        cmd10->Bitfield.GeneralStateBaseAddress = decanonize(gshAddress) >> 0xc;
         cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
         //cmd10->Bitfield.GeneralStateBufferSize = scratchAllocation->size / MemoryConstants::pageSize;
     }
@@ -740,21 +743,88 @@ int Context::createCommandStreamReceiver() {
     // Program System Instruction Pointer
     auto cmd11 = commandStreamCSR->ptrOffset<STATE_SIP*>(sizeof(STATE_SIP));
     *cmd11 = STATE_SIP::init();
-    cmd11->Bitfield.SystemInstructionPointer = sipAllocation->gpuAddress >> 0x4;
+    uint64_t sipAddressOffset = sipAllocation->gpuAddress - sipAllocation->gpuBaseAddress;
+    cmd11->Bitfield.SystemInstructionPointer = sipAddressOffset >> 0x4;
 
     // Program Pipe Control
+    /*
     auto cmd12 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
     *cmd12 = PIPE_CONTROL::init();
     cmd12->Bitfield.CommandStreamerStallEnable = true;
-    //cmd12->Bitfield.TextureCacheInvalidationEnable = true;
-    //cmd12->Bitfield.DcFlushEnable = true;
+    */
 
+    // Program MEDIA_STATE_FLUSH
+    auto cmd13 = commandStreamCSR->ptrOffset<MEDIA_STATE_FLUSH*>(sizeof(MEDIA_STATE_FLUSH));
+    *cmd13 = MEDIA_STATE_FLUSH::init();
+
+    // Program MEDIA_INTERFACE_DESCRIPTOR_LOAD
+    auto cmd14 = commandStreamCSR->ptrOffset<MEDIA_INTERFACE_DESCRIPTOR_LOAD*>(sizeof(MEDIA_INTERFACE_DESCRIPTOR_LOAD));
+    *cmd14 = MEDIA_INTERFACE_DESCRIPTOR_LOAD::init();
+    cmd14->Bitfield.InterfaceDescriptorDataStartAddress = 0u;
+    cmd14->Bitfield.InterfaceDescriptorTotalLength = sizeof(INTERFACE_DESCRIPTOR_DATA);
+
+    // Program GPGPU_WALKER
+    auto cmd15 = commandStreamCSR->ptrOffset<GPGPU_WALKER*>(sizeof(GPGPU_WALKER));
+    *cmd15 = GPGPU_WALKER::init();
+    uint64_t iohAddressOffset = iohAllocation->gpuAddress - iohAllocation->gpuBaseAddress;
+    cmd15->Bitfield.IndirectDataStartAddress = iohAddressOffset >> 0x6;
+    uint32_t interfaceDescriptorIndex = 0u;
+    uint32_t indirectDataLength = alignUp(crossThreadDataSize + perThreadDataSize, GPGPU_WALKER::INDIRECTDATASTARTADDRESS_ALIGN_SIZE);
+    cmd15->Bitfield.InterfaceDescriptorOffset = interfaceDescriptorIndex;
+    cmd15->Bitfield.IndirectDataLength = indirectDataLength;
+    cmd15->Bitfield.ThreadWidthCounterMaximum = static_cast<uint32_t>(this->hwThreadsPerWorkGroup) - 1;
+    cmd15->Bitfield.ThreadGroupIdXDimension = static_cast<uint32_t>(numWorkGroups[0]);
+    cmd15->Bitfield.ThreadGroupIdYDimension = static_cast<uint32_t>(numWorkGroups[1]);
+    cmd15->Bitfield.ThreadGroupIdZDimension = static_cast<uint32_t>(numWorkGroups[2]);
+    size_t localWorkSize = workItemsPerWorkGroup[0] * workItemsPerWorkGroup[1] * workItemsPerWorkGroup[2];
+    uint32_t simdSize = kernelData->executionEnvironment->LargestCompiledSIMDSize;
+    auto remainderSimdLanes = localWorkSize & (simdSize - 1);
+    uint64_t executionMask = maxNBitValue(remainderSimdLanes);
+    if (!executionMask)
+        executionMask = ~executionMask;
+    cmd15->Bitfield.RightExecutionMask = static_cast<uint32_t>(executionMask);
+    cmd15->Bitfield.BottomExecutionMask = static_cast<uint32_t>(0xffffffff);
+    cmd15->Bitfield.SimdSize = (simdSize == 1) ? (32 >> 4) : (simdSize >> 4);
+    cmd15->Bitfield.ThreadGroupIdStartingX = 0u;
+    cmd15->Bitfield.ThreadGroupIdStartingY = 0u;
+    cmd15->Bitfield.ThreadGroupIdStartingResumeZ = 0u;
+
+    // Program Media State Flush
+    auto cmd16 = commandStreamCSR->ptrOffset<MEDIA_STATE_FLUSH*>(sizeof(MEDIA_STATE_FLUSH));
+    *cmd16 = MEDIA_STATE_FLUSH::init();
+    cmd16->Bitfield.InterfaceDescriptorOffset = interfaceDescriptorIndex;
+
+    // Program Pipe Control Workaround
+    auto cmd17 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
+    *cmd17 = PIPE_CONTROL::init();
+    cmd17->Bitfield.CommandStreamerStallEnable = true;
+
+    // Program Pipe Control with Post Sync Operation
+    auto cmd18 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
+    *cmd18 = PIPE_CONTROL::init();
+    cmd18->Bitfield.CommandStreamerStallEnable = true;
+    cmd18->Bitfield.NotifyEnable = true;
+    cmd18->Bitfield.DcFlushEnable = true;
+    cmd18->Bitfield.PostSyncOperation = PIPE_CONTROL::POST_SYNC_OPERATION_WRITE_IMMEDIATE_DATA;
+    uint64_t tagAddress = tagAllocation->gpuAddress;
+    cmd18->Bitfield.Address = static_cast<uint32_t>(tagAddress & 0x0000ffffffffull) >> 0x2;
+    cmd18->Bitfield.AddressHigh = static_cast<uint32_t>(tagAddress >> 32);
+    this->completionTag = 1u;
+    cmd18->Bitfield.ImmediateData = this->completionTag;
+
+    // Program MI_BATCH_BUFFER_END
+    auto cmd19 = commandStreamCSR->ptrOffset<MI_BATCH_BUFFER_END*>(sizeof(MI_BATCH_BUFFER_END));
+    *cmd19 = MI_BATCH_BUFFER_END::init();
+
+    alignToCacheLine(commandStreamCSR.get());
+    /*
     auto cmd13 = commandStreamCSR->ptrOffset<MI_BATCH_BUFFER_START*>(sizeof(MI_BATCH_BUFFER_START));
     *cmd13 = MI_BATCH_BUFFER_START::init();
     cmd13->Bitfield.BatchBufferStartAddress_Graphicsaddress47_2 = commandStreamTask->gpuAddress >> 0x2;
     cmd13->Bitfield.AddressSpaceIndicator = MI_BATCH_BUFFER_START::ADDRESS_SPACE_INDICATOR_PPGTT;
 
     alignToCacheLine(commandStreamCSR.get());
+    */
 
     DBG_LOG("[DEBUG] BatchBuffer creation successful!\n");
     return SUCCESS;
@@ -794,24 +864,25 @@ int Context::populateAndSubmitExecBuffer() {
         execBuffer.push_back(preemptionAllocation.get());
         execBuffer.push_back(sipAllocation.get());
     //}
-    execBuffer.push_back(commandStreamTask.get());
+    //execBuffer.push_back(commandStreamTask.get());
     execBuffer.push_back(commandStreamCSR.get());
 
     size_t residencyCount = execBuffer.size();
+    size_t batchSize = commandStreamCSR->offset;
     execObjects.resize(residencyCount);
 
-    size_t used = commandStreamCSR->offset;
-    int ret = exec(execObjects.data(), execBuffer.data(), residencyCount, used);
+    int ret = exec(execObjects.data(), execBuffer.data(), residencyCount, batchSize);
     if (ret) {
         execBuffer.clear();
         //TODO: What else must be done here?
         return GEM_EXECBUFFER_FAILED;
     }
+    for (auto& object : execBuffer) {
+        object->offset = 0u;
+    }
     execBuffer.clear();
     //TODO: Reset offset values of BOs
     //TODO: Do ssh, dsh and ioh need an offset reset?
-    commandStreamTask->offset = 0u;
-    commandStreamCSR->offset = 0u;
 
     return SUCCESS;
 }
@@ -827,27 +898,9 @@ void Context::fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject
     execObject.rsvd1 = this->ctxId;
     execObject.rsvd2 = 0u;
 }
-    // DrmCommandStreamReceiver::flush() in drm_command_stream.inl
-    // DrmCommandStreamReceiver::flushInternal() in drm_command_stream_bdw_and_later.inl
-    // DrmCommandStreamReceiver::exec() in drm_command_stream.inl
-    // BufferObject::exec() in drm_buffer_object.cpp
-    //
-    // 0x7fffdd1ef000
-    // 0x7fffd95dd000
-    // 0x7fffd59cb000
-    // 0x8001fffea000  32Bit    0x555555cb3000
-    // 0x555556689000
-    // 0x555555c54000
-    // 0x8001fffda000  32Bit    0x555556207000
-    // 0x5555561f5000
-    // 0x5555556e4000
-    // 0x7ffff59c0000 
-    // 0x8001fffee000  32Bit    0x555555783000
-    // 0x5555557e0000
-    // 0x5555563f9000
 
 
-int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtr, size_t residencyCount, size_t used) {
+int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtr, size_t residencyCount, size_t batchSize) {
     for (size_t i = 0; i < residencyCount; i++) {
         fillExecObject(execObjects[i], execBufferPtr[i]);
     }
@@ -855,7 +908,7 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     execbuf.buffers_ptr = reinterpret_cast<uintptr_t>(execObjects);
     execbuf.buffer_count = static_cast<uint32_t>(residencyCount);
     execbuf.batch_start_offset = 0u;
-    execbuf.batch_len = static_cast<uint32_t>(alignUp(used, 8));
+    execbuf.batch_len = static_cast<uint32_t>(alignUp(batchSize, 8));
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
@@ -867,43 +920,64 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
 }
 
 
-int Context::finishExecution(int64_t timeoutMicroseconds) {
+int Context::finishExecution() {
     //TODO: Clear execObjects vector here
     //TODO: Check if polling also works if this ioctl isn't sent
-    //TODO: How long does this process stay in kernel mode after calling the ioctl?
+    std::chrono::high_resolution_clock::time_point time1, time2;
+
     drm_i915_gem_wait wait = {0};
     wait.bo_handle = commandStreamCSR->handle;
     wait.timeout_ns = -1;
+    time1 = std::chrono::high_resolution_clock::now();
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_WAIT, &wait);
     if (ret)
-        return ret; //TODO: Return value
+        return GEM_WAIT_FAILED;
+    time2 = std::chrono::high_resolution_clock::now();
+    int64_t elapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(time2 - time1).count();
+    DBG_LOG("[DEBUG] GEM_WAIT time: %f seconds\n", elapsedTime/1e9);
 
-    // baseWaitFunction() in command_stream_receiver.cpp
-    //TODO: What is activePartitions variable in CommandStreamReceiver class?
-    std::chrono::high_resolution_clock::time_point time1, time2;
     int64_t timeDiff = 0;
+    int64_t timeoutMilliseconds = 20000;
     time1 = std::chrono::high_resolution_clock::now();
-
     uint32_t* pollAddress = static_cast<uint32_t*>(tagAllocation->cpuAddress);
-    while (timeDiff <= timeoutMicroseconds) {
-        if (waitFunction(pollAddress)) {
-            break;
-        }
+    while (*pollAddress != this->completionTag && timeDiff <= timeoutMilliseconds) {
+        sleep(0.1);
+        sched_yield();
         time2 = std::chrono::high_resolution_clock::now();
-        timeDiff = std::chrono::duration_cast<std::chrono::microseconds>(time2 - time1).count();
+        timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(time2 - time1).count();
     }
+    DBG_LOG("[DEBUG] Timeout: %f seconds\n", timeDiff/1e3);
+    DBG_LOG("[DEBUG] completionTag: %u\n", *pollAddress);
+    if (*pollAddress != this->completionTag)
+        return POST_SYNC_OPERATION_FAILED;
+
     return SUCCESS;
 }
 
 
-bool Context::waitFunction(uint32_t* pollAddress) {
-    //TODO: Check waitCount variable
-    //_mm_pause();
-    if (pollAddress && (*pollAddress >= 1))
-        return true;
-    sched_yield();
-    return false;
-}
+
+
+
+
+// DrmCommandStreamReceiver::flush() in drm_command_stream.inl
+// DrmCommandStreamReceiver::flushInternal() in drm_command_stream_bdw_and_later.inl
+// DrmCommandStreamReceiver::exec() in drm_command_stream.inl
+// BufferObject::exec() in drm_buffer_object.cpp
+//
+// 0x7fffdd1ef000
+// 0x7fffd95dd000
+// 0x7fffd59cb000
+// 0x8001fffea000  32Bit    0x555555cb3000
+// 0x555556689000
+// 0x555555c54000
+// 0x8001fffda000  32Bit    0x555556207000
+// 0x5555561f5000
+// 0x5555556e4000
+// 0x7ffff59c0000 
+// 0x8001fffee000  32Bit    0x555555783000
+// 0x5555557e0000
+// 0x5555563f9000
+
 
 
 
@@ -922,8 +996,6 @@ bool Context::waitFunction(uint32_t* pollAddress) {
 //11. STATE_SIP                         12  248
 //12. PIPE_CONTROL                      24  272
 //13. MI_BATCH_BUFFER_START             12  284
-
-
 
 // Commands in CommandStreamTask:
 // 1. MEDIA_STATE_FLUSH                  8

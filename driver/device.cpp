@@ -34,17 +34,94 @@ Device::~Device() {
     DBG_LOG("[DEBUG] Device destructor called!\n");
 }
 
+DeviceDescriptor* Device::getDeviceDescriptor() {
+    return descriptor.get();
+}
+
 int Device::initialize() {
     numDevices += 1;
+    // only i915 kernel driver is supported.
     if (numDevices == 1) {
         bool isi915 = checkDriverVersion();
         if (isi915 == false)
-            return WRONG_DRIVER_VERSION;
+            return UNSUPPORTED_KERNEL_DRIVER;
     }
-    // query chipset ID
-    getParamIoctl(I915_PARAM_CHIPSET_ID, &chipset_id);
-    getParamIoctl(I915_PARAM_REVISION, &revision_id);
+    // query device IDs.
+    int ret = getParamIoctl(I915_PARAM_CHIPSET_ID, &chipsetID);
+    ret = getParamIoctl(I915_PARAM_REVISION, &revisionID);
+    if (ret)
+        return QUERY_FAILED;
+
+    // Get device info from device descriptor table above.
+    descriptor = getDeviceInfoFromDescriptorTable(chipsetID);
+    if (descriptor->pHwInfo) {
+        descriptor->setupHardwareInfo(descriptor->pHwInfo);
+        descriptor->pHwInfo->platform->usDeviceID = chipsetID;
+        descriptor->pHwInfo->platform->usRevId = revisionID;
+    }
+    // If supported, get additional device info from hardware config blob.
+    getDeviceInfoFromHardwareConfigBlob();
+
+    this->devName = descriptor->devName;
+    SystemInfo* sysInfo = descriptor->pHwInfo->gtSystemInfo;
+    INFO_LOG("\n");
+    INFO_LOG("GPU %d\n", numDevices);
+    INFO_LOG("------------------------------------------------------------------\n");
+    INFO_LOG("Device ID: \t\t0x%X [%d]\n", this->chipsetID, this->revisionID);
+    INFO_LOG("Device Name: \t\t%s\n", this->devName);
+
+    ret = retrieveTopologyInfo(sysInfo);
+    if (ret)
+        return ret;
+
+    ret = calculateGraphicsBaseAddress();
+    if (ret)
+        return ret;
+
+    // query engine info
+    engines = queryIoctl(DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
+    if (!engines) {
+        return QUERY_FAILED;
+    }
     
+
+    checkPreemptionSupport();
+    
+    INFO_LOG("\n");
+    return SUCCESS;
+}
+
+
+bool Device::checkDriverVersion() {
+    drm_version version = {0};
+    char name[5] = {};
+    version.name = name;
+    version.name_len = 5;
+    int ret = ioctl(fd, DRM_IOCTL_VERSION, &version);
+    if (ret) {
+        return false;
+    }
+    name[4] = '\0';
+    strncpy(driver_name, name, 5);
+    INFO_LOG("Kernel driver: \t\t%s\n", this->driver_name);
+    return strcmp(name, "i915") == 0;
+}
+
+std::unique_ptr<DeviceDescriptor> Device::getDeviceInfoFromDescriptorTable(uint16_t chipset_id) {
+    auto descriptor = std::make_unique<DeviceDescriptor>();
+    for (auto &d : deviceDescriptorTable) {
+        if (chipset_id == d.deviceId) {
+            descriptor->pHwInfo = d.pHwInfo;
+            descriptor->setupHardwareInfo = d.setupHardwareInfo;
+            //device->eGtType = d.eGtType;
+            descriptor->devName = d.devName;
+            break;
+        }
+    }
+    return descriptor;
+}
+
+void Device::getDeviceInfoFromHardwareConfigBlob() {
     // Query hardware configuration
     // On newer architectures, the GuC controller has an internal data structure containing
     // hardware information (hardware configuration table, HWConfig). My test machine
@@ -66,133 +143,16 @@ int Device::initialize() {
     // didn't help. Even though I have GuC enabled, it won't work. It seems that Skylake
     // doesn't dupport HWConfig tables. So I am not including parsing code for HwConfig tables
     // because I cannot test it.
-    int32_t length = 0;
-    void* deviceBlob = queryIoctl(DRM_I915_QUERY_HWCONFIG_TABLE, 0u, length);
-    HWConfigTable = deviceBlob;
-    if (deviceBlob) {
-        printf("We have a hardware configuration table!\n");
-    }
-    descriptor = getDevInfoFromDescriptorTable(chipset_id);
-    if (descriptor->pHwInfo) {
-        descriptor->setupHardwareInfo(descriptor->pHwInfo);
-        descriptor->pHwInfo->platform->usDeviceID = chipset_id;
-        descriptor->pHwInfo->platform->usRevId = revision_id;
-    }
-    this->devName = descriptor->devName;
-    SystemInfo* sysInfo = descriptor->pHwInfo->gtSystemInfo;
+    void* hardwareConfigBlob = queryIoctl(DRM_I915_QUERY_HWCONFIG_TABLE, 0u, 0u);
+    if (hardwareConfigBlob)
+        this->hardwareConfigBlobSupported = true;
+}
 
-    INFO_LOG("\n");
-    INFO_LOG("GPU %d\n", numDevices);
-    INFO_LOG("------------------------------------------------------------------\n");
-    INFO_LOG("Device ID: \t\t0x%X [%d]\n", this->chipset_id, this->revision_id);
-    INFO_LOG("Device Name: \t\t%s\n", this->devName);
-
-    // query topology info
-    void* topology = queryIoctl(DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
-    auto data = reinterpret_cast<drm_i915_query_topology_info*>(topology);
-    if (!data) {
+int Device::retrieveTopologyInfo(SystemInfo* sysInfo) {
+    auto topologyInfo = reinterpret_cast<drm_i915_query_topology_info*>(queryIoctl(DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0));
+    if (!topologyInfo)
         return QUERY_FAILED;
-    }
 
-    //TODO: Add checks for topology info
-    translateTopologyInfo(data, sysInfo);
-    free(data);
-    sysInfo->ThreadCount = sysInfo->EUCount * sysInfo->NumThreadsPerEu;
-
-    // Soft-Pinning supported?
-    getParamIoctl(I915_PARAM_HAS_EXEC_SOFTPIN, &supportsSoftPin);
-    if (!supportsSoftPin) {
-        return NO_SOFTPIN_SUPPORT;
-    }
-
-    // query engine info
-    engines = queryIoctl(DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
-    if (!engines) {
-        return QUERY_FAILED;
-    }
-    
-    // query GTT (Graphics Translation Table) size
-    int ret = queryGttSize();
-    if (ret) {
-        return QUERY_FAILED;
-    }
-
-    // ask all engines if slice count change is supported
-    //getQueueSliceCount(device);
-
-    checkPreemptionSupport();
-    
-    INFO_LOG("\n");
-    return SUCCESS;
-}
-
-std::unique_ptr<DeviceDescriptor> Device::getDevInfoFromDescriptorTable(uint16_t chipset_id) {
-    auto descriptor = std::make_unique<DeviceDescriptor>();
-    for (auto &d : deviceDescriptorTable) {
-        if (chipset_id == d.deviceId) {
-            descriptor->pHwInfo = d.pHwInfo;
-            descriptor->setupHardwareInfo = d.setupHardwareInfo;
-            //device->eGtType = d.eGtType;
-            descriptor->devName = d.devName;
-            break;
-        }
-    }
-    return descriptor;
-}
-
-
-bool Device::checkDriverVersion() {
-    drm_version version = {0};
-    char name[5] = {};
-    version.name = name;
-    version.name_len = 5;
-    int ret = ioctl(fd, DRM_IOCTL_VERSION, &version);
-    if (ret) {
-        return false;
-    }
-    name[4] = '\0';
-    strncpy(driver_name, name, 5);
-    INFO_LOG("Kernel driver: \t\t%s\n", this->driver_name);
-    return strcmp(name, "i915") == 0;
-}
-
-int Device::getParamIoctl(int param, int* paramValue) {
-    drm_i915_getparam getParam = {0};
-    getParam.param = param;
-    getParam.value = paramValue;
-
-    int ret = ioctl(fd, DRM_IOCTL_I915_GETPARAM, &getParam);
-    return ret;
-}
-
-void* Device::queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length) {
-    drm_i915_query query = {0};
-    drm_i915_query_item queryItem = {0};
-    queryItem.query_id = queryId;
-    queryItem.length = 0;
-    queryItem.flags = queryItemFlags;
-    query.items_ptr = reinterpret_cast<uint64_t>(&queryItem);
-    query.num_items = 1;
-
-    int ret = ioctl(fd, DRM_IOCTL_I915_QUERY, &query);
-    if (ret != 0 || queryItem.length <= 0) {
-        return nullptr;
-    }
-
-    void* data = malloc(queryItem.length);      //TODO: Memory leak (296 bytes)
-    memset(data, 0, queryItem.length);
-    queryItem.data_ptr = reinterpret_cast<uint64_t>(data);
-
-    ret = ioctl(fd, DRM_IOCTL_I915_QUERY, &query);
-    if (ret != 0 || queryItem.length <= 0) {
-        return nullptr;
-    }
-    //printf("length: %d\n", queryItem.length);
-    length = queryItem.length;
-    return data;
-}
-
-void Device::translateTopologyInfo(drm_i915_query_topology_info* topologyInfo, SystemInfo* sysInfo) {
     uint16_t sliceCount = 0;
     uint16_t subSliceCount = 0;
     uint16_t euCount = 0;
@@ -234,26 +194,86 @@ void Device::translateTopologyInfo(drm_i915_query_topology_info* topologyInfo, S
     sysInfo->EUCount = euCount;
     sysInfo->SubSliceCount = subSliceCount;
     sysInfo->SliceCount = sliceCount;
+    sysInfo->ThreadCount = sysInfo->EUCount * sysInfo->NumThreadsPerEu;
     this->subSliceCountPerSlice = subSliceCountPerSlice;
     this->euCountPerSubSlice = euCountPerSubSlice;
+
+    return SUCCESS;
 }
 
+int Device::calculateGraphicsBaseAddress() {
+    // Soft-Pinning means that the kernel driver doesn't relocate buffer objects (BOs) that 
+    // have been passed over from userspace. The kernel driver looks up the physical address
+    // of the BO in the page table of the current CPU process and uses that to create a PTE 
+    // in the GPU ppGTT.
+    // Alternatively, userspace can pass in an address that the BO should be located at. The
+    // kernel then looks up the current location using the BO handle and will do its utmost
+    // to fit the BO into that new location. Softpinning a BO to a new location only works if
+    // the address of that new location is a positive offset from the Graphics Base Address.
+    int softPinSupported = 0;
+    int ret = getParamIoctl(I915_PARAM_HAS_EXEC_SOFTPIN, &softPinSupported);
+    if (ret)
+        return QUERY_FAILED;
+    if (!softPinSupported)
+        return SOFTPIN_NOT_SUPPORTED;
 
-int Device::queryGttSize() {
+    // Query GTT (Graphics Translation Table) size.
     drm_i915_gem_context_param contextParam = {0};
-    contextParam.ctx_id = 0;
     contextParam.param = I915_CONTEXT_PARAM_GTT_SIZE;
-    contextParam.value = 0;
-    int ret = ioctl(fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &contextParam);
-    if (ret == 0) {
-        gttSize = contextParam.value;
+    ret = ioctl(fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &contextParam);
+    if (ret)
+        return QUERY_FAILED;
+    uint64_t gttSize = contextParam.value;
+
+    // Calculate Graphics Base Address.
+    uint64_t gpuAddressSpace = gttSize - 1;
+    uint64_t gfxBase = 0x0;
+    uint64_t gfxHeapSize = 4 * MemoryConstants::gigaByte;
+    //TODO: Query cpuVirtualAddressSize
+    uint64_t cpuVirtualAddressSize = 48;
+    if (cpuVirtualAddressSize == 48 && gpuAddressSpace == maxNBitValue(48)) {
+        gfxBase = maxNBitValue(48 - 1) + 1;
+    } else {
+        return HARDWARE_NOT_SUPPORTED;
     }
+
+    this->gpuBaseAddress = canonize(140741783322624);
+    return SUCCESS;
+}
+
+int Device::getParamIoctl(int param, int* paramValue) {
+    drm_i915_getparam getParam = {0};
+    getParam.param = param;
+    getParam.value = paramValue;
+    int ret = ioctl(fd, DRM_IOCTL_I915_GETPARAM, &getParam);
     return ret;
 }
 
+void* Device::queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length) {
+    drm_i915_query query = {0};
+    drm_i915_query_item queryItem = {0};
+    queryItem.query_id = queryId;
+    queryItem.length = 0;
+    queryItem.flags = queryItemFlags;
+    query.items_ptr = reinterpret_cast<uint64_t>(&queryItem);
+    query.num_items = 1;
 
-DeviceDescriptor* Device::getDeviceDescriptor() {
-    return descriptor.get();
+    int ret = ioctl(fd, DRM_IOCTL_I915_QUERY, &query);
+    if (ret != 0 || queryItem.length <= 0) {
+        return nullptr;
+    }
+
+    //TODO: Replace malloc with new and delete or a unique_ptr
+    void* data = malloc(queryItem.length);      //TODO: Memory leak (296 bytes)
+    memset(data, 0, queryItem.length);
+    queryItem.data_ptr = reinterpret_cast<uint64_t>(data);
+
+    ret = ioctl(fd, DRM_IOCTL_I915_QUERY, &query);
+    if (ret != 0 || queryItem.length <= 0) {
+        return nullptr;
+    }
+    length = queryItem.length;
+    return data;
 }
 
 void Device::checkPreemptionSupport() {
@@ -262,6 +282,9 @@ void Device::checkPreemptionSupport() {
     schedulerValue = value;
     preemptionSupported = ((0 == ret) && (value & I915_SCHEDULER_CAP_PREEMPTION));
 }
+
+
+
 
 
 CompilerInfo initCompiler(int* ret) {
