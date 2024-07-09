@@ -137,6 +137,7 @@ class Context : public pContext {
     std::vector<drm_i915_gem_exec_object2> execObjects;
 
     uint32_t ctxId = 0u;
+    uint32_t vmId = 0u;
     uint32_t workDim = 0u;
     size_t workItemsPerWorkGroup[3];
     size_t globalWorkItems[3];

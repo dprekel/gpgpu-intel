@@ -15,10 +15,10 @@
 API_CALL std::vector<pDevice*> CreateDevices(int* ret) {
     *ret = 0;
     std::vector<pDevice*> devices;
-    std::vector<int> devIDs = openDevices(ret);
+    std::vector<int> devIDs = Device::openDevices(ret);
     if (*ret || devIDs.size() == 0)
         return devices;
-    CompilerInfo compilerInfo = initCompiler(ret);
+    CompilerInfo compilerInfo = Device::initCompiler(ret);
     if (*ret)
         return devices;
     for (auto& ID : devIDs) {
@@ -147,7 +147,7 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     ret = context->populateAndSubmitExecBuffer();
     if (ret)
         return ret;
-    ret = context->finishExecution();
+    //ret = context->finishExecution();
     if (ret)
         return ret;
     context->kernel = nullptr; //TODO: maybe this is not good

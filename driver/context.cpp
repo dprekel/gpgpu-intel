@@ -30,6 +30,17 @@ Context::Context(Device* device)
 
 Context::~Context() {
     DBG_LOG("[DEBUG] Context destructor called!\n");
+    drm_i915_gem_context_destroy destroy = {0};
+    destroy.ctx_id = this->ctxId;
+    int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_DESTROY, &destroy);
+    if (ret)
+        DBG_LOG("[DEBUG] ioctl(I915_GEM_CONTEXT_DESTROY) failed with error %d\n", ret);
+
+    drm_i915_gem_vm_control vmCtrl = {0};
+    vmCtrl.vm_id = this->vmId;
+    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_VM_DESTROY, &vmCtrl);
+    if (ret)
+        DBG_LOG("[DEBUG] ioctl(I915_GEM_VM_DESTROY) failed with error %d\n", ret);
 }
 
 BufferObject::BufferObject(int fd, int bufferType, void* cpuAddress, uint32_t handle, size_t size)
@@ -49,13 +60,13 @@ BufferObject::~BufferObject() {
     wait.timeout_ns = -1;
     int ret = ioctl(this->fd, DRM_IOCTL_I915_GEM_WAIT, &wait);
     if (ret)
-        DBG_LOG("[DEBUG] I915_GEM_WAIT failed with error %d\n", ret);
+        DBG_LOG("[DEBUG] ioctl(I915_GEM_WAIT) failed with error %d\n", ret);
     // Delete the BO handle.
     drm_gem_close close = {0};
     close.handle = this->handle;
     ret = ioctl(this->fd, DRM_IOCTL_GEM_CLOSE, &close);
     if (ret)
-        DBG_LOG("[DEBUG] GEM_CLOSE failed with error %d\n", ret);
+        DBG_LOG("[DEBUG] ioctl(GEM_CLOSE) failed with error %d\n", ret);
 }
 
 
@@ -139,6 +150,7 @@ int Context::createDRMContext() {
     // page table that the IOMMU uses to translate virtual GPU addresses.
     drm_i915_gem_vm_control vmCtrl = {0};
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_VM_CREATE, &vmCtrl);
+    vmId = vmCtrl.vm_id;
     if (ret || vmCtrl.vm_id == 0)
         return CONTEXT_CREATION_FAILED;
     
@@ -935,10 +947,12 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
+    /*
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
     if (ret) {
         return GEM_EXECBUFFER_FAILED;
     }
+    */
     return SUCCESS;
 }
 

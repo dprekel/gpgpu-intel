@@ -34,9 +34,59 @@ Device::~Device() {
     DBG_LOG("[DEBUG] Device destructor called!\n");
 }
 
+
+std::vector<int> Device::openDevices(int* err) {
+    const char* pciDevicesDirectory = "/dev/dri/by-path";
+    std::vector<std::string> files;
+    std::vector<int> deviceIDs;
+    DIR* dir = opendir(pciDevicesDirectory);
+    if (!dir) {
+        *err = NO_DEVICES_FOUND;
+        return deviceIDs;
+    }
+    dirent* entry = nullptr;
+    while((entry = readdir(dir)) != nullptr) {
+        if (entry->d_name[0] == '.')
+            continue;
+        std::string fullPath = pciDevicesDirectory;
+        fullPath += "/";
+        fullPath += entry->d_name;
+        files.push_back(fullPath);
+    }
+    closedir(dir);
+    const char* renderSuffix = "-render";
+    for (auto& file : files) {
+        const char* path = file.c_str();
+        const char* pos = strstr(path, renderSuffix);
+        if (!pos)
+            continue;
+        uint32_t offset = pos - path;
+        if (offset < strlen(path) - strlen(renderSuffix))
+            continue;
+        if (offset < 33 || path[offset - 13] != '-')
+            continue;
+        int fileDescriptor = open(path, O_RDWR | O_CLOEXEC);
+        if (fileDescriptor == -1)
+            continue;
+        deviceIDs.push_back(fileDescriptor);
+    }
+    *err = SUCCESS;
+    return deviceIDs;
+}
+
+
+CompilerInfo Device::initCompiler(int* ret) {
+    CompilerInfo compilerInfo;
+    *ret = Kernel::loadCompiler(compilerInfo.fclName, &compilerInfo.fclMain);
+    *ret = Kernel::loadCompiler(compilerInfo.igcName, &compilerInfo.igcMain);
+    return compilerInfo;
+}
+
+
 DeviceDescriptor* Device::getDeviceDescriptor() {
     return descriptor.get();
 }
+
 
 int Device::initialize() {
     numDevices += 1;
@@ -73,20 +123,10 @@ int Device::initialize() {
     ret = retrieveTopologyInfo(sysInfo);
     if (ret)
         return ret;
-
     ret = calculateGraphicsBaseAddress();
     if (ret)
         return ret;
-
-    // query engine info
-    engines = queryIoctl(DRM_I915_QUERY_ENGINE_INFO, 0u, 0);
-    if (!engines) {
-        return QUERY_FAILED;
-    }
-    
-
     checkPreemptionSupport();
-    
     INFO_LOG("\n");
     return SUCCESS;
 }
@@ -143,13 +183,14 @@ void Device::getDeviceInfoFromHardwareConfigBlob() {
     // didn't help. Even though I have GuC enabled, it won't work. It seems that Skylake
     // doesn't dupport HWConfig tables. So I am not including parsing code for HwConfig tables
     // because I cannot test it.
-    void* hardwareConfigBlob = queryIoctl(DRM_I915_QUERY_HWCONFIG_TABLE, 0u, 0u);
+    auto hardwareConfigBlob = queryIoctl(DRM_I915_QUERY_HWCONFIG_TABLE, 0u, 0u);
     if (hardwareConfigBlob)
         this->hardwareConfigBlobSupported = true;
 }
 
 int Device::retrieveTopologyInfo(SystemInfo* sysInfo) {
-    auto topologyInfo = reinterpret_cast<drm_i915_query_topology_info*>(queryIoctl(DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0));
+    auto data = queryIoctl(DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
+    auto topologyInfo = reinterpret_cast<drm_i915_query_topology_info*>(data.get());
     if (!topologyInfo)
         return QUERY_FAILED;
 
@@ -249,7 +290,7 @@ int Device::getParamIoctl(int param, int* paramValue) {
     return ret;
 }
 
-void* Device::queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length) {
+std::unique_ptr<uint8_t[]> Device::queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length) {
     drm_i915_query query = {0};
     drm_i915_query_item queryItem = {0};
     queryItem.query_id = queryId;
@@ -262,11 +303,9 @@ void* Device::queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t leng
     if (ret != 0 || queryItem.length <= 0) {
         return nullptr;
     }
-
-    //TODO: Replace malloc with new and delete or a unique_ptr
-    void* data = malloc(queryItem.length);      //TODO: Memory leak (296 bytes)
-    memset(data, 0, queryItem.length);
-    queryItem.data_ptr = reinterpret_cast<uint64_t>(data);
+    auto data = std::make_unique<uint8_t[]>(queryItem.length);
+    memset(data.get(), 0x0, queryItem.length);
+    queryItem.data_ptr = reinterpret_cast<uint64_t>(data.get());
 
     ret = ioctl(fd, DRM_IOCTL_I915_QUERY, &query);
     if (ret != 0 || queryItem.length <= 0) {
@@ -282,57 +321,6 @@ void Device::checkPreemptionSupport() {
     schedulerValue = value;
     preemptionSupported = ((0 == ret) && (value & I915_SCHEDULER_CAP_PREEMPTION));
 }
-
-
-
-
-
-CompilerInfo initCompiler(int* ret) {
-    CompilerInfo compilerInfo;
-    *ret = Kernel::loadCompiler(compilerInfo.fclName, &compilerInfo.fclMain);
-    *ret = Kernel::loadCompiler(compilerInfo.igcName, &compilerInfo.igcMain);
-    return compilerInfo;
-}
-
-std::vector<int> openDevices(int* err) {
-    const char* pciDevicesDirectory = "/dev/dri/by-path";
-    std::vector<std::string> files;
-    std::vector<int> deviceIDs;
-    DIR* dir = opendir(pciDevicesDirectory);
-    if (!dir) {
-        *err = NO_DEVICES_FOUND;
-        return deviceIDs;
-    }
-    dirent* entry = nullptr;
-    while((entry = readdir(dir)) != nullptr) {
-        if (entry->d_name[0] == '.')
-            continue;
-        std::string fullPath = pciDevicesDirectory;
-        fullPath += "/";
-        fullPath += entry->d_name;
-        files.push_back(fullPath);
-    }
-    closedir(dir);
-    const char* renderSuffix = "-render";
-    for (auto& file : files) {
-        const char* path = file.c_str();
-        const char* pos = strstr(path, renderSuffix);
-        if (!pos)
-            continue;
-        uint32_t offset = pos - path;
-        if (offset < strlen(path) - strlen(renderSuffix))
-            continue;
-        if (offset < 33 || path[offset - 13] != '-')
-            continue;
-        int fileDescriptor = open(path, O_RDWR | O_CLOEXEC);
-        if (fileDescriptor == -1)
-            continue;
-        deviceIDs.push_back(fileDescriptor);
-    }
-    *err = SUCCESS;
-    return deviceIDs;
-}
-
 
 
 

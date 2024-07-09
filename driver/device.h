@@ -30,6 +30,7 @@ struct DeviceDescriptor {
     void (*setupHardwareInfo)(const HardwareInfo*);
     const char* devName;
 };
+
 struct CompilerInfo {
     const char* igcName = "libigc.so.1";
     const char* fclName = "libigdfcl.so.1";
@@ -37,13 +38,13 @@ struct CompilerInfo {
     CIFMain* fclMain = nullptr;
 };
 
-std::vector<int> openDevices(int* err);
-CompilerInfo initCompiler(int* ret);
 
 class Device : public pDevice {
   public:
     Device(int fd, CompilerInfo* compilerInfo);
     ~Device();
+    static std::vector<int> openDevices(int* err);
+    static CompilerInfo initCompiler(int* ret);
     int initialize();
     //TODO: Only one function that returns DeviceDescriptor
     //TODO: Either initialize values in initializer list or in class body, be consistent!
@@ -63,7 +64,7 @@ class Device : public pDevice {
     int retrieveTopologyInfo(SystemInfo* sysInfo);
     int calculateGraphicsBaseAddress();
     int getParamIoctl(int param, int* paramValue);
-    void* queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length);
+    std::unique_ptr<uint8_t[]> queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length);
     void checkPreemptionSupport();
     
     uint32_t numDevices = 0u;
@@ -74,13 +75,8 @@ class Device : public pDevice {
     uint16_t euCountPerSubSlice = 0u;
     bool hardwareConfigBlobSupported = false;
     bool preemptionSupported = false;
-
     int schedulerValue = 0;
-    void* engines = nullptr; // list of GPU command streamer engines
 };
-
-
-
 
 
 

@@ -262,9 +262,43 @@ struct ArgDescValue : ArgDescriptor {
     uint16_t sourceOffset = 0u;
 };
 
+template <typename T>
+struct Releaser {
+    void operator()(T* libPtr) const {
+        if (libPtr)
+            libPtr->Release();
+    }
+};
+
 struct DataStruct {
     const char* data = nullptr;
     size_t dataLength;
+};
+
+struct IGCContainer {
+    IGCContainer();
+    ~IGCContainer();
+
+
+    // Input strings
+    IgcBuffer* src = nullptr;
+    IgcBuffer* buildOptions = nullptr;
+    IgcBuffer* internalOptions = nullptr;
+    // Frontend Compiler
+    FclOclDeviceCtx* fclDeviceCtx = nullptr;
+    FclOclTranslationCtx* fclTranslationCtx = nullptr;
+    OclTranslationOutput* fclOutput = nullptr;
+    IgcBuffer* fclBuildOutput = nullptr;
+    // Backend Compiler
+    IgcBuffer* idsBuffer = nullptr;
+    IgcBuffer* valuesBuffer = nullptr;
+    IgcOclDeviceCtx* igcDeviceCtx = nullptr;
+    IgcOclTranslationCtx* igcTranslationCtx = nullptr;
+    OclTranslationOutput* igcOutput = nullptr;
+    IgcBuffer* igcBuildOutput = nullptr;
+    // System Routine
+    IgcBuffer* systemRoutineBuffer = nullptr;
+    IgcBuffer* stateSaveAreaBuffer = nullptr;
 };
 
 
@@ -278,7 +312,7 @@ class Kernel : public pKernel {
     std::vector<BufferObject*> getExecData();
     int loadProgramSource();
     int initialize();
-    int build(uint16_t chipset_id);
+    int build(uint16_t chipsetID);
     int setArgument(uint32_t argIndex, size_t argSize, void* argValue);
     int disassembleBinary();
     int extractMetadata();
@@ -288,11 +322,11 @@ class Kernel : public pKernel {
   private:
     ICIF* CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion);
     IgcBuffer* CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t size);
-    FclOclTranslationCtx* createFclTranslationCtx();
+    FclOclDeviceCtx* getFclDeviceCtx();
+    IgcOclDeviceCtx* getIgcDeviceCtx();
     void TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform);
     void TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo);
     void TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable);
-    IgcOclDeviceCtx* getIgcDeviceCtx();
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
     void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset, uint32_t dataParamOffset);
@@ -301,7 +335,7 @@ class Kernel : public pKernel {
     void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
 
     std::unique_ptr<DeviceDescriptor> descriptor;
-    IgcOclDeviceCtx* deviceCtx = nullptr;
+    IGCContainer igc;
 
     const char* filename;
     DataStruct options;    
@@ -317,11 +351,11 @@ class Kernel : public pKernel {
     const uint8_t* patchListBlob = nullptr;
     const uint8_t* kernelInfoBlob = nullptr;
     KernelFromPatchtokens kernelData;
-    std::vector<std::unique_ptr<ArgDescriptor>> argDescriptor;
 
     bool unsupportedKernelArgs = false;
     bool hasBindlessMode = false;
 
+    std::vector<std::unique_ptr<ArgDescriptor>> argDescriptor;
     std::unique_ptr<char[]> sshLocal;
     std::unique_ptr<char[]> crossThreadData;
     std::vector<BufferObject*> execData;
