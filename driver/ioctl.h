@@ -59,6 +59,12 @@ struct drm_i915_gem_context_create_ext {
 };
 
 
+struct drm_i915_gem_context_destroy {
+    uint32_t ctx_id;
+    uint32_t pad;
+};
+
+
 struct drm_i915_reg_read {
     uint64_t offset;
     uint64_t val;
@@ -179,6 +185,12 @@ struct drm_i915_gem_wait {
 };
 
 
+struct drm_gem_close {
+    uint32_t handle;
+    uint32_t pad;
+};
+
+
 #define DRM_COMMAND_BASE                        0x40
 #define DRM_IOCTL_BASE                          'd'
 #define DRM_IO(nr)                              _IO(DRM_IOCTL_BASE,nr)
@@ -187,10 +199,12 @@ struct drm_i915_gem_wait {
 #define DRM_IOWR(nr,type)                       _IOWR(DRM_IOCTL_BASE,nr,type)
 
 #define DRM_IOCTL_VERSION                       DRM_IOWR(0x00, struct drm_version)
+#define DRM_IOCTL_GEM_CLOSE                     DRM_IOW(0x09, struct drm_gem_close)
 #define DRM_IOCTL_I915_GETPARAM                 DRM_IOWR(DRM_COMMAND_BASE + 0x06, struct drm_i915_getparam)
 #define DRM_IOCTL_I915_GEM_EXECBUFFER2          DRM_IOW(DRM_COMMAND_BASE + 0x29, struct drm_i915_gem_execbuffer2)
 #define DRM_IOCTL_I915_GEM_WAIT                 DRM_IOWR(DRM_COMMAND_BASE + 0x2c, struct drm_i915_gem_wait)
 #define DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT   DRM_IOWR(DRM_COMMAND_BASE + 0x2d, struct drm_i915_gem_context_create_ext)
+#define DRM_IOCTL_I915_GEM_CONTEXT_DESTROY      DRM_IOW(DRM_COMMAND_BASE + 0x2e, struct drm_i915_gem_context_destroy)
 #define DRM_IOCTL_I915_REG_READ                 DRM_IOWR(DRM_COMMAND_BASE + 0x31, struct drm_i915_reg_read)
 #define DRM_IOCTL_I915_GEM_USERPTR              DRM_IOWR(DRM_COMMAND_BASE + 0x33, struct drm_i915_gem_userptr)
 #define DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM     DRM_IOWR(DRM_COMMAND_BASE + 0x34, struct drm_i915_gem_context_param)

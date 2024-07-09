@@ -17,10 +17,10 @@
 
 
 Context::Context(Device* device) 
-         : device(device),
-           workItemsPerWorkGroup{1, 1, 1},
-           globalWorkItems{1, 1, 1},
-           numWorkGroups{1, 1, 1} {             //TODO: Check if all ones is correct here
+        : device(device),
+          workItemsPerWorkGroup{1, 1, 1},
+          globalWorkItems{1, 1, 1},
+          numWorkGroups{1, 1, 1} {             //TODO: Check if all ones is correct here
     this->hwInfo = device->descriptor->pHwInfo;
     this->fclMain = device->fclMain;
     this->igcMain = device->igcMain;
@@ -32,13 +32,33 @@ Context::~Context() {
     DBG_LOG("[DEBUG] Context destructor called!\n");
 }
 
-BufferObject::BufferObject() {
+BufferObject::BufferObject(int fd, int bufferType, void* cpuAddress, uint32_t handle, size_t size)
+        : fd(fd),
+          bufferType(bufferType),
+          cpuAddress(cpuAddress),
+          handle(handle),
+          size(size) {
 }
 
 BufferObject::~BufferObject() {
-    alignedFree(cpuAddress);
     DBG_LOG("[DEBUG] BufferObject destructor called for type [%d]\n", this->bufferType);
+    alignedFree(this->cpuAddress);
+    // Make sure the BO isn't used anymore.
+    drm_i915_gem_wait wait = {0};
+    wait.bo_handle = this->handle;
+    wait.timeout_ns = -1;
+    int ret = ioctl(this->fd, DRM_IOCTL_I915_GEM_WAIT, &wait);
+    if (ret)
+        DBG_LOG("[DEBUG] I915_GEM_WAIT failed with error %d\n", ret);
+    // Delete the BO handle.
+    drm_gem_close close = {0};
+    close.handle = this->handle;
+    ret = ioctl(this->fd, DRM_IOCTL_GEM_CLOSE, &close);
+    if (ret)
+        DBG_LOG("[DEBUG] GEM_CLOSE failed with error %d\n", ret);
 }
+
+
 
 void Context::setMaxWorkGroupSize() {
     uint32_t numThreadsPerEU = hwInfo->gtSystemInfo->ThreadCount / hwInfo->gtSystemInfo->EUCount;
@@ -65,8 +85,14 @@ BufferObject* Context::getBatchBuffer() {
     return dataBatchBuffer.get();
 }
 
-bool Context::getIsSipKernelAllocated() {
+bool Context::isSIPKernelAllocated() {
     return isSipKernelAllocated;
+}
+
+bool Context::isGraphicsBaseAddressNeeded(int bufferType) {
+    return bufferType == BufferType::INTERNAL_HEAP ||
+           bufferType == BufferType::KERNEL_ISA ||
+           bufferType == BufferType::KERNEL_ISA_INTERNAL;
 }
 
 
@@ -96,13 +122,10 @@ std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size, int buf
         alignedFree(pAlignedMemoryPtr);
         return nullptr;
     }
-    auto bo = std::make_unique<BufferObject>();
-    bo->bufferType = bufferType;
-    bo->cpuAddress = pAlignedMemoryPtr;
-    bo->handle = userptr.handle;
-    bo->size = size;
-    if (bufferType == BufferType::INTERNAL_HEAP || bufferType == BufferType::KERNEL_ISA || bufferType == BufferType::KERNEL_ISA_INTERNAL) {
+    auto bo = std::make_unique<BufferObject>(device->fd, bufferType, pAlignedMemoryPtr, userptr.handle, size);
+    if (isGraphicsBaseAddressNeeded(bufferType)) {
         //TODO: Reserve memory to pin to
+        //TODO: Do a prior assignment in context constructor
         bo->gpuBaseAddress = device->gpuBaseAddress;
     } else {
         bo->gpuAddress = reinterpret_cast<uint64_t>(pAlignedMemory);

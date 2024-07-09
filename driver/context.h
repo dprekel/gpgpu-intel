@@ -56,7 +56,7 @@ enum ThreadArbitrationPolicy {
 };
 
 struct BufferObject {
-    BufferObject();
+    BufferObject(int fd, int bufferType, void* cpuAddress, uint32_t handle, size_t size);
     ~BufferObject();
     template <typename T>
     T ptrOffset(size_t ptr_offset) {
@@ -65,13 +65,14 @@ struct BufferObject {
         offset += ptr_offset;
         return reinterpret_cast<T>(newAddr);
     }
+    int fd = 0;
     int bufferType = 0;
     void* cpuAddress = nullptr;
     uint64_t gpuBaseAddress = 0u;
     uint64_t gpuAddress = 0u;
+    uint32_t handle = 0u;
     size_t offset = 0u;
     size_t size = 0u;
-    uint32_t handle = 0u;
 };
 
 
@@ -82,7 +83,7 @@ class Context : public pContext {
     void setKernelData(KernelFromPatchtokens* kernelData);
     KernelFromPatchtokens* getKernelData();
     BufferObject* getBatchBuffer();
-    bool getIsSipKernelAllocated();
+    bool isSIPKernelAllocated();
     void setMaxWorkGroupSize();
     void setMaxThreadsForVfe();
     std::unique_ptr<BufferObject> allocateBufferObject(size_t size, int bufferType);
@@ -102,6 +103,7 @@ class Context : public pContext {
     CIFMain* fclMain = nullptr;
 
   private:
+    bool isGraphicsBaseAddressNeeded(int bufferType);
     int allocateISAMemory();
     int createScratchAllocation();
     int createSurfaceStateHeap();

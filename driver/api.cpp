@@ -83,7 +83,7 @@ API_CALL pKernel* BuildKernel(pContext* cont,
         *ret = kernel->extractMetadata();
         if (*ret)
             return nullptr;
-        if (!context->getIsSipKernelAllocated()) {
+        if (!context->isSIPKernelAllocated()) {
             *ret = kernel->retrieveSystemRoutineInstructions();
             if (*ret)
                 return nullptr;
