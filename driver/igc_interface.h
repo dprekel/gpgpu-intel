@@ -14,15 +14,15 @@ struct ICIF {
     virtual bool GetSupportedVersions(uint64_t intId, uint64_t &verMin, uint64_t &verMax) const;
     ICIF() = default;
     virtual ~ICIF() = default;
-    virtual ICIF* CreateInterfaceImpl(uint64_t intId, uint64_t version);
+    virtual ICIF* CreateInterface(uint64_t intId, uint64_t version);
 };
 
 struct CIFMain : public ICIF {
     virtual uint64_t GetBinaryVersion() const = 0;
 //protected:
     //CIFMain() = default;
-    virtual uint64_t FindIncompatibleImpl(uint64_t entryPointInterface, const void* handle) const = 0;
-    virtual bool FindSupportedVersionsImpl(uint64_t entryPointInterface, uint64_t interfaceToFind, uint64_t &verMin, uint64_t &verMax) const;
+    virtual uint64_t FindIncompatible(uint64_t entryPointInterface, const void* handle) const = 0;
+    virtual bool FindSupportedVersions(uint64_t entryPointInterface, uint64_t interfaceToFind, uint64_t &verMin, uint64_t &verMax) const;
 };
 
 struct IgcBuffer : public ICIF {
@@ -199,9 +199,9 @@ struct OclTranslationOutput : public ICIF {
     virtual bool Successful() const;
     virtual bool HasWarnings() const;
     virtual uint64_t GetOutputType() const;
-    virtual IgcBuffer* GetBuildLogImpl(uint64_t bufferVersion);
-    virtual IgcBuffer* GetOutputImpl(uint64_t bufferVersion);
-    virtual IgcBuffer* GetDebugDataImpl(uint64_t bufferVersion);
+    virtual IgcBuffer* GetBuildLog(uint64_t bufferVersion);
+    virtual IgcBuffer* GetOutput(uint64_t bufferVersion);
+    virtual IgcBuffer* GetDebugData(uint64_t bufferVersion);
   public:
     Impl* pImpl;
 };
@@ -210,10 +210,10 @@ struct IgcOclTranslationCtx : public ICIF {
     struct Impl;
     virtual Impl* GetImpl();
     virtual const Impl* GetImpl() const;
-    virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, IgcBuffer* src, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount);
-    virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, IgcBuffer* src, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount, void* gtPinInput);
-    virtual bool GetSpecConstantsInfoImpl(IgcBuffer* src, IgcBuffer* outSpecConstantsIds, IgcBuffer* outSpecConstantsSizes);
-    virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, IgcBuffer* src, IgcBuffer* specConstantsIds, IgcBuffer* specConstantsValues, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount, void* gtPinInput);
+    virtual OclTranslationOutput* Translate(uint64_t outVersion, IgcBuffer* src, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount);
+    virtual OclTranslationOutput* Translate(uint64_t outVersion, IgcBuffer* src, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount, void* gtPinInput);
+    virtual bool GetSpecConstantsInfo(IgcBuffer* src, IgcBuffer* outSpecConstantsIds, IgcBuffer* outSpecConstantsSizes);
+    virtual OclTranslationOutput* Translate(uint64_t outVersion, IgcBuffer* src, IgcBuffer* specConstantsIds, IgcBuffer* specConstantsValues, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount, void* gtPinInput);
   public:
     Impl* pImpl;
 };
@@ -222,7 +222,7 @@ struct FclOclTranslationCtx : public ICIF {
     struct Impl;
     virtual Impl* GetImpl();
     virtual const Impl* GetImpl() const;
-    virtual OclTranslationOutput* TranslateImpl(uint64_t outVersion, IgcBuffer* src, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount);
+    virtual OclTranslationOutput* Translate(uint64_t outVersion, IgcBuffer* src, IgcBuffer* options, IgcBuffer* internalOptions, IgcBuffer* tracingOptions, uint32_t tracingOptionsCount);
     // return values missing
     virtual void GetFclOptions(IgcBuffer*);
     virtual void GetFclInternalOptions(IgcBuffer*);
@@ -235,10 +235,10 @@ struct IgcOclDeviceCtx : public ICIF {
     virtual Impl* GetImpl();
     virtual const Impl* GetImpl() const;
     virtual void SetProfilingTimerResolution(float v);
-    virtual PlatformInfo* GetPlatformHandleImpl(uint64_t ver);
-    virtual GTSystemInfo* GetGTSystemInfoHandleImpl(uint64_t version);
-    virtual IgcFeaturesAndWorkarounds* GetIgcFeaturesAndWorkaroundsHandleImpl(uint64_t version);
-    virtual IgcOclTranslationCtx* CreateTranslationCtxImpl(uint64_t version, uint64_t inType, uint64_t outType);
+    virtual PlatformInfo* GetPlatformHandle(uint64_t ver);
+    virtual GTSystemInfo* GetGTSystemInfoHandle(uint64_t version);
+    virtual IgcFeaturesAndWorkarounds* GetIgcFeaturesAndWorkaroundsHandle(uint64_t version);
+    virtual IgcOclTranslationCtx* CreateTranslationCtx(uint64_t version, uint64_t inType, uint64_t outType);
     virtual bool GetSystemRoutine(uint64_t typeOfSystemRoutine, bool bindless, IgcBuffer* outSystemRoutineBuffer, IgcBuffer* stateSaveAreaHeaderInit);
     virtual const char* GetIGCRevision();
   public:
@@ -250,10 +250,10 @@ struct FclOclDeviceCtx : public ICIF {
     virtual Impl* GetImpl();
     virtual const Impl* GetImpl() const;
     virtual void SetOclApiVersion(uint32_t version);
-    virtual FclOclTranslationCtx* CreateTranslationCtxImpl(uint64_t ver, uint64_t inType, uint64_t outType);
+    virtual FclOclTranslationCtx* CreateTranslationCtx(uint64_t ver, uint64_t inType, uint64_t outType);
     virtual uint64_t GetPreferredIntermediateRepresentation();
-    virtual FclOclTranslationCtx* CreateTranslationCtxImpl(uint64_t ver, uint64_t inType, uint64_t outType, IgcBuffer* err);
-    virtual PlatformInfo* GetPlatformHandleImpl(uint64_t ver);
+    virtual FclOclTranslationCtx* CreateTranslationCtx(uint64_t ver, uint64_t inType, uint64_t outType, IgcBuffer* err);
+    virtual PlatformInfo* GetPlatformHandle(uint64_t ver);
   public:
     Impl* pImpl;
 };

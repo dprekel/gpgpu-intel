@@ -26,12 +26,18 @@ const DeviceDescriptor deviceDescriptorTable[] = {
 
 Device::Device(int fd, CompilerInfo* compilerInfo)
          : fd(fd) {
-    this->fclMain = compilerInfo->fclMain;
-    this->igcMain = compilerInfo->igcMain;
+    fclMain = compilerInfo->fclMain;
+    igcMain = compilerInfo->igcMain;
 }
 
 Device::~Device() {
     DBG_LOG("[DEBUG] Device destructor called!\n");
+    if (fclMain)
+        fclMain->Release();
+    if (igcMain)
+        igcMain->Release();
+    //TODO: Close file descriptor for device file
+    //TODO: Make sure Device can only be deleted if all other objects are already deleted
 }
 
 

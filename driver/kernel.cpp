@@ -16,95 +16,72 @@
 #include "utils.h"
 
 
-Kernel::Kernel(Context* context, const char* filename, const char* options) 
-         : context(context),
-           filename(filename),
-           srcType(2305843009183132750),            // oclC
-           intermediateType(2305843009202725362),   // spirV
-           outType(18425635491780865102) {          // oclGenBin
-    this->options.data = options;
-    this->options.dataLength = strlen(options);
+Kernel::Kernel(Context* context)
+         : context(context) {
 }
 
 Kernel::~Kernel() {
     DBG_LOG("[DEBUG] Kernel destructor called!\n");
-}
-
-IGCContainer::IGCContainer() {
-}
-
-IGCContainer::~IGCContainer() {
-    DBG_LOG("[DEBUG] IGCContainer destructor called!\n");
-    // Input strings
-    if (src)
-        src->Release();
-    if (buildOptions)
-        buildOptions->Release();
-    if (internalOptions)
-        internalOptions->Release();
-    // Frontend compiler
-    if (fclDeviceCtx)
-        fclDeviceCtx->Release();
-    if (fclTranslationCtx)
-        fclTranslationCtx->Release();
-    if (fclOutput)
-        fclOutput->Release();
-    if (fclBuildOutput)
-        fclBuildOutput->Release();
-    // Backend compiler
-    if (idsBuffer)
-        idsBuffer->Release();
-    if (valuesBuffer)
-        valuesBuffer->Release();
     if (igcDeviceCtx)
         igcDeviceCtx->Release();
-    if (igcTranslationCtx)
-        igcTranslationCtx->Release();
-    if (igcOutput)
-        igcOutput->Release();
-    /*  //TODO: The following line leads to a segfault
     if (igcBuildOutput)
         igcBuildOutput->Release();
-    */
-    // System Routine
-    if (systemRoutineBuffer)
-        systemRoutineBuffer->Release();
-    if (stateSaveAreaBuffer)
-        stateSaveAreaBuffer->Release();
 }
 
+
 char* Kernel::getSurfaceStatePtr() {
-    return this->sshLocal.get();
+    return sshLocal.get();
 }
 
 char* Kernel::getCrossThreadData() {
-    return this->crossThreadData.get();
+    return crossThreadData.get();
 }
 
 std::vector<BufferObject*> Kernel::getExecData() {
-    return this->execData;
+    return execData;
 }
 
-int Kernel::loadProgramSource() {
-    FILE* file = fopen(filename, "r");
-    if (!file) {
-        return LOAD_SOURCE_FAILED;
+//TODO: How do I close the compiler?
+int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
+    auto dlopenFlag = RTLD_LAZY | RTLD_DEEPBIND;
+    void* handle = dlopen(libName, dlopenFlag);
+    if (!handle) {
+        return COMPILER_LOAD_FAILED;
     }
+    CIFMain* (*CreateCIFMainFunc)();
+    void* addr = dlsym(handle, "CIFCreateMain");
+    CreateCIFMainFunc = reinterpret_cast<CIFMain*(*)()>(addr);
+    if (CreateCIFMainFunc == nullptr) {
+        return COMPILER_LOAD_FAILED;
+    }
+    *cifMain = CreateCIFMainFunc();
+    if (*cifMain == nullptr) {
+        return COMPILER_LOAD_FAILED;
+    }
+    return SUCCESS;
+}
+
+//TODO: Check this function, there are invalid reads
+IgcBuffer* Kernel::loadProgramSource(const char* filename) {
+    FILE* file = fopen(filename, "r");
+    if (!file)
+        return nullptr;
     fseek(file, 0, SEEK_END);
     uint64_t size = ftell(file);
     rewind(file);
 
-    char* source = new char[size+1];        //TODO: Memory leak (1091 bytes)
-    fread(static_cast<void*>(source), 1, size*sizeof(char), file);
-    source[size] = '\0';
+    std::unique_ptr<char[]> source(new char[size + 1]);
+    fread(source.get(), 1, size*sizeof(char), file);
     fclose(file);
-
-    sourceCode.data = static_cast<const char*>(source);
-    sourceCode.dataLength = strlen(source + 1);
-    return SUCCESS;
+    source[size] = '\0';
+    auto programSourceBuffer = createIgcBuffer(context->igcMain, source.get(), strlen(source.get()) + 1);
+    if (!programSourceBuffer)
+        return nullptr;
+    return programSourceBuffer;
 }
 
-ICIF* Kernel::CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion) {
+//TODO: Check this function
+ICIF* Kernel::createInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion) {
     uint64_t chosenVersion;
     uint64_t minVerSupported = 0;
     uint64_t maxVerSupported = 0;
@@ -121,17 +98,17 @@ ICIF* Kernel::CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t i
     //printf("Versions are ok\n");
     chosenVersion = std::min(maxVerSupported, interfaceVersion);
     
-    ICIF* deviceCtx = cifMain->CreateInterfaceImpl(interfaceID, chosenVersion);     //TODO: Memory leak
+    ICIF* deviceCtx = cifMain->CreateInterface(interfaceID, chosenVersion);
     return deviceCtx;
 }
 
-IgcBuffer* Kernel::CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t size) {
+IgcBuffer* Kernel::createIgcBuffer(CIFMain* cifMain, const char* data, size_t size) {
     if (cifMain == nullptr) {
         return nullptr;
     }
     uint64_t interfaceID = 0xfffe2429681d9502;
     uint64_t interfaceVersion = 1;
-    auto buff = CreateInterface(cifMain, interfaceID, interfaceVersion);    //TODO: Memory leak
+    auto buff = createInterface(cifMain, interfaceID, interfaceVersion);
     IgcBuffer* buffer = static_cast<IgcBuffer*>(buff);
     if (buffer == nullptr) {
         return nullptr;
@@ -142,30 +119,11 @@ IgcBuffer* Kernel::CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t si
     return buffer;
 }
 
-int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
-    void* handle;
-    auto dlopenFlag = RTLD_LAZY | RTLD_DEEPBIND;
-    handle = dlopen(libName, dlopenFlag);
-    if (!handle) {
-        return COMPILER_LOAD_FAILED;
-    }
-    CIFMain* (*CreateCIFMainFunc)();
-    void* addr = dlsym(handle, "CIFCreateMain");
-    CreateCIFMainFunc = reinterpret_cast<CIFMain*(*)()>(addr);
-    if (CreateCIFMainFunc == nullptr) {
-        return COMPILER_LOAD_FAILED;
-    }
-    *cifMain = CreateCIFMainFunc();     //TODO: Memory leak (24 bytes)
-    if (*cifMain == nullptr) {
-        return COMPILER_LOAD_FAILED;
-    }
-    return SUCCESS;
-}
-
+//TODO: Retrieve openCLVersion from device info
 FclOclDeviceCtx* Kernel::getFclDeviceCtx() {
     uint64_t interfaceID = 95846467711642693;
     uint64_t interfaceVersion = 0x5;
-    ICIF* DeviceCtx = CreateInterface(context->fclMain, interfaceID, interfaceVersion);
+    ICIF* DeviceCtx = createInterface(context->fclMain, interfaceID, interfaceVersion);
     FclOclDeviceCtx* newDeviceCtx = static_cast<FclOclDeviceCtx*>(DeviceCtx);
     if (newDeviceCtx == nullptr) {
         return nullptr;
@@ -174,15 +132,16 @@ FclOclDeviceCtx* Kernel::getFclDeviceCtx() {
     newDeviceCtx->SetOclApiVersion(openCLVersion * 10);
     if (newDeviceCtx->GetUnderlyingVersion() > 4u) {
         uint64_t platformVersion = 0x1;
-        PlatformInfo* igcPlatform = newDeviceCtx->GetPlatformHandleImpl(platformVersion);
+        PlatformInfo* igcPlatform = newDeviceCtx->GetPlatformHandle(platformVersion);
         if (!igcPlatform)
             return nullptr;
-        TransferPlatformInfo(igcPlatform, descriptor->pHwInfo->platform);
+        transferPlatformInfo(igcPlatform, descriptor->pHwInfo->platform);
     }
     return newDeviceCtx;
 }
 
-void Kernel::TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform) {
+//TODO: Retrieve GTTYPE from device info
+void Kernel::transferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform) {
     igcPlatform->SetProductFamily(platform->eProductFamily);
     igcPlatform->SetPCHProductFamily(platform->ePCHProductFamily);
     igcPlatform->SetDisplayCoreFamily(platform->eDisplayCoreFamily);
@@ -194,12 +153,10 @@ void Kernel::TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform)
     igcPlatform->SetRevId_PCH(platform->usRevId_PCH);
     //igcPlatform->SetGTType(platform->eGTType);
     igcPlatform->SetGTType(GTTYPE::GTTYPE_GT3);
-    //uint64_t fam = igcPlatform->GetProductFamily();
-    //uint64_t core = igcPlatform->GetRenderCoreFamily();
-    //printf("fam: %lu, %lu\n", fam, core);
 }
 
-void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo) {
+//TODO: Retrieve EDRAM size from device info
+void Kernel::transferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo) {
     igcGetSystemInfo->SetEuCount(gtSystemInfo->EUCount);
     igcGetSystemInfo->SetThreadCount(gtSystemInfo->ThreadCount);
     igcGetSystemInfo->SetSliceCount(gtSystemInfo->SliceCount);
@@ -225,7 +182,8 @@ void Kernel::TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSy
     igcGetSystemInfo->SetIsDynamicallyPopulated(gtSystemInfo->IsDynamicallyPopulated);
 }
 
-void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable) {
+//TODO: Delete all unnecessary features
+void Kernel::transferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable) {
     igcFeWa->SetFtrDesktop(featureTable->flags.ftrDesktop);
     igcFeWa->SetFtrChannelSwizzlingXOREnabled(featureTable->flags.ftrChannelSwizzlingXOREnabled);
     igcFeWa->SetFtrGtBigDie(featureTable->flags.ftrGtBigDie);
@@ -250,10 +208,11 @@ void Kernel::TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTab
     igcFeWa->SetFtrPooledEuEnabled(featureTable->flags.ftrPooledEuEnabled);
 }
 
+//TODO: Retrieve outProfilingTimerResolution from device info
 IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
     uint64_t interfaceID = 0x15483dac4ed88c8;
     uint64_t interfaceVersion = 2;
-    ICIF* DeviceCtx = CreateInterface(context->igcMain, interfaceID, interfaceVersion);
+    ICIF* DeviceCtx = createInterface(context->igcMain, interfaceID, interfaceVersion);
     IgcOclDeviceCtx* newDeviceCtx = static_cast<IgcOclDeviceCtx*>(DeviceCtx);
     if (newDeviceCtx == nullptr) {
         return nullptr;
@@ -263,104 +222,184 @@ IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
     uint64_t platformID = 1;
     uint64_t gtsystemID = 3;
     uint64_t featureID = 2;
-    auto igcPlatform = newDeviceCtx->GetPlatformHandleImpl(platformID);
-    auto igcGetSystemInfo = newDeviceCtx->GetGTSystemInfoHandleImpl(gtsystemID);
-    auto igcFeWa = newDeviceCtx->GetIgcFeaturesAndWorkaroundsHandleImpl(featureID);
+    auto igcPlatform = newDeviceCtx->GetPlatformHandle(platformID);
+    auto igcGetSystemInfo = newDeviceCtx->GetGTSystemInfoHandle(gtsystemID);
+    auto igcFeWa = newDeviceCtx->GetIgcFeaturesAndWorkaroundsHandle(featureID);
     if (!igcPlatform || !igcGetSystemInfo || !igcFeWa) {
         return nullptr;
     }
-    TransferPlatformInfo(igcPlatform, descriptor->pHwInfo->platform);
-    TransferSystemInfo(igcGetSystemInfo, descriptor->pHwInfo->gtSystemInfo);
-    TransferFeaturesInfo(igcFeWa, descriptor->pHwInfo->featureTable);
+    transferPlatformInfo(igcPlatform, descriptor->pHwInfo->platform);
+    transferSystemInfo(igcGetSystemInfo, descriptor->pHwInfo->gtSystemInfo);
+    transferFeaturesInfo(igcFeWa, descriptor->pHwInfo->featureTable);
 
     return newDeviceCtx;
 }
 
 
-int Kernel::build(uint16_t chipsetID) {
-    int ret = loadProgramSource();
-    if (ret)
-        return ret;
+int Kernel::build(const char* filename, const char* buildOptions, uint16_t chipsetID) {
+    auto programSourceBuffer = loadProgramSource(filename);
+    if (!programSourceBuffer)
+        return LOAD_SOURCE_FAILED;
     if (chipsetID) {
         descriptor = context->device->getDeviceInfoFromDescriptorTable(chipsetID);
-    }
-    else {
+    } else {
         descriptor = std::make_unique<DeviceDescriptor>();
         DeviceDescriptor* dd = context->device->getDeviceDescriptor();
         descriptor->pHwInfo = dd->pHwInfo;
         descriptor->setupHardwareInfo = dd->setupHardwareInfo;
         descriptor->devName = dd->devName;
     }
-    igc.src = CreateIgcBuffer(context->igcMain, sourceCode.data, sourceCode.dataLength + 1);
-    igc.buildOptions = CreateIgcBuffer(context->igcMain, options.data, options.dataLength + 1);
 
     //TODO: Look into cl_device_caps.cpp to retrieve these from hardware info
-    const char* internal_options = "-ocl-version=300 -cl-disable-zebin -cl-intel-has-buffer-offset-arg -D__IMAGE_SUPPORT__=1 -fpreserve-vec3-type -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_fp16,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_icd,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_intel_command_queue_families,+cl_intel_subgroups,+cl_intel_required_subgroup_size,+cl_intel_subgroups_short,+cl_khr_spir,+cl_intel_accelerator,+cl_intel_driver_diagnostics,+cl_khr_priority_hints,+cl_khr_throttle_hints,+cl_khr_create_command_queue,+cl_intel_subgroups_char,+cl_intel_subgroups_long,+cl_khr_il_program,+cl_intel_mem_force_host_memory,+cl_khr_subgroup_extended_types,+cl_khr_subgroup_non_uniform_vote,+cl_khr_subgroup_ballot,+cl_khr_subgroup_non_uniform_arithmetic,+cl_khr_subgroup_shuffle,+cl_khr_subgroup_shuffle_relative,+cl_khr_subgroup_clustered_reduce,+cl_intel_device_attribute_query,+cl_khr_suggested_local_work_size,+cl_khr_fp64,+cl_khr_subgroups,+cl_intel_spirv_device_side_avc_motion_estimation,+cl_intel_spirv_media_block_io,+cl_intel_spirv_subgroups,+cl_khr_spirv_no_integer_wrap_decoration,+cl_intel_unified_shared_memory_preview,+cl_khr_mipmap_image,+cl_khr_mipmap_image_writes,+cl_intel_planar_yuv,+cl_intel_packed_yuv,+cl_intel_motion_estimation,+cl_intel_device_side_avc_motion_estimation,+cl_intel_advanced_motion_estimation,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_khr_image2d_from_buffer,+cl_khr_depth_images,+cl_khr_3d_image_writes,+cl_intel_media_block_io,+cl_intel_va_api_media_sharing,+cl_intel_sharing_format_query,+cl_khr_pci_bus_info";
-    size_t internalOptionsSize = strlen(internal_options) + 1;
-    igc.internalOptions = CreateIgcBuffer(context->igcMain, internal_options, internalOptionsSize);
-    igc.idsBuffer = CreateIgcBuffer(context->igcMain, nullptr, 0);
-    igc.valuesBuffer = CreateIgcBuffer(context->igcMain, nullptr, 0);
+    const char* internalOptions = "-ocl-version=300 -cl-disable-zebin -cl-intel-has-buffer-offset-arg -D__IMAGE_SUPPORT__=1 -fpreserve-vec3-type -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_fp16,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_icd,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_intel_command_queue_families,+cl_intel_subgroups,+cl_intel_required_subgroup_size,+cl_intel_subgroups_short,+cl_khr_spir,+cl_intel_accelerator,+cl_intel_driver_diagnostics,+cl_khr_priority_hints,+cl_khr_throttle_hints,+cl_khr_create_command_queue,+cl_intel_subgroups_char,+cl_intel_subgroups_long,+cl_khr_il_program,+cl_intel_mem_force_host_memory,+cl_khr_subgroup_extended_types,+cl_khr_subgroup_non_uniform_vote,+cl_khr_subgroup_ballot,+cl_khr_subgroup_non_uniform_arithmetic,+cl_khr_subgroup_shuffle,+cl_khr_subgroup_shuffle_relative,+cl_khr_subgroup_clustered_reduce,+cl_intel_device_attribute_query,+cl_khr_suggested_local_work_size,+cl_khr_fp64,+cl_khr_subgroups,+cl_intel_spirv_device_side_avc_motion_estimation,+cl_intel_spirv_media_block_io,+cl_intel_spirv_subgroups,+cl_khr_spirv_no_integer_wrap_decoration,+cl_intel_unified_shared_memory_preview,+cl_khr_mipmap_image,+cl_khr_mipmap_image_writes,+cl_intel_planar_yuv,+cl_intel_packed_yuv,+cl_intel_motion_estimation,+cl_intel_device_side_avc_motion_estimation,+cl_intel_advanced_motion_estimation,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_khr_image2d_from_buffer,+cl_khr_depth_images,+cl_khr_3d_image_writes,+cl_intel_media_block_io,+cl_intel_va_api_media_sharing,+cl_intel_sharing_format_query,+cl_khr_pci_bus_info";
+    auto internalOptionsBuffer = createIgcBuffer(context->igcMain, internalOptions, strlen(internalOptions) + 1);
+    auto buildOptionsBuffer = createIgcBuffer(context->igcMain, buildOptions, strlen(buildOptions) + 1);
 
     // Frontend Compilation
-    igc.fclDeviceCtx = getFclDeviceCtx();
-    if (!igc.fclDeviceCtx) {
+    auto fclDeviceCtx = getFclDeviceCtx();
+    if (!fclDeviceCtx) {
         return FRONTEND_BUILD_ERROR;
     }
-    uint64_t fclTranslationCtxVersion = 1;
-    igc.fclTranslationCtx = igc.fclDeviceCtx->CreateTranslationCtxImpl(fclTranslationCtxVersion, srcType, intermediateType);
-    if (!igc.fclTranslationCtx) {
+    uint64_t fclTranslationCtxVersion = 0x1;
+    auto fclTranslationCtx = fclDeviceCtx->CreateTranslationCtx(fclTranslationCtxVersion, codeType::oclC, codeType::spirV);
+    if (!fclTranslationCtx) {
+        clearFclBuffers(fclDeviceCtx, nullptr, nullptr);
         return FRONTEND_BUILD_ERROR;
     }
-    igc.fclOutput = igc.fclTranslationCtx->TranslateImpl(1, igc.src, igc.buildOptions, igc.internalOptions, nullptr, 0);
-    if (!igc.fclOutput) {
+    auto fclResult = fclTranslationCtx->Translate(0x1, programSourceBuffer, buildOptionsBuffer, internalOptionsBuffer, nullptr, 0);
+    if (!fclResult) {
+        clearFclBuffers(fclDeviceCtx, fclTranslationCtx, nullptr);
         return FRONTEND_BUILD_ERROR;
     }
-    if (igc.fclOutput->Successful() == false) {
+    if (fclResult->Successful() == false) {
+        IgcBuffer* fclBuildLog = fclResult->GetBuildLog(0x1);
+        const char* fclBuildLogMem = reinterpret_cast<const char*>(fclBuildLog->GetMemoryRaw());
+        if (fclBuildLogMem)
+            DBG_LOG("[DEBUG] FCL build log:\n%s\n", fclBuildLogMem);
+        clearFclBuffers(fclDeviceCtx, fclTranslationCtx, fclResult);
         return FRONTEND_BUILD_ERROR;
     }
-    IgcBuffer* fclBuildLog = igc.fclOutput->GetBuildLogImpl(1);
-    const char* fclBuildLogMem = reinterpret_cast<const char*>(fclBuildLog->GetMemoryRaw());
-    if (fclBuildLogMem) {
-        DBG_LOG("[DEBUG] FCL build log: %s\n", fclBuildLogMem);
+    auto fclBuildOutput = fclResult->GetOutput(0x1);
+    if (!fclBuildOutput) {
+        clearFclBuffers(fclDeviceCtx, fclTranslationCtx, fclResult);
+        return FRONTEND_BUILD_ERROR;
     }
-    igc.fclBuildOutput = igc.fclOutput->GetOutputImpl(1);
-    intermediateRepresentation.data = reinterpret_cast<const char*>(igc.fclBuildOutput->GetMemoryRaw());
-    intermediateRepresentation.dataLength = igc.fclBuildOutput->GetSizeRaw();
-    if (!intermediateRepresentation.data) {
-        return FRONTEND_BUILD_ERROR; 
-    }
-    DBG_LOG("[DEBUG] FCL Success: %s\n", intermediateRepresentation.data);
-    igc.fclBuildOutput->Retain();
+    fclBuildOutput->Retain();
+
+    auto spirvIntermediateData = reinterpret_cast<const char*>(fclBuildOutput->GetMemoryRaw());
+    size_t spirvIntermediateLength = fclBuildOutput->GetSizeRaw();
+    clearFclBuffers(fclDeviceCtx, fclTranslationCtx, fclResult);
+
+    DBG_LOG("[DEBUG] FCL Success: %s (Size: %lu Bytes)\n", spirvIntermediateData, spirvIntermediateLength);
 
     // Backend Compilation
-    igc.igcDeviceCtx = getIgcDeviceCtx();
-    if (!igc.igcDeviceCtx) {
+    igcDeviceCtx = getIgcDeviceCtx();
+    if (!igcDeviceCtx) {
         return BACKEND_BUILD_ERROR;
     }
-    uint64_t igcTranslationCtxVersion = 3;
-    igc.igcTranslationCtx = igc.igcDeviceCtx->CreateTranslationCtxImpl(igcTranslationCtxVersion, intermediateType, outType);
-    if (!igc.igcTranslationCtx) {
+    auto idsBuffer = createIgcBuffer(context->igcMain, nullptr, 0);
+    auto valuesBuffer = createIgcBuffer(context->igcMain, nullptr, 0);
+    uint64_t igcTranslationCtxVersion = 0x3;
+
+    auto igcTranslationCtx = igcDeviceCtx->CreateTranslationCtx(igcTranslationCtxVersion, codeType::spirV, codeType::oclGenBin);
+    if (!igcTranslationCtx) {
+        clearIgcBuffers(idsBuffer, valuesBuffer, nullptr, nullptr);
         return BACKEND_BUILD_ERROR;
     }
-    igc.igcOutput = igc.igcTranslationCtx->TranslateImpl(1, igc.fclBuildOutput, igc.idsBuffer, igc.valuesBuffer, igc.buildOptions, igc.internalOptions, nullptr, 0, nullptr);
-    if (!igc.igcOutput) {
+    auto igcResult = igcTranslationCtx->Translate(0x1, fclBuildOutput, idsBuffer, valuesBuffer, buildOptionsBuffer, internalOptionsBuffer, nullptr, 0, nullptr);
+    if (!igcResult) {
+        clearIgcBuffers(idsBuffer, valuesBuffer, igcTranslationCtx, nullptr);
         return BACKEND_BUILD_ERROR;
     }
-    if (igc.igcOutput->Successful() == false) {
+    if (igcResult->Successful() == false) {
+        IgcBuffer* igcBuildLog = igcResult->GetBuildLog(0x1);
+        const char* igcBuildLogMem = reinterpret_cast<const char*>(igcBuildLog->GetMemoryRaw());
+        if (igcBuildLogMem)
+            DBG_LOG("[DEBUG] IGC build log:\n%s\n", igcBuildLogMem);
+        clearIgcBuffers(idsBuffer, valuesBuffer, igcTranslationCtx, igcResult);
         return BACKEND_BUILD_ERROR;
     }
-    IgcBuffer* igcBuildLog = igc.igcOutput->GetBuildLogImpl(1);
-    const char* igcBuildLogMem = reinterpret_cast<const char*>(igcBuildLog->GetMemoryRaw());
-    if (igcBuildLogMem) {
-        DBG_LOG("[DEBUG] IGC build log: %s\n", igcBuildLogMem);
-    }
-    igc.igcBuildOutput = igc.igcOutput->GetOutputImpl(1);
-    deviceBinary.data = reinterpret_cast<const char*>(igc.igcBuildOutput->GetMemoryRaw());
-    deviceBinary.dataLength = igc.igcBuildOutput->GetSizeRaw();
-    if (!deviceBinary.data) {
+    this->igcBuildOutput = igcResult->GetOutput(0x1);
+    if (!igcBuildOutput) {
+        clearIgcBuffers(idsBuffer, valuesBuffer, igcTranslationCtx, igcResult);
         return BACKEND_BUILD_ERROR;
     }
-    DBG_LOG("[DEBUG] IGC Success: %s\n", deviceBinary.data);
+    igcBuildOutput->Retain();
+
+    this->deviceBinary = reinterpret_cast<const char*>(igcBuildOutput->GetMemoryRaw());
+    size_t deviceBinarySize = igcBuildOutput->GetSizeRaw();
+    clearIgcBuffers(idsBuffer, valuesBuffer, igcTranslationCtx, igcResult);
+
+    DBG_LOG("[DEBUG] IGC Success: %s (Size: %lu Bytes)\n", deviceBinary, deviceBinarySize);
+
+    fclBuildOutput->Release();
+    buildOptionsBuffer->Release();
+    internalOptionsBuffer->Release();
+    programSourceBuffer->Release();
+
+    return SUCCESS;
+}
+
+void Kernel::clearIgcBuffers(IgcBuffer* ids, IgcBuffer* values, IgcOclTranslationCtx* translationCtx, OclTranslationOutput* output) {
+    if (output)
+        output->Release();
+    if (translationCtx)
+        translationCtx->Release();
+    ids->Release();
+    values->Release();
+}
+
+void Kernel::clearFclBuffers(FclOclDeviceCtx* deviceCtx, FclOclTranslationCtx* translationCtx, OclTranslationOutput* output) {
+    if (output)
+        output->Release();
+    if (translationCtx)
+        translationCtx->Release();
+    deviceCtx->Release();
+}
+
+void Kernel::clearSystemRoutineBuffers(IgcBuffer* systemRoutine, IgcBuffer* stateSaveAreaHeader) {
+    systemRoutine->Release();
+    stateSaveAreaHeader->Release();
+}
+
+int Kernel::retrieveSystemRoutineInstructions() {
+    if (!igcDeviceCtx) {
+        igcDeviceCtx = getIgcDeviceCtx();
+        if (!igcDeviceCtx)
+            return SIP_ERROR;
+    }
+    uint64_t interfaceID = 0xfffe2429681d9502;
+    uint64_t interfaceVersion = 0x1;
+
+    ICIF* RoutineBufferCtx = createInterface(context->igcMain, interfaceID, interfaceVersion);
+    auto systemRoutineBuffer = static_cast<IgcBuffer*>(RoutineBufferCtx);
+    if (!systemRoutineBuffer)
+        return SIP_ERROR;
+
+    ICIF* AreaBufferCtx = createInterface(context->igcMain, interfaceID, interfaceVersion);
+    auto stateSaveAreaBuffer = static_cast<IgcBuffer*>(AreaBufferCtx);
+    if (!stateSaveAreaBuffer) {
+        systemRoutineBuffer->Release();
+        return SIP_ERROR;
+    }
+    uint64_t typeOfSystemRoutine = 0xfffffffffffc642;
+    bool result = igcDeviceCtx->GetSystemRoutine(typeOfSystemRoutine, false, systemRoutineBuffer, stateSaveAreaBuffer);
+    if (!result) {
+        clearSystemRoutineBuffers(systemRoutineBuffer, stateSaveAreaBuffer);
+        return SIP_ERROR;
+    }
+    size_t sipSize = systemRoutineBuffer->GetSizeRaw();
+    const char* sipBinaryRaw = static_cast<const char*>(systemRoutineBuffer->GetMemoryRaw());
+    if (!sipSize || !sipBinaryRaw) {
+        clearSystemRoutineBuffers(systemRoutineBuffer, stateSaveAreaBuffer);
+        return SIP_ERROR;
+    }
+    int ret = context->createSipAllocation(sipSize, sipBinaryRaw);
+    if (ret) {
+        clearSystemRoutineBuffers(systemRoutineBuffer, stateSaveAreaBuffer);
+        return ret;
+    }
+    clearSystemRoutineBuffers(systemRoutineBuffer, stateSaveAreaBuffer);
     return SUCCESS;
 }
 
@@ -595,7 +634,7 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
 int Kernel::extractMetadata() {
     // The following usage of reinterpret_cast could lead to undefined behaviour. Checking the header magic
     // makes sure that the reinterpreted memory has the correct format
-    const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary.data);
+    const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary);
     if (binHeader->Magic != 0x494E5443) {
         return INVALID_KERNEL_FORMAT;
     }
@@ -640,30 +679,6 @@ int Kernel::extractMetadata() {
     return SUCCESS;
 }
 
-int Kernel::retrieveSystemRoutineInstructions() {
-    if (!igc.igcDeviceCtx)
-        igc.igcDeviceCtx = getIgcDeviceCtx();
-    uint64_t interfaceID2 = 0xfffe2429681d9502;
-    uint64_t interfaceVersion2 = 0x1;
-    ICIF* RoutineBufferCtx = CreateInterface(context->igcMain, interfaceID2, interfaceVersion2);
-    ICIF* AreaBufferCtx = CreateInterface(context->igcMain, interfaceID2, interfaceVersion2);
-    igc.systemRoutineBuffer = static_cast<IgcBuffer*>(RoutineBufferCtx);
-    igc.stateSaveAreaBuffer = static_cast<IgcBuffer*>(AreaBufferCtx);
-    if (!igc.systemRoutineBuffer || !igc.stateSaveAreaBuffer)
-        return SIP_ERROR;
-    uint64_t typeOfSystemRoutine = 0xfffffffffffc642;
-    bool result = igc.igcDeviceCtx->GetSystemRoutine(typeOfSystemRoutine, false, igc.systemRoutineBuffer, igc.stateSaveAreaBuffer);    
-    if (!result)
-        return SIP_ERROR;
-    size_t sipSize = igc.systemRoutineBuffer->GetSizeRaw();
-    const char* sipBinaryRaw = static_cast<const char*>(igc.systemRoutineBuffer->GetMemoryRaw());
-    if (!sipSize || !sipBinaryRaw)
-        return SIP_ERROR;
-    int ret = context->createSipAllocation(sipSize, sipBinaryRaw);
-    if (ret)
-        return ret;
-    return SUCCESS;
-}
 
 
 void Kernel::setOptBit(uint32_t& opts, uint32_t bit, bool isSet) {

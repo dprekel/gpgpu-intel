@@ -60,7 +60,7 @@ API_CALL pContext* CreateContext(pDevice* dev, int* ret) {
 API_CALL pKernel* BuildKernel(pContext* cont,
                         const char* filename,
                         const char* options,
-                        uint16_t chipset_id,
+                        uint16_t chipsetID,
                         bool enableDisassemble,
                         int* ret) {
     *ret = 0;
@@ -70,8 +70,8 @@ API_CALL pKernel* BuildKernel(pContext* cont,
     }
     *ret = 0;
     Context* context = static_cast<Context*>(cont);
-    Kernel* kernel = new Kernel(context, filename, options);
-    *ret = kernel->build(chipset_id);
+    Kernel* kernel = new Kernel(context);
+    *ret = kernel->build(filename, options, chipsetID);
     if (*ret)
         return nullptr;
     if (enableDisassemble) {
@@ -79,7 +79,7 @@ API_CALL pKernel* BuildKernel(pContext* cont,
         if (*ret)
             return nullptr;
     }
-    if (!chipset_id) {
+    if (!chipsetID) {
         *ret = kernel->extractMetadata();
         if (*ret)
             return nullptr;

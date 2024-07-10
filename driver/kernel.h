@@ -102,24 +102,29 @@ struct PatchSamplerStateArray : PatchItemHeader {
     uint32_t Count;
     uint32_t BorderColorOffset;
 };
+
 struct PatchBindingTableState : PatchItemHeader {
     uint32_t Offset;
     uint32_t Count;
     uint32_t SurfaceStateOffset;
 };
+
 struct PatchMediaVFEState : PatchItemHeader {
     uint32_t ScratchSpaceOffset;
     uint32_t PerThreadScratchSpace;
 };
+
 struct PatchMediaInterfaceDescriptorLoad : PatchItemHeader {
     uint32_t InterfaceDescriptorDataOffset;
 };
+
 struct PatchInterfaceDescriptorData : PatchItemHeader {
     uint32_t Offset;
     uint32_t SamplerStateOffset;
     uint32_t KernelOffset;
     uint32_t BindingTableOffset;
 };
+
 struct PatchExecutionEnvironment : PatchItemHeader {
     uint32_t RequiredWorkGroupSizeX;
     uint32_t RequiredWorkGroupSizeY;
@@ -153,9 +158,11 @@ struct PatchExecutionEnvironment : PatchItemHeader {
     uint32_t HasStackCalls;
     uint64_t SIMDInfo;
 };
+
 struct PatchKernelAttributesInfo : PatchItemHeader {
     uint32_t AttributesSize;
 };
+
 struct PatchThreadPayload : PatchItemHeader {
     uint32_t HeaderPresent;
     uint32_t LocalIDXPresent;
@@ -173,9 +180,11 @@ struct PatchThreadPayload : PatchItemHeader {
     uint32_t OffsetToSkipSetFFIDGP;
     uint32_t PassInlineData;
 };
+
 struct PatchDataParameterStream : PatchItemHeader {
     uint32_t DataParameterStreamSize;
 };
+
 struct PatchDataParameterBuffer : PatchItemHeader {
     uint32_t Type;
     uint32_t ArgumentNumber;
@@ -186,6 +195,7 @@ struct PatchDataParameterBuffer : PatchItemHeader {
     uint32_t LocationIndex2;
     uint32_t IsEmulationArgument;
 };
+
 struct PatchGlobalMemoryObjectKernelArgument : PatchItemHeader {
     uint32_t ArgumentNumber;
     uint32_t SurfaceStateHeapOffset;
@@ -193,6 +203,7 @@ struct PatchGlobalMemoryObjectKernelArgument : PatchItemHeader {
     uint32_t LocationIndex2;
     uint32_t IsEmulationArgument;
 };
+
 struct PatchStatelessGlobalMemoryObjectKernelArgument : PatchItemHeader {
     uint32_t ArgumentNumber;
     uint32_t SurfaceStateHeapOffset;
@@ -202,6 +213,7 @@ struct PatchStatelessGlobalMemoryObjectKernelArgument : PatchItemHeader {
     uint32_t LocationIndex2;
     uint32_t IsEmulationArgument;
 };
+
 struct PatchStatelessConstantMemoryObjectKernelArgument : PatchItemHeader {
     uint32_t ArgumentNumber;
     uint32_t SurfaceStateHeapOffset;
@@ -262,57 +274,25 @@ struct ArgDescValue : ArgDescriptor {
     uint16_t sourceOffset = 0u;
 };
 
-template <typename T>
-struct Releaser {
-    void operator()(T* libPtr) const {
-        if (libPtr)
-            libPtr->Release();
-    }
-};
 
-struct DataStruct {
-    const char* data = nullptr;
-    size_t dataLength;
-};
-
-struct IGCContainer {
-    IGCContainer();
-    ~IGCContainer();
-
-
-    // Input strings
-    IgcBuffer* src = nullptr;
-    IgcBuffer* buildOptions = nullptr;
-    IgcBuffer* internalOptions = nullptr;
-    // Frontend Compiler
-    FclOclDeviceCtx* fclDeviceCtx = nullptr;
-    FclOclTranslationCtx* fclTranslationCtx = nullptr;
-    OclTranslationOutput* fclOutput = nullptr;
-    IgcBuffer* fclBuildOutput = nullptr;
-    // Backend Compiler
-    IgcBuffer* idsBuffer = nullptr;
-    IgcBuffer* valuesBuffer = nullptr;
-    IgcOclDeviceCtx* igcDeviceCtx = nullptr;
-    IgcOclTranslationCtx* igcTranslationCtx = nullptr;
-    OclTranslationOutput* igcOutput = nullptr;
-    IgcBuffer* igcBuildOutput = nullptr;
-    // System Routine
-    IgcBuffer* systemRoutineBuffer = nullptr;
-    IgcBuffer* stateSaveAreaBuffer = nullptr;
+namespace codeType {
+    constexpr uint64_t oclC = 2305843009183132750;
+    constexpr uint64_t spirV = 2305843009202725362;
+    constexpr uint64_t oclGenBin = 18425635491780865102;    //TODO: Check the size
 };
 
 
 class Kernel : public pKernel {
   public:
-    Kernel(Context* context, const char* filename, const char* options);
+    Kernel(Context* context);
     ~Kernel();
     static int loadCompiler(const char* libName, CIFMain** cifMain);
     char* getSurfaceStatePtr();
     char* getCrossThreadData();
     std::vector<BufferObject*> getExecData();
-    int loadProgramSource();
+    IgcBuffer* loadProgramSource(const char* filename);
     int initialize();
-    int build(uint16_t chipsetID);
+    int build(const char* filename, const char* options, uint16_t chipsetID);
     int setArgument(uint32_t argIndex, size_t argSize, void* argValue);
     int disassembleBinary();
     int extractMetadata();
@@ -320,32 +300,27 @@ class Kernel : public pKernel {
 
     Context* context;
   private:
-    ICIF* CreateInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion);
-    IgcBuffer* CreateIgcBuffer(CIFMain* cifMain, const char* data, size_t size);
+    ICIF* createInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion);
+    IgcBuffer* createIgcBuffer(CIFMain* cifMain, const char* data, size_t size);
     FclOclDeviceCtx* getFclDeviceCtx();
     IgcOclDeviceCtx* getIgcDeviceCtx();
-    void TransferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform);
-    void TransferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo);
-    void TransferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable);
+    void transferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform);
+    void transferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo);
+    void transferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable);
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
     void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset, uint32_t dataParamOffset);
     int setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue);
     int setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue);
+    void clearFclBuffers(FclOclDeviceCtx* deviceCtx, FclOclTranslationCtx* translationCtx, OclTranslationOutput* output);
+    void clearIgcBuffers(IgcBuffer* ids, IgcBuffer* values, IgcOclTranslationCtx* translationCtx, OclTranslationOutput* output);
+    void clearSystemRoutineBuffers(IgcBuffer* systemRoutine, IgcBuffer* stateSaveAreaHeader);
     void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
 
-    std::unique_ptr<DeviceDescriptor> descriptor;
-    IGCContainer igc;
-
-    const char* filename;
-    DataStruct options;    
-    DataStruct sourceCode;
-    DataStruct intermediateRepresentation;
-    DataStruct deviceBinary;
-
-    uint64_t srcType;
-    uint64_t intermediateType;
-    uint64_t outType;
+    IgcOclDeviceCtx* igcDeviceCtx = nullptr;
+    IgcBuffer* igcBuildOutput = nullptr;
+    const char* deviceBinary = nullptr;
+    //size_t deviceBinarySize = 0u;
 
     const uint8_t* header = nullptr;
     const uint8_t* patchListBlob = nullptr;
@@ -355,6 +330,7 @@ class Kernel : public pKernel {
     bool unsupportedKernelArgs = false;
     bool hasBindlessMode = false;
 
+    std::unique_ptr<DeviceDescriptor> descriptor;
     std::vector<std::unique_ptr<ArgDescriptor>> argDescriptor;
     std::unique_ptr<char[]> sshLocal;
     std::unique_ptr<char[]> crossThreadData;

@@ -100,7 +100,7 @@ bool Context::isSIPKernelAllocated() {
     return isSipKernelAllocated;
 }
 
-bool Context::isGraphicsBaseAddressNeeded(int bufferType) {
+bool Context::isGraphicsBaseAddressRequired(int bufferType) {
     return bufferType == BufferType::INTERNAL_HEAP ||
            bufferType == BufferType::KERNEL_ISA ||
            bufferType == BufferType::KERNEL_ISA_INTERNAL;
@@ -110,7 +110,7 @@ bool Context::isGraphicsBaseAddressNeeded(int bufferType) {
 std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size, int bufferType) {
     size_t alignment = MemoryConstants::pageSize;
     size_t sizeToAlloc = size + alignment;
-    void* pOriginalMemory = new (std::nothrow)char[sizeToAlloc];
+    char* pOriginalMemory = new (std::nothrow)char[sizeToAlloc];
     if (!pOriginalMemory)
         return nullptr;
     // The allocated memory must be aligned to a page boundary in order to be correctly 
@@ -134,7 +134,7 @@ std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size, int buf
         return nullptr;
     }
     auto bo = std::make_unique<BufferObject>(device->fd, bufferType, pAlignedMemoryPtr, userptr.handle, size);
-    if (isGraphicsBaseAddressNeeded(bufferType)) {
+    if (isGraphicsBaseAddressRequired(bufferType)) {
         //TODO: Reserve memory to pin to
         //TODO: Do a prior assignment in context constructor
         bo->gpuBaseAddress = device->gpuBaseAddress;

@@ -103,7 +103,7 @@ class Context : public pContext {
     CIFMain* fclMain = nullptr;
 
   private:
-    bool isGraphicsBaseAddressNeeded(int bufferType);
+    bool isGraphicsBaseAddressRequired(int bufferType);
     int allocateISAMemory();
     int createScratchAllocation();
     int createSurfaceStateHeap();
