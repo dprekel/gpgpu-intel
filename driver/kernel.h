@@ -276,9 +276,12 @@ struct ArgDescValue : ArgDescriptor {
 
 
 namespace codeType {
-    constexpr uint64_t oclC = 2305843009183132750;
-    constexpr uint64_t spirV = 2305843009202725362;
-    constexpr uint64_t oclGenBin = 18425635491780865102;    //TODO: Check the size
+    //constexpr uint64_t oclC = 2305843009183132750ul;
+    constexpr uint64_t oclC = 0x1ffffffffe2dac4eul;
+    //constexpr uint64_t spirV = 2305843009202725362ul;
+    constexpr uint64_t spirV = 0x1fffffffff58a1f2ul;
+    //constexpr uint64_t oclGenBin = 18425635491780865102ul;
+    constexpr uint64_t oclGenBin = 0xffb501db486dac4eul;
 };
 
 
@@ -294,7 +297,7 @@ class Kernel : public pKernel {
     int initialize();
     int build(const char* filename, const char* options, uint16_t chipsetID);
     int setArgument(uint32_t argIndex, size_t argSize, void* argValue);
-    int disassembleBinary();
+    //int disassembleBinary();
     int extractMetadata();
     int retrieveSystemRoutineInstructions();
 
@@ -306,7 +309,6 @@ class Kernel : public pKernel {
     IgcOclDeviceCtx* getIgcDeviceCtx();
     void transferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform);
     void transferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo);
-    void transferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable);
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
     void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset, uint32_t dataParamOffset);
@@ -315,12 +317,10 @@ class Kernel : public pKernel {
     void clearFclBuffers(FclOclDeviceCtx* deviceCtx, FclOclTranslationCtx* translationCtx, OclTranslationOutput* output);
     void clearIgcBuffers(IgcBuffer* ids, IgcBuffer* values, IgcOclTranslationCtx* translationCtx, OclTranslationOutput* output);
     void clearSystemRoutineBuffers(IgcBuffer* systemRoutine, IgcBuffer* stateSaveAreaHeader);
-    void setOptBit(uint32_t& opts, uint32_t bit, bool isSet);
 
     IgcOclDeviceCtx* igcDeviceCtx = nullptr;
     IgcBuffer* igcBuildOutput = nullptr;
     const char* deviceBinary = nullptr;
-    //size_t deviceBinarySize = 0u;
 
     const uint8_t* header = nullptr;
     const uint8_t* patchListBlob = nullptr;
@@ -336,7 +336,6 @@ class Kernel : public pKernel {
     std::unique_ptr<char[]> crossThreadData;
     std::vector<BufferObject*> execData;
 };
-
 
 
 

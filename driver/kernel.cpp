@@ -80,24 +80,15 @@ IgcBuffer* Kernel::loadProgramSource(const char* filename) {
     return programSourceBuffer;
 }
 
-//TODO: Check this function
 ICIF* Kernel::createInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion) {
-    uint64_t chosenVersion;
-    uint64_t minVerSupported = 0;
-    uint64_t maxVerSupported = 0;
-
+    uint64_t minVerSupported = 0u;
+    uint64_t maxVerSupported = 0u;
     bool isSupported = cifMain->GetSupportedVersions(interfaceID, minVerSupported, maxVerSupported);
-    //printf("maxVerSupported: %lu\n", maxVerSupported);
-    //printf("minVerSupported: %lu\n", minVerSupported);
-    if (isSupported == false) {
+    if (!isSupported)
         return nullptr;
-    }
-    if ((interfaceVersion < minVerSupported) || (interfaceVersion > maxVerSupported)) {
+    if ((interfaceVersion < minVerSupported) || (interfaceVersion > maxVerSupported))
         return nullptr;
-    }
-    //printf("Versions are ok\n");
-    chosenVersion = std::min(maxVerSupported, interfaceVersion);
-    
+    uint64_t chosenVersion = std::min(maxVerSupported, interfaceVersion);
     ICIF* deviceCtx = cifMain->CreateInterface(interfaceID, chosenVersion);
     return deviceCtx;
 }
@@ -119,6 +110,10 @@ IgcBuffer* Kernel::createIgcBuffer(CIFMain* cifMain, const char* data, size_t si
     return buffer;
 }
 
+//TODO: Check if compilation works for ca. 20 different device IDs
+//TODO: Check the whole process with clang compiler
+//TODO: Test with 3 or 4 different IGC versions
+//TODO: Test the whole process with different kernels
 //TODO: Retrieve openCLVersion from device info
 FclOclDeviceCtx* Kernel::getFclDeviceCtx() {
     uint64_t interfaceID = 95846467711642693;
@@ -182,41 +177,15 @@ void Kernel::transferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSy
     igcGetSystemInfo->SetIsDynamicallyPopulated(gtSystemInfo->IsDynamicallyPopulated);
 }
 
-//TODO: Delete all unnecessary features
-void Kernel::transferFeaturesInfo(IgcFeaturesAndWorkarounds* igcFeWa, FeatureTable* featureTable) {
-    igcFeWa->SetFtrDesktop(featureTable->flags.ftrDesktop);
-    igcFeWa->SetFtrChannelSwizzlingXOREnabled(featureTable->flags.ftrChannelSwizzlingXOREnabled);
-    igcFeWa->SetFtrGtBigDie(featureTable->flags.ftrGtBigDie);
-    igcFeWa->SetFtrGtMediumDie(featureTable->flags.ftrGtMediumDie);
-    igcFeWa->SetFtrGtSmallDie(featureTable->flags.ftrGtSmallDie);
-    igcFeWa->SetFtrGT1(featureTable->flags.ftrGT1);
-    igcFeWa->SetFtrGT1_5(featureTable->flags.ftrGT1_5);
-    igcFeWa->SetFtrGT2(featureTable->flags.ftrGT2);
-    igcFeWa->SetFtrGT3(featureTable->flags.ftrGT3);
-    igcFeWa->SetFtrGT4(featureTable->flags.ftrGT4);
-    igcFeWa->SetFtrIVBM0M1Platform(featureTable->flags.ftrIVBM0M1Platform);
-    igcFeWa->SetFtrGTL(featureTable->flags.ftrGT1);
-    igcFeWa->SetFtrGTM(featureTable->flags.ftrGT2);
-    igcFeWa->SetFtrGTH(featureTable->flags.ftrGT3);
-    igcFeWa->SetFtrSGTPVSKUStrapPresent(featureTable->flags.ftrSGTPVSKUStrapPresent);
-    igcFeWa->SetFtrGTA(featureTable->flags.ftrGTA);
-    igcFeWa->SetFtrGTC(featureTable->flags.ftrGTC);
-    igcFeWa->SetFtrGTX(featureTable->flags.ftrGTX);
-    igcFeWa->SetFtr5Slice(featureTable->flags.ftr5Slice);
-    igcFeWa->SetFtrGpGpuMidThreadLevelPreempt(featureTable->flags.ftrGpGpuMidThreadLevelPreempt);
-    igcFeWa->SetFtrWddm2Svm(featureTable->flags.ftrWddm2Svm);
-    igcFeWa->SetFtrPooledEuEnabled(featureTable->flags.ftrPooledEuEnabled);
-}
 
 //TODO: Retrieve outProfilingTimerResolution from device info
 IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
     uint64_t interfaceID = 0x15483dac4ed88c8;
-    uint64_t interfaceVersion = 2;
+    uint64_t interfaceVersion = 0x2;
     ICIF* DeviceCtx = createInterface(context->igcMain, interfaceID, interfaceVersion);
     IgcOclDeviceCtx* newDeviceCtx = static_cast<IgcOclDeviceCtx*>(DeviceCtx);
-    if (newDeviceCtx == nullptr) {
+    if (!newDeviceCtx)
         return nullptr;
-    }
     int outProfilingTimerResolution = 83;
     newDeviceCtx->SetProfilingTimerResolution(static_cast<float>(outProfilingTimerResolution));
     uint64_t platformID = 1;
@@ -230,7 +199,11 @@ IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
     }
     transferPlatformInfo(igcPlatform, descriptor->pHwInfo->platform);
     transferSystemInfo(igcGetSystemInfo, descriptor->pHwInfo->gtSystemInfo);
-    transferFeaturesInfo(igcFeWa, descriptor->pHwInfo->featureTable);
+
+    FeatureTable* featureTable = descriptor->pHwInfo->featureTable;
+    igcFeWa->SetFtrGpGpuMidThreadLevelPreempt(featureTable->flags.ftrGpGpuMidThreadLevelPreempt);
+    igcFeWa->SetFtrWddm2Svm(featureTable->flags.ftrWddm2Svm);
+    igcFeWa->SetFtrPooledEuEnabled(featureTable->flags.ftrPooledEuEnabled);
 
     return newDeviceCtx;
 }
@@ -357,11 +330,6 @@ void Kernel::clearFclBuffers(FclOclDeviceCtx* deviceCtx, FclOclTranslationCtx* t
     deviceCtx->Release();
 }
 
-void Kernel::clearSystemRoutineBuffers(IgcBuffer* systemRoutine, IgcBuffer* stateSaveAreaHeader) {
-    systemRoutine->Release();
-    stateSaveAreaHeader->Release();
-}
-
 int Kernel::retrieveSystemRoutineInstructions() {
     if (!igcDeviceCtx) {
         igcDeviceCtx = getIgcDeviceCtx();
@@ -403,6 +371,10 @@ int Kernel::retrieveSystemRoutineInstructions() {
     return SUCCESS;
 }
 
+void Kernel::clearSystemRoutineBuffers(IgcBuffer* systemRoutine, IgcBuffer* stateSaveAreaHeader) {
+    systemRoutine->Release();
+    stateSaveAreaHeader->Release();
+}
 
 void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData) {
     switch (token->Token) {
@@ -668,7 +640,7 @@ int Kernel::extractMetadata() {
     uint32_t crossThreadDataSize = kernelData.dataParameterStream->DataParameterStreamSize;
     if (crossThreadDataSize) {
         crossThreadData = std::make_unique<char[]>(crossThreadDataSize);
-        memset(crossThreadData.get(), 0x00, crossThreadDataSize);
+        memset(crossThreadData.get(), 0x0, crossThreadDataSize);
     }
     uint32_t sshSize = kernelData.header->SurfaceStateHeapSize;
     if (sshSize) {
@@ -679,42 +651,9 @@ int Kernel::extractMetadata() {
     return SUCCESS;
 }
 
-
-
-void Kernel::setOptBit(uint32_t& opts, uint32_t bit, bool isSet) {
-    if (isSet) {
-        opts |= bit;
-    } else {
-        opts &= ~bit;
-    }
-}
-
-int Kernel::disassembleBinary() {
-    /*
-    iga_disassemble_options_t dopts = {sizeof(iga_disassemble_options_t), IGA_FORMATTING_OPTS_DEFAULT, 0, 0, IGA_DECODING_OPTS_DEFAULT};
-    uint32_t fmtOpts = 0;
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_NUMERIC_LABELS, false);
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_SYNTAX_EXTS, false);
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_HEX_FLOATS, false);
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_PC, false);
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_BITS, false);
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_DEFS, false);
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_DEPS, false);
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_LDST, false);
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_BFNEXPRS, true);
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_ANSI, true);
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_JSON, false);
-    setOptBit(fmtOpts, IGA_FORMATTING_OPT_PRINT_JSON_V1, false);
-    dopts.formatting_opts = fmtopts;
-    dopts.base_pc_offset = pcOffset;
-    setOptBit(dopts.decoder_opts, IGA_DECODING_OPT_NATIVE, useNativeEncoder);
-
-    char* text;
-    int status = iga_disassemble(context, &dopts, kernelData.isa, kernelData.header->KernelHeapSize, nullptr, nullptr, &text);
-    */
+int dumpBinary() {
     return SUCCESS;
 }
-
 
 
 

@@ -74,15 +74,15 @@ API_CALL pKernel* BuildKernel(pContext* cont,
     *ret = kernel->build(filename, options, chipsetID);
     if (*ret)
         return nullptr;
+    *ret = kernel->extractMetadata();
+    if (*ret)
+        return nullptr;
     if (enableDisassemble) {
-        *ret = kernel->disassembleBinary();
+        //*ret = kernel->disassembleBinary();
         if (*ret)
             return nullptr;
     }
     if (!chipsetID) {
-        *ret = kernel->extractMetadata();
-        if (*ret)
-            return nullptr;
         if (!context->isSIPKernelAllocated()) {
             *ret = kernel->retrieveSystemRoutineInstructions();
             if (*ret)
