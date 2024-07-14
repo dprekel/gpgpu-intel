@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <string>
 
 #include "buffer.h"
 #include "commands_gen9.h"
@@ -44,24 +45,26 @@ std::vector<BufferObject*> Kernel::getExecData() {
 //TODO: How do I close the compiler?
 int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
     auto dlopenFlag = RTLD_LAZY | RTLD_DEEPBIND;
-    void* handle = dlopen(libName, dlopenFlag);
+    std::string directory = ""; //"/home/david/igc/igc2/";
+    std::string filename = directory + libName;
+    void* handle = dlopen(filename.c_str(), dlopenFlag);
     if (!handle) {
-        return COMPILER_LOAD_FAILED;
+        return COMPILER_LOAD_ERROR;
     }
     CIFMain* (*CreateCIFMainFunc)();
     void* addr = dlsym(handle, "CIFCreateMain");
     CreateCIFMainFunc = reinterpret_cast<CIFMain*(*)()>(addr);
     if (CreateCIFMainFunc == nullptr) {
-        return COMPILER_LOAD_FAILED;
+        return COMPILER_LOAD_ERROR;
     }
     *cifMain = CreateCIFMainFunc();
     if (*cifMain == nullptr) {
-        return COMPILER_LOAD_FAILED;
+        return COMPILER_LOAD_ERROR;
     }
     return SUCCESS;
 }
 
-//TODO: Check this function, there are invalid reads
+//TODO: Check this function, valgrind says there are invalid reads
 IgcBuffer* Kernel::loadProgramSource(const char* filename) {
     FILE* file = fopen(filename, "r");
     if (!file)
@@ -74,6 +77,7 @@ IgcBuffer* Kernel::loadProgramSource(const char* filename) {
     fread(source.get(), 1, size*sizeof(char), file);
     fclose(file);
     source[size] = '\0';
+    DBG_LOG("%s\n", source.get());
     auto programSourceBuffer = createIgcBuffer(context->igcMain, source.get(), strlen(source.get()) + 1);
     if (!programSourceBuffer)
         return nullptr;
@@ -81,6 +85,8 @@ IgcBuffer* Kernel::loadProgramSource(const char* filename) {
 }
 
 ICIF* Kernel::createInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion) {
+    if (!cifMain)
+        return nullptr;
     uint64_t minVerSupported = 0u;
     uint64_t maxVerSupported = 0u;
     bool isSupported = cifMain->GetSupportedVersions(interfaceID, minVerSupported, maxVerSupported);
@@ -94,48 +100,41 @@ ICIF* Kernel::createInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t i
 }
 
 IgcBuffer* Kernel::createIgcBuffer(CIFMain* cifMain, const char* data, size_t size) {
-    if (cifMain == nullptr) {
+    if (!cifMain)
         return nullptr;
-    }
     uint64_t interfaceID = 0xfffe2429681d9502;
     uint64_t interfaceVersion = 1;
     auto buff = createInterface(cifMain, interfaceID, interfaceVersion);
     IgcBuffer* buffer = static_cast<IgcBuffer*>(buff);
-    if (buffer == nullptr) {
+    if (!buffer)
         return nullptr;
-    }
     if ((data != nullptr) && (size != 0)) {
         buffer->SetUnderlyingStorage(static_cast<const void*>(data), size);
     }
     return buffer;
 }
 
-//TODO: Check if compilation works for ca. 20 different device IDs
-//TODO: Check the whole process with clang compiler
-//TODO: Test with 3 or 4 different IGC versions
 //TODO: Test the whole process with different kernels
-//TODO: Retrieve openCLVersion from device info
 FclOclDeviceCtx* Kernel::getFclDeviceCtx() {
     uint64_t interfaceID = 95846467711642693;
     uint64_t interfaceVersion = 0x5;
     ICIF* DeviceCtx = createInterface(context->fclMain, interfaceID, interfaceVersion);
     FclOclDeviceCtx* newDeviceCtx = static_cast<FclOclDeviceCtx*>(DeviceCtx);
-    if (newDeviceCtx == nullptr) {
+    if (!newDeviceCtx)
         return nullptr;
-    }
-    uint32_t openCLVersion = 30;
+    FeatureTable* featureTable = deviceDescriptor->pHwInfo->featureTable;
+    uint32_t openCLVersion = featureTable->flags.ftrSupportsOcl30 ? 30 : 21;
     newDeviceCtx->SetOclApiVersion(openCLVersion * 10);
     if (newDeviceCtx->GetUnderlyingVersion() > 4u) {
         uint64_t platformVersion = 0x1;
         PlatformInfo* igcPlatform = newDeviceCtx->GetPlatformHandle(platformVersion);
         if (!igcPlatform)
             return nullptr;
-        transferPlatformInfo(igcPlatform, descriptor->pHwInfo->platform);
+        transferPlatformInfo(igcPlatform, deviceDescriptor->pHwInfo->platform);
     }
     return newDeviceCtx;
 }
 
-//TODO: Retrieve GTTYPE from device info
 void Kernel::transferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform) {
     igcPlatform->SetProductFamily(platform->eProductFamily);
     igcPlatform->SetPCHProductFamily(platform->ePCHProductFamily);
@@ -146,11 +145,9 @@ void Kernel::transferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform)
     igcPlatform->SetRevId(platform->usRevId);
     igcPlatform->SetDeviceID_PCH(platform->usDeviceID_PCH);
     igcPlatform->SetRevId_PCH(platform->usRevId_PCH);
-    //igcPlatform->SetGTType(platform->eGTType);
-    igcPlatform->SetGTType(GTTYPE::GTTYPE_GT3);
+    igcPlatform->SetGTType(platform->eGTType);
 }
 
-//TODO: Retrieve EDRAM size from device info
 void Kernel::transferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo) {
     igcGetSystemInfo->SetEuCount(gtSystemInfo->EUCount);
     igcGetSystemInfo->SetThreadCount(gtSystemInfo->ThreadCount);
@@ -158,8 +155,7 @@ void Kernel::transferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSy
     igcGetSystemInfo->SetSubSliceCount(gtSystemInfo->SubSliceCount);
     igcGetSystemInfo->SetL3CacheSizeInKb(gtSystemInfo->L3CacheSizeInKb);
     igcGetSystemInfo->SetLLCCacheSizeInKb(gtSystemInfo->LLCCacheSizeInKb);
-    //igcGetSystemInfo->SetEdramSizeInKb(gtSystemInfo->EdramSizeInKb);
-    igcGetSystemInfo->SetEdramSizeInKb(65536);
+    igcGetSystemInfo->SetEdramSizeInKb(gtSystemInfo->EdramSizeInKb);
     igcGetSystemInfo->SetL3BankCount(gtSystemInfo->L3BankCount);
     igcGetSystemInfo->SetMaxFillRate(gtSystemInfo->MaxFillRate);
     igcGetSystemInfo->SetEuCountPerPoolMax(gtSystemInfo->EuCountPerPoolMax);
@@ -180,27 +176,27 @@ void Kernel::transferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSy
 
 //TODO: Retrieve outProfilingTimerResolution from device info
 IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
-    uint64_t interfaceID = 0x15483dac4ed88c8;
-    uint64_t interfaceVersion = 0x2;
+    uint64_t interfaceID = 0x15483dac4ed88c8u;
+    uint64_t interfaceVersion = 2u;
     ICIF* DeviceCtx = createInterface(context->igcMain, interfaceID, interfaceVersion);
     IgcOclDeviceCtx* newDeviceCtx = static_cast<IgcOclDeviceCtx*>(DeviceCtx);
     if (!newDeviceCtx)
         return nullptr;
     int outProfilingTimerResolution = 83;
     newDeviceCtx->SetProfilingTimerResolution(static_cast<float>(outProfilingTimerResolution));
-    uint64_t platformID = 1;
-    uint64_t gtsystemID = 3;
-    uint64_t featureID = 2;
+    uint64_t platformID = 1u;
+    uint64_t gtsystemID = 3u;
+    uint64_t featureID = 2u;
     auto igcPlatform = newDeviceCtx->GetPlatformHandle(platformID);
     auto igcGetSystemInfo = newDeviceCtx->GetGTSystemInfoHandle(gtsystemID);
     auto igcFeWa = newDeviceCtx->GetIgcFeaturesAndWorkaroundsHandle(featureID);
     if (!igcPlatform || !igcGetSystemInfo || !igcFeWa) {
         return nullptr;
     }
-    transferPlatformInfo(igcPlatform, descriptor->pHwInfo->platform);
-    transferSystemInfo(igcGetSystemInfo, descriptor->pHwInfo->gtSystemInfo);
+    transferPlatformInfo(igcPlatform, deviceDescriptor->pHwInfo->platform);
+    transferSystemInfo(igcGetSystemInfo, deviceDescriptor->pHwInfo->gtSystemInfo);
 
-    FeatureTable* featureTable = descriptor->pHwInfo->featureTable;
+    FeatureTable* featureTable = deviceDescriptor->pHwInfo->featureTable;
     igcFeWa->SetFtrGpGpuMidThreadLevelPreempt(featureTable->flags.ftrGpGpuMidThreadLevelPreempt);
     igcFeWa->SetFtrWddm2Svm(featureTable->flags.ftrWddm2Svm);
     igcFeWa->SetFtrPooledEuEnabled(featureTable->flags.ftrPooledEuEnabled);
@@ -209,19 +205,14 @@ IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
 }
 
 
-int Kernel::build(const char* filename, const char* buildOptions, uint16_t chipsetID) {
+
+int Kernel::build(const char* filename, const char* buildOptions) {
     auto programSourceBuffer = loadProgramSource(filename);
     if (!programSourceBuffer)
-        return LOAD_SOURCE_FAILED;
-    if (chipsetID) {
-        descriptor = context->device->getDeviceInfoFromDescriptorTable(chipsetID);
-    } else {
-        descriptor = std::make_unique<DeviceDescriptor>();
-        DeviceDescriptor* dd = context->device->getDeviceDescriptor();
-        descriptor->pHwInfo = dd->pHwInfo;
-        descriptor->setupHardwareInfo = dd->setupHardwareInfo;
-        descriptor->devName = dd->devName;
-    }
+        return SOURCE_LOAD_ERROR;
+    deviceDescriptor = context->device->getDeviceDescriptor();
+    if (!deviceDescriptor)
+        return UNSUPPORTED_HARDWARE;
 
     //TODO: Look into cl_device_caps.cpp to retrieve these from hardware info
     const char* internalOptions = "-ocl-version=300 -cl-disable-zebin -cl-intel-has-buffer-offset-arg -D__IMAGE_SUPPORT__=1 -fpreserve-vec3-type -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_fp16,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_icd,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_intel_command_queue_families,+cl_intel_subgroups,+cl_intel_required_subgroup_size,+cl_intel_subgroups_short,+cl_khr_spir,+cl_intel_accelerator,+cl_intel_driver_diagnostics,+cl_khr_priority_hints,+cl_khr_throttle_hints,+cl_khr_create_command_queue,+cl_intel_subgroups_char,+cl_intel_subgroups_long,+cl_khr_il_program,+cl_intel_mem_force_host_memory,+cl_khr_subgroup_extended_types,+cl_khr_subgroup_non_uniform_vote,+cl_khr_subgroup_ballot,+cl_khr_subgroup_non_uniform_arithmetic,+cl_khr_subgroup_shuffle,+cl_khr_subgroup_shuffle_relative,+cl_khr_subgroup_clustered_reduce,+cl_intel_device_attribute_query,+cl_khr_suggested_local_work_size,+cl_khr_fp64,+cl_khr_subgroups,+cl_intel_spirv_device_side_avc_motion_estimation,+cl_intel_spirv_media_block_io,+cl_intel_spirv_subgroups,+cl_khr_spirv_no_integer_wrap_decoration,+cl_intel_unified_shared_memory_preview,+cl_khr_mipmap_image,+cl_khr_mipmap_image_writes,+cl_intel_planar_yuv,+cl_intel_packed_yuv,+cl_intel_motion_estimation,+cl_intel_device_side_avc_motion_estimation,+cl_intel_advanced_motion_estimation,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_khr_image2d_from_buffer,+cl_khr_depth_images,+cl_khr_3d_image_writes,+cl_intel_media_block_io,+cl_intel_va_api_media_sharing,+cl_intel_sharing_format_query,+cl_khr_pci_bus_info";
@@ -337,7 +328,7 @@ int Kernel::retrieveSystemRoutineInstructions() {
             return SIP_ERROR;
     }
     uint64_t interfaceID = 0xfffe2429681d9502;
-    uint64_t interfaceVersion = 0x1;
+    uint64_t interfaceVersion = 1u;
 
     ICIF* RoutineBufferCtx = createInterface(context->igcMain, interfaceID, interfaceVersion);
     auto systemRoutineBuffer = static_cast<IgcBuffer*>(RoutineBufferCtx);
@@ -651,7 +642,19 @@ int Kernel::extractMetadata() {
     return SUCCESS;
 }
 
-int dumpBinary() {
+int Kernel::dumpBinary() {
+    //TODO: Add chipsetID and source file name to binary name
+    //TODO: Clear file if it already exists
+    std::string filename = "/tmp/kernel.isabin";
+    FILE* file = fopen(filename.c_str(), "w");
+    if (!file)
+        return KERNEL_DUMP_ERROR;
+    size_t kernelSize = kernelData.header->KernelHeapSize;
+    size_t bytesWritten = fwrite(kernelData.isa, 1, kernelSize, file);
+    if (bytesWritten != kernelSize)
+        return KERNEL_DUMP_ERROR;
+
+    //TODO: After this, disassemble with "./iga64 -d -p "GEN9" kernel.isabin"
     return SUCCESS;
 }
 

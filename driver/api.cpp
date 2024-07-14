@@ -60,35 +60,30 @@ API_CALL pContext* CreateContext(pDevice* dev, int* ret) {
 API_CALL pKernel* BuildKernel(pContext* cont,
                         const char* filename,
                         const char* options,
-                        uint16_t chipsetID,
-                        bool enableDisassemble,
+                        bool enableKernelDump,
                         int* ret) {
     *ret = 0;
     if (!cont) {
         *ret = NO_CONTEXT_ERROR;
         return nullptr;
     }
-    *ret = 0;
     Context* context = static_cast<Context*>(cont);
     Kernel* kernel = new Kernel(context);
-    *ret = kernel->build(filename, options, chipsetID);
+    *ret = kernel->build(filename, options);
     if (*ret)
         return nullptr;
     *ret = kernel->extractMetadata();
     if (*ret)
         return nullptr;
-    if (enableDisassemble) {
-        //*ret = kernel->disassembleBinary();
+    if (!context->isSIPKernelAllocated()) {
+        *ret = kernel->retrieveSystemRoutineInstructions();
         if (*ret)
             return nullptr;
     }
-    if (!chipsetID) {
-        if (!context->isSIPKernelAllocated()) {
-            *ret = kernel->retrieveSystemRoutineInstructions();
-            if (*ret)
-                return nullptr;
-        }
-    // Set kernelBuildSuccessful to true
+    if (enableKernelDump) {
+        *ret = kernel->dumpBinary();
+        if (*ret)
+            return nullptr;
     }
     pKernel* kern = static_cast<pKernel*>(kernel);
     return kern;
@@ -147,7 +142,7 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     ret = context->populateAndSubmitExecBuffer();
     if (ret)
         return ret;
-    //ret = context->finishExecution();
+    ret = context->finishExecution();
     if (ret)
         return ret;
     context->kernel = nullptr; //TODO: maybe this is not good

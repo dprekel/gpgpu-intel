@@ -3,50 +3,45 @@ Issues / Jobs left
 ----------------------------------------------------------------------------------------------
 
 CreateDevice:
-- Retrieve device info from HardwareConfigBlob 
-- Load compilers here
 
 CreateContext:
-- create TagBuffer
-- Save TagBuffer, Preemption buffer and SipKernel for other kernel instances
+- Preemption buffer only if midThreadPreemption is true
 
 CreateBuffer:
-- check if allocated memory is page aligned and a multiple of the cache line size
 - do I need alignUp?
-- finish execBuffer submission
 
 BuildKernel:
 - Support kernel compilation for all other architectures
-- finish kernel disassembly
 - Write functions for determination of interface IDs and InterfaceVersions
 - Write function for construction of internalOptions string (query info from device structs)
-- Freeing memory after compilation (writing destructor)
 - Test driver with different IGC versions from Github and Ubuntu repos
 - Is Mutex required?
-- Release() functions: Free buffer object memory and memory allocated by compiler
 - Check if all fields in KernelFromPatchtokensBlob struct are populated
 
 SetKernelArg:
-- Maybe all kernel argument cases must be added and a handler for not supported argument types must be added
 - What leads to the call of setArgLocal, setArgPipe, setArgDevQueue, setArgBuffer, setArgImage, setArgAccelerator, setArgSampler and setArgImmediate?
-- Check if buffer can be either bindful or bindless
-- Check if ssh and CrossThreadData need to be patched (like in clCreateKernel)
 
 EnqueueNDRangeKernel:
 - make sure this can only be done if we have GEN9
-- create SSH buffer; add binding table entries to it
-- create Indirect Object Heap (CrossThreadData and PerThreadData)
-- create Dynamic State Heap (INTERFACE_DESCRIPTOR_DATA)
-- create SipKernel buffer
-- create Scratch Surface buffer
-- finish creation of the two command buffers
-- Get rid of all memory leaks
-- Add clFinish functionality
 - Make sure all API functions can only be called in correct order
-- Add aligned free for buffer objects
 - make sure that a new kernel can only be submitted if a previous kernel has finished execution
 
 
+
+Elkhartlake: SliceCount = 1;
+IcelakeLP: SliceCount = 1;
+Lakefield: SliceCount = 1;
+AlderlakeS: SliceCount = 1; ftrGpGpuMidThreadLevelPreempt sometimes false;
+AlderlakeP: SliceCount = 1; ftrGpGpuMidThreadLevelPreempt sometimes false;
+DG1: SliceCount = 1; ftrGpGpuMidThreadLevelPreempt = false;
+Rocketlake: SliceCount = 1; ftrGpGpuMidThreadLevelPreempt = false;
+TigerlakeLp: SliceCount = 1; ftrGpGpuMidThreadLevelPreempt = false;
+Broadwell: SliceCount = ?; EdramSize = ? (sometimes 128 * 1024);
+Broxton: SliceCount = 1; EuCountPerPoolMin, EuCountPerPoolMax;
+Coffeelake: SliceCount = 2 or 3; EdramSize = (64 * 1024 if 0x3EA8 or 0x3EA6);
+Geminilake: EuCountPerPoolMin, EuCountPerPoolMax;
+Kabylake: SliceCount = 1 or 2; EdramSize = (64 * 1024 if (0x5927 or 0x5926);
+Skylake: 
 
 
 
@@ -102,16 +97,6 @@ EnqueueNDRangeKernel:
     - SAMPLER_BORDER_COLOR_STATE
 
 
-dispatchWalker()  hardware_interface_base.inl   (otain indirect heaps, align dsh, Kernel Tuning, dispatch Kernel commands, flush caches)
-    |
-    v
-dispatchKernelCommands()  hardware_interface_base.inl   (workgroup offsets, programWalker)
-    |
-    v
-programWalker()  hardware_interface_bdw_and_later.inl   (sendIndirectState + setGpgpuWalkerThreadData)
-    |
-    v
-sendIndirectState()  hardware_commands_helper_base.inl  (fill dsh, ioh, ssh)
 
 
 DumpProgramBinaries command:

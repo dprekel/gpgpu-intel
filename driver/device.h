@@ -49,33 +49,35 @@ class Device : public pDevice {
     //TODO: Only one function that returns DeviceDescriptor
     //TODO: Either initialize values in initializer list or in class body, be consistent!
     //TODO: Try to make all member variables private
-    std::unique_ptr<DeviceDescriptor> getDeviceInfoFromDescriptorTable(uint16_t chipsetID);
+    std::unique_ptr<DeviceDescriptor> getDeviceInfoFromDescriptorTable(uint16_t deviceID);
     DeviceDescriptor* getDeviceDescriptor();
 
     Context* context = nullptr;
     CIFMain* igcMain = nullptr;
     CIFMain* fclMain = nullptr;
     int fd = 0;
-    std::unique_ptr<DeviceDescriptor> descriptor;
     uint64_t gpuBaseAddress = 0u;
   private:
     bool checkDriverVersion();
     void getDeviceInfoFromHardwareConfigBlob();
+    void setEdramSize(SystemInfo* sysInfo);
+    void setLastLevelCacheSize(SystemInfo* sysInfo);
+    void setDeviceExtensions(FeatureTable* featureTable);
+    int checkPreemptionSupport(FeatureTable* featureTable);
     int retrieveTopologyInfo(SystemInfo* sysInfo);
     int calculateGraphicsBaseAddress();
     int getParamIoctl(int param, int* paramValue);
     std::unique_ptr<uint8_t[]> queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length);
-    void checkPreemptionSupport();
     
+    std::unique_ptr<DeviceDescriptor> descriptor;
     uint32_t numDevices = 0u;
     char driver_name[5];
-    int chipsetID = 0;
+    int deviceID = 0;
     int revisionID = 0;
     uint16_t subSliceCountPerSlice = 0u;
     uint16_t euCountPerSubSlice = 0u;
-    bool hardwareConfigBlobSupported = false;
-    bool preemptionSupported = false;
-    int schedulerValue = 0;
+    bool isHardwareConfigBlobSupported = false;
+    bool isMidThreadLevelPreemptionSupported = false;
 };
 
 

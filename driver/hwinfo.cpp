@@ -42,7 +42,11 @@ void PVC::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrGpGpuMidBatchPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
     featureTable->flags.ftrTileY = true;
-    //featureTable->ftrBcsInfo = maxNBitValue(9);
+    //featureTable->flags.ftrBcsInfo = maxNBitValue(9);
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsIndependentForwardProgress = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 SystemInfo PvcHwConfig::gtSystemInfo = {0};
 void PvcHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -122,6 +126,9 @@ void DG2::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrCCSRing = true;
     featureTable->flags.ftrUnified3DMediaCompressionFormats = true;
     //featureTable->flags.ftrTile64Optimization = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 SystemInfo Dg2HwConfig::gtSystemInfo = {0};
 void Dg2HwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -201,6 +208,9 @@ void MTL::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrCCSNode = true;
     featureTable->flags.ftrCCSRing = true;
     //featureTable->flags.ftrTile64Optimization = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 SystemInfo MtlHwConfig::gtSystemInfo = {0};
 void MtlHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -240,7 +250,7 @@ const HardwareInfo MtlHwConfig::hwInfo = {
 
 
 // ------------------------------------------------------------------------------------------
-// ARROWLAKE (GEN12LP)
+// ARROWLAKE
 // ------------------------------------------------------------------------------------------
 Platform ARL::platform = {
     PRODUCT_FAMILY::IGFX_ARROWLAKE,
@@ -271,6 +281,9 @@ void ARL::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrAstcLdr2D = true;
     featureTable->flags.ftrGpGpuMidBatchPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 SystemInfo ArlHwConfig::gtSystemInfo = {0};
 void ArlHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -341,6 +354,9 @@ void TGLLP::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrGpGpuMidBatchPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
     featureTable->flags.ftrPerCtxtPreemptionGranularityControl = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 SystemInfo TgllpHw1x6x16::gtSystemInfo = {0};
 void TgllpHw1x6x16::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -453,6 +469,9 @@ void DG1::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
     featureTable->flags.ftrPerCtxtPreemptionGranularityControl = true;
     //featureTable->flags.ftrBcsInfo = maxNBitValue(1);
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 SystemInfo Dg1HwConfig::gtSystemInfo = {0};
 void Dg1HwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -529,6 +548,9 @@ void RKL::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrGpGpuMidBatchPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
     featureTable->flags.ftrPerCtxtPreemptionGranularityControl = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 SystemInfo RklHwConfig::gtSystemInfo = {0};
 void RklHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -599,6 +621,9 @@ void ADLS::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrAstcLdr2D = true;
     featureTable->flags.ftrGpGpuMidBatchPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 SystemInfo AdlsHwConfig::gtSystemInfo = {0};
 void AdlsHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -669,6 +694,9 @@ void ADLN::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrAstcLdr2D = true;
     featureTable->flags.ftrGpGpuMidBatchPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 SystemInfo AdlnHwConfig::gtSystemInfo = {0};
 void AdlnHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -734,6 +762,9 @@ void ADLP::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrAstcLdr2D = true;
     featureTable->flags.ftrGpGpuMidBatchPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 SystemInfo AdlpHwConfig::gtSystemInfo = {0};
 void AdlpHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -806,6 +837,10 @@ void ICLLP::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrGpGpuMidThreadLevelPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
     featureTable->flags.ftrPerCtxtPreemptionGranularityControl = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsIndependentForwardProgress = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 void ICLLP::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
@@ -912,6 +947,7 @@ void LKF::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrGpGpuMidThreadLevelPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
     featureTable->flags.ftrPerCtxtPreemptionGranularityControl = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
 }
 SystemInfo LkfHw1x8x8::gtSystemInfo = {0};
 void LkfHw1x8x8::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -990,6 +1026,7 @@ void EHL::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrGpGpuMidThreadLevelPreempt = true;
     featureTable->flags.ftrGpGpuThreadGroupLevelPreempt = true;
     featureTable->flags.ftrPerCtxtPreemptionGranularityControl = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
 }
 SystemInfo EhlHwConfig::gtSystemInfo = {0};
 void EhlHwConfig::setupHardwareInfo(const HardwareInfo* hwInfo) {
@@ -1068,6 +1105,10 @@ void SKL::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrVEBOX = true;
     featureTable->flags.ftrSingleVeboxSlice = featureTable->flags.ftrGT1 || featureTable->flags.ftrGT2;
     featureTable->flags.ftrTileY = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsIndependentForwardProgress = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 void SKL::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
@@ -1197,6 +1238,10 @@ void KBL::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrFbcBlitterTracking = true;
     featureTable->flags.ftrFbcCpuTracking = true;
     featureTable->flags.ftrTileY = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsIndependentForwardProgress = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 void KBL::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
@@ -1327,6 +1372,10 @@ void CFL::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrFbcBlitterTracking = true;
     featureTable->flags.ftrFbcCpuTracking = true;
     featureTable->flags.ftrTileY = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsIndependentForwardProgress = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 void CFL::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
@@ -1443,6 +1492,7 @@ void GLK::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrAstcHdr2D = true;
     featureTable->flags.ftrAstcLdr2D = true;
     featureTable->flags.ftrTileY = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
 }
 void GLK::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
@@ -1532,6 +1582,7 @@ void BXT::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrFbcBlitterTracking = true;
     featureTable->flags.ftrFbcCpuTracking = true;
     featureTable->flags.ftrTileY = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
 }
 void BXT::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
@@ -1609,6 +1660,10 @@ void BDW::setupFeatureAndWorkaroundTable(const HardwareInfo* hwInfo) {
     featureTable->flags.ftrFbcBlitterTracking = true;
     featureTable->flags.ftrFbcCpuTracking = true;
     featureTable->flags.ftrTileY = true;
+    featureTable->flags.ftrSupportsOcl21 = true;
+    featureTable->flags.ftrSupportsOcl30 = true;
+    featureTable->flags.ftrSupportsIndependentForwardProgress = true;
+    featureTable->flags.ftrSupportsInteger64BitAtomics = true;
 }
 void BDW::setupHardwareInfoBase(const HardwareInfo* hwInfo) {
     SystemInfo* gtSysInfo = hwInfo->gtSystemInfo;
@@ -1685,7 +1740,36 @@ const HardwareInfo BdwHw2x3x8::hwInfo = {
 };
 
 
-
+const char* deviceExtensionsList = "cl_khr_byte_addressable_store "
+                                   "cl_khr_fp16 "
+                                   "cl_khr_global_int32_base_atomics "
+                                   "cl_khr_global_int32_extended_atomics "
+                                   "cl_khr_icd "
+                                   "cl_khr_local_int32_base_atomics "
+                                   "cl_khr_local_int32_extended_atomics "
+                                   "cl_intel_command_queue_families "
+                                   "cl_intel_subgroups "
+                                   "cl_intel_required_subgroup_size "
+                                   "cl_intel_subgroups_short "
+                                   "cl_khr_spir "
+                                   "cl_intel_accelerator "
+                                   "cl_intel_driver_diagnostics "
+                                   "cl_khr_priority_hints "
+                                   "cl_khr_throttle_hints "
+                                   "cl_khr_create_command_queue "
+                                   "cl_intel_subgroups_char "
+                                   "cl_intel_subgroups_long "
+                                   "cl_khr_il_program "
+                                   "cl_intel_mem_force_host_memory "
+                                   "cl_khr_subgroup_extended_types "
+                                   "cl_khr_subgroup_non_uniform_vote "
+                                   "cl_khr_subgroup_ballot "
+                                   "cl_khr_subgroup_non_uniform_arithmetic "
+                                   "cl_khr_subgroup_shuffle "
+                                   "cl_khr_subgroup_shuffle_relative "
+                                   "cl_khr_subgroup_clustered_reduce "
+                                   "cl_intel_device_attribute_query "
+                                   "cl_khr_suggested_local_work_size ";
 
 
 

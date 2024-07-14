@@ -9,7 +9,7 @@
 #define UNSUPPORTED_KERNEL_DRIVER            -1
 #define QUERY_FAILED                         -2
 #define SOFTPIN_NOT_SUPPORTED                -3
-#define HARDWARE_NOT_SUPPORTED               -4
+#define UNSUPPORTED_HARDWARE                 -4
 #define NO_TURBO_BOOST                       -5
 #define CONTEXT_ALREADY_EXISTS               -6
 #define CONTEXT_CREATION_FAILED              -7
@@ -22,9 +22,9 @@
 #define NO_BUFFER_ERROR                     -14
 #define FRONTEND_BUILD_ERROR                -15
 #define BACKEND_BUILD_ERROR                 -16
-#define LOAD_SOURCE_FAILED                  -17
+#define SOURCE_LOAD_ERROR                   -17
 #define NO_DEVICES_FOUND                    -18
-#define COMPILER_LOAD_FAILED                -19
+#define COMPILER_LOAD_ERROR                 -19
 #define INVALID_KERNEL_FORMAT               -20
 #define INVALID_KERNEL_ARG                  -21
 #define INVALID_KERNEL                      -22
@@ -32,6 +32,7 @@
 #define GEM_EXECBUFFER_FAILED               -24
 #define GEM_WAIT_FAILED                     -25
 #define POST_SYNC_OPERATION_FAILED          -26
+#define KERNEL_DUMP_ERROR                   -27
 
 
 class pDevice {
@@ -65,8 +66,7 @@ extern pBuffer* CreateBuffer(pContext* context,
 extern pKernel* BuildKernel(pContext* context,
                         const char* filename,
                         const char* options,
-                        uint16_t chipset_id,
-                        bool enableDisassemble,
+                        bool enableKernelDump,
                         int* err);
 extern int SetKernelArg(pKernel* kern,
                         uint32_t arg_index,

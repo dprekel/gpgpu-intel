@@ -15,6 +15,8 @@
 #include "hwinfo.h"
 #include "ioctl.h"
 
+extern const char* deviceExtensionsList;
+
 const DeviceDescriptor deviceDescriptorTable[] = {
 #define NAMEDDEVICE(devId, gt, devName) {devId, &gt::hwInfo, &gt::setupHardwareInfo, devName},
 #define DEVICE(devId, gt) {devId, &gt::hwInfo, &gt::setupHardwareInfo, ""},
@@ -84,6 +86,8 @@ std::vector<int> Device::openDevices(int* err) {
 CompilerInfo Device::initCompiler(int* ret) {
     CompilerInfo compilerInfo;
     *ret = Kernel::loadCompiler(compilerInfo.fclName, &compilerInfo.fclMain);
+    if (*ret)
+        return compilerInfo;
     *ret = Kernel::loadCompiler(compilerInfo.igcName, &compilerInfo.igcMain);
     return compilerInfo;
 }
@@ -103,38 +107,98 @@ int Device::initialize() {
             return UNSUPPORTED_KERNEL_DRIVER;
     }
     // query device IDs.
-    int ret = getParamIoctl(I915_PARAM_CHIPSET_ID, &chipsetID);
+    int ret = getParamIoctl(I915_PARAM_CHIPSET_ID, &deviceID);
     ret = getParamIoctl(I915_PARAM_REVISION, &revisionID);
     if (ret)
         return QUERY_FAILED;
 
     // Get device info from device descriptor table above.
-    descriptor = getDeviceInfoFromDescriptorTable(chipsetID);
-    if (descriptor->pHwInfo) {
-        descriptor->setupHardwareInfo(descriptor->pHwInfo);
-        descriptor->pHwInfo->platform->usDeviceID = chipsetID;
-        descriptor->pHwInfo->platform->usRevId = revisionID;
-    }
+    descriptor = getDeviceInfoFromDescriptorTable(deviceID);
+    if (!descriptor)
+        return UNSUPPORTED_HARDWARE;
+    descriptor->setupHardwareInfo(descriptor->pHwInfo);
+    descriptor->pHwInfo->platform->usDeviceID = deviceID;
+    descriptor->pHwInfo->platform->usRevId = revisionID;
+
     // If supported, get additional device info from hardware config blob.
     getDeviceInfoFromHardwareConfigBlob();
-
     this->devName = descriptor->devName;
     SystemInfo* sysInfo = descriptor->pHwInfo->gtSystemInfo;
+    setEdramSize(sysInfo);
+    setLastLevelCacheSize(sysInfo);
+
     INFO_LOG("\n");
     INFO_LOG("GPU %d\n", numDevices);
     INFO_LOG("------------------------------------------------------------------\n");
-    INFO_LOG("Device ID: \t\t0x%X [%d]\n", this->chipsetID, this->revisionID);
+    INFO_LOG("Device ID: \t\t0x%X [%d]\n", this->deviceID, this->revisionID);
     INFO_LOG("Device Name: \t\t%s\n", this->devName);
+    INFO_LOG("\n");
 
     ret = retrieveTopologyInfo(sysInfo);
+    if (ret)
+        return ret;
+    FeatureTable* featureTable = descriptor->pHwInfo->featureTable;
+    setDeviceExtensions(featureTable);
+    ret = checkPreemptionSupport(featureTable);
     if (ret)
         return ret;
     ret = calculateGraphicsBaseAddress();
     if (ret)
         return ret;
-    checkPreemptionSupport();
-    INFO_LOG("\n");
+
     return SUCCESS;
+}
+
+void Device::setEdramSize(SystemInfo* sysInfo) {
+    if (deviceID == 0x5926 || deviceID == 0x1927 || deviceID == 0x192D ||
+        deviceID == 0x3EA8 || deviceID == 0x3EA6 || deviceID == 0x5927 ||
+        deviceID == 0x5926) {
+        sysInfo->EdramSizeInKb = 64 * MemoryConstants::kiloByte;
+    }
+    if (deviceID == 0x193B || deviceID == 0x193D) {
+        sysInfo->EdramSizeInKb = 128 * MemoryConstants::kiloByte;
+    }
+}
+
+void Device::setLastLevelCacheSize(SystemInfo* sysInfo) {
+
+}
+
+void Device::setDeviceExtensions(FeatureTable* featureTable) {
+    std::string deviceExtensions;
+    if (featureTable->flags.ftrSupportsOcl30) {
+        deviceExtensions += "-ocl-version=300 ";
+    } else {
+        deviceExtensions += "-ocl-version=210 ";
+    }
+    deviceExtensions += "-cl-disable-zebin ";
+    //if (enableStatelessToStatefulWithOffset)
+        deviceExtensions += "-cl-intel-has-buffer-offset-arg ";
+    //if (isForceEmuInt32DivRemSPWARequired)
+        deviceExtensions += "-cl-intel-force-emu-sp-int32divrem ";
+    deviceExtensions.append(deviceExtensionsList);
+    if (featureTable->flags.ftrSupportsOcl21) {
+        if (featureTable->flags.ftrSupportsIndependentForwardProgress)
+            deviceExtensions += "cl_khr_subgroups ";
+        if (featureTable->flags.ftrSVM)
+            deviceExtensions += "cl_intel_spirv_device_side_avc_motion_estimation ";
+        deviceExtensions += "cl_intel_spirv_subgroups ";
+        deviceExtensions += "cl_khr_spirv_no_integer_wrap_decoration ";
+        deviceExtensions += "cl_intel_unified_shared_memory_preview ";
+    }
+    if (featureTable->flags.ftrSVM) {
+        deviceExtensions += "cl_intel_motion_estimation ";
+        deviceExtensions += "cl_intel_device_side_avc_motion_estimation ";
+    }
+    //if (supportsAdvancedVme)
+        deviceExtensions += "cl_intel_advanced_motion_estimation ";
+    if (featureTable->flags.ftrSupportsInteger64BitAtomics) {
+        deviceExtensions += "cl_khr_int64_base_atomics ";
+        deviceExtensions += "cl_khr_int64_extended_atomics ";
+    }
+    //if (isPciBusInfoValid)
+    //TODO: What is pci_bus_info?
+        deviceExtensions += "cl_khr_pci_bus_info ";
 }
 
 
@@ -153,10 +217,11 @@ bool Device::checkDriverVersion() {
     return strcmp(name, "i915") == 0;
 }
 
-std::unique_ptr<DeviceDescriptor> Device::getDeviceInfoFromDescriptorTable(uint16_t chipset_id) {
+std::unique_ptr<DeviceDescriptor> Device::getDeviceInfoFromDescriptorTable(uint16_t deviceID) {
     auto descriptor = std::make_unique<DeviceDescriptor>();
+    memset(descriptor.get(), 0x0, sizeof(DeviceDescriptor));
     for (auto &d : deviceDescriptorTable) {
-        if (chipset_id == d.deviceId) {
+        if (deviceID == d.deviceId) {
             descriptor->pHwInfo = d.pHwInfo;
             descriptor->setupHardwareInfo = d.setupHardwareInfo;
             //device->eGtType = d.eGtType;
@@ -164,6 +229,8 @@ std::unique_ptr<DeviceDescriptor> Device::getDeviceInfoFromDescriptorTable(uint1
             break;
         }
     }
+    if (!descriptor->pHwInfo)
+        return nullptr;
     return descriptor;
 }
 
@@ -191,7 +258,7 @@ void Device::getDeviceInfoFromHardwareConfigBlob() {
     // because I cannot test it.
     auto hardwareConfigBlob = queryIoctl(DRM_I915_QUERY_HWCONFIG_TABLE, 0u, 0u);
     if (hardwareConfigBlob)
-        this->hardwareConfigBlobSupported = true;
+        this->isHardwareConfigBlobSupported = true;
 }
 
 int Device::retrieveTopologyInfo(SystemInfo* sysInfo) {
@@ -281,7 +348,7 @@ int Device::calculateGraphicsBaseAddress() {
     if (cpuVirtualAddressSize == 48 && gpuAddressSpace == maxNBitValue(48)) {
         gfxBase = maxNBitValue(48 - 1) + 1;
     } else {
-        return HARDWARE_NOT_SUPPORTED;
+        return UNSUPPORTED_HARDWARE;
     }
 
     this->gpuBaseAddress = canonize(140741783322624);
@@ -321,17 +388,17 @@ std::unique_ptr<uint8_t[]> Device::queryIoctl(uint32_t queryId, uint32_t queryIt
     return data;
 }
 
-void Device::checkPreemptionSupport() {
-    int value = 0;
-    int ret = getParamIoctl(I915_PARAM_HAS_SCHEDULER, &value);
-    schedulerValue = value;
-    preemptionSupported = ((0 == ret) && (value & I915_SCHEDULER_CAP_PREEMPTION));
+int Device::checkPreemptionSupport(FeatureTable* featureTable) {
+    int schedulerFeature = 0;
+    int ret = getParamIoctl(I915_PARAM_HAS_SCHEDULER, &schedulerFeature);
+    if (ret)
+        return QUERY_FAILED;
+    if (schedulerFeature & I915_SCHEDULER_CAP_PREEMPTION &&
+        featureTable->flags.ftrGpGpuMidThreadLevelPreempt) {
+        this->isMidThreadLevelPreemptionSupported = true;
+    }
+    return SUCCESS;
 }
-
-
-
-
-
 
 
 

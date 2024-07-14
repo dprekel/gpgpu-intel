@@ -21,7 +21,7 @@ Context::Context(Device* device)
           workItemsPerWorkGroup{1, 1, 1},
           globalWorkItems{1, 1, 1},
           numWorkGroups{1, 1, 1} {             //TODO: Check if all ones is correct here
-    this->hwInfo = device->descriptor->pHwInfo;
+    this->hwInfo = device->getDeviceDescriptor()->pHwInfo;
     this->fclMain = device->fclMain;
     this->igcMain = device->igcMain;
     setMaxWorkGroupSize();
@@ -947,12 +947,10 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
-    /*
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
     if (ret) {
         return GEM_EXECBUFFER_FAILED;
     }
-    */
     return SUCCESS;
 }
 

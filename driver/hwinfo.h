@@ -134,9 +134,13 @@ struct FeatureTable {
         uint32_t ftrCCSMultiInstance : 1;
         uint32_t ftrPpgtt64KBWalkOptimization : 1;
         uint32_t ftrUnified3DMediaCompressionFormats : 1;
-        uint32_t reserved : 22;
-    };
 
+        uint32_t ftrSupportsOcl30 : 1;
+        uint32_t ftrSupportsOcl21 : 1;
+        uint32_t ftrSupportsIndependentForwardProgress : 1;
+        uint32_t ftrSupportsInteger64BitAtomics : 1;
+        uint32_t reserved : 18;
+    };
     union {
         Flags flags;
     };

@@ -21,7 +21,7 @@ int main() {
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
     pContext* context = CreateContext(devices[0], &err);
-    pKernel* kernel = BuildKernel(context, "matmul.cl", build_options.c_str(), 0, true, &err);
+    pKernel* kernel = BuildKernel(context, "matmul.cl", build_options.c_str(), false, &err);
     printf("err: %d\n", err);
 
     size_t size = 3968;
@@ -57,12 +57,10 @@ int main() {
         if (err) {
             printf("ExecBuffer failed!\n");
         }
-        /*
         printf("  matCMem[0] = %f\n", matCMem[0]);
         printf("  matCMem[size*100] = %f\n", matCMem[size *100]);
         printf("  matCMem[matrix_size-10] = %f\n", matCMem[matrix_size - 10]);
         printf("  matCMem[matrix_size] = %f\n", matCMem[matrix_size]);
-        */
     }
 
     err = ReleaseKernel(kernel);

@@ -295,11 +295,12 @@ class Kernel : public pKernel {
     std::vector<BufferObject*> getExecData();
     IgcBuffer* loadProgramSource(const char* filename);
     int initialize();
-    int build(const char* filename, const char* options, uint16_t chipsetID);
+    int build(const char* filename, const char* options);
     int setArgument(uint32_t argIndex, size_t argSize, void* argValue);
     //int disassembleBinary();
     int extractMetadata();
     int retrieveSystemRoutineInstructions();
+    int dumpBinary();
 
     Context* context;
   private:
@@ -330,7 +331,7 @@ class Kernel : public pKernel {
     bool unsupportedKernelArgs = false;
     bool hasBindlessMode = false;
 
-    std::unique_ptr<DeviceDescriptor> descriptor;
+    DeviceDescriptor* deviceDescriptor = nullptr;
     std::vector<std::unique_ptr<ArgDescriptor>> argDescriptor;
     std::unique_ptr<char[]> sshLocal;
     std::unique_ptr<char[]> crossThreadData;
