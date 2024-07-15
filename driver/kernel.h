@@ -297,12 +297,12 @@ class Kernel : public pKernel {
     int initialize();
     int build(const char* filename, const char* options);
     int setArgument(uint32_t argIndex, size_t argSize, void* argValue);
-    //int disassembleBinary();
     int extractMetadata();
     int retrieveSystemRoutineInstructions();
     int dumpBinary();
 
-    Context* context;
+    Context* context = nullptr;
+    Device* device = nullptr;
   private:
     ICIF* createInterface(CIFMain* cifMain, uint64_t interfaceID, uint64_t interfaceVersion);
     IgcBuffer* createIgcBuffer(CIFMain* cifMain, const char* data, size_t size);
@@ -318,6 +318,11 @@ class Kernel : public pKernel {
     void clearFclBuffers(FclOclDeviceCtx* deviceCtx, FclOclTranslationCtx* translationCtx, OclTranslationOutput* output);
     void clearIgcBuffers(IgcBuffer* ids, IgcBuffer* values, IgcOclTranslationCtx* translationCtx, OclTranslationOutput* output);
     void clearSystemRoutineBuffers(IgcBuffer* systemRoutine, IgcBuffer* stateSaveAreaHeader);
+
+    CIFMain* igcMain;
+    CIFMain* fclMain;
+    std::string& deviceExtensions;
+    std::string fileName;
 
     IgcOclDeviceCtx* igcDeviceCtx = nullptr;
     IgcBuffer* igcBuildOutput = nullptr;

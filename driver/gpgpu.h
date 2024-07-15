@@ -30,9 +30,8 @@
 #define INVALID_KERNEL                      -22
 #define SIP_ERROR                           -23
 #define GEM_EXECBUFFER_FAILED               -24
-#define GEM_WAIT_FAILED                     -25
-#define POST_SYNC_OPERATION_FAILED          -26
-#define KERNEL_DUMP_ERROR                   -27
+#define POST_SYNC_OPERATION_FAILED          -25
+#define KERNEL_DUMP_ERROR                   -26
 
 
 class pDevice {

@@ -92,9 +92,20 @@ CompilerInfo Device::initCompiler(int* ret) {
     return compilerInfo;
 }
 
+CIFMain* Device::getIgcMain() {
+    return igcMain;
+}
+
+CIFMain* Device::getFclMain() {
+    return fclMain;
+}
 
 DeviceDescriptor* Device::getDeviceDescriptor() {
-    return descriptor.get();
+    return deviceDescriptor.get();
+}
+
+std::string& Device::getDeviceExtensions() {
+    return deviceExtensions;
 }
 
 
@@ -113,17 +124,17 @@ int Device::initialize() {
         return QUERY_FAILED;
 
     // Get device info from device descriptor table above.
-    descriptor = getDeviceInfoFromDescriptorTable(deviceID);
-    if (!descriptor)
+    deviceDescriptor = getDeviceInfoFromDescriptorTable(deviceID);
+    if (!deviceDescriptor)
         return UNSUPPORTED_HARDWARE;
-    descriptor->setupHardwareInfo(descriptor->pHwInfo);
-    descriptor->pHwInfo->platform->usDeviceID = deviceID;
-    descriptor->pHwInfo->platform->usRevId = revisionID;
+    deviceDescriptor->setupHardwareInfo(deviceDescriptor->pHwInfo);
+    deviceDescriptor->pHwInfo->platform->usDeviceID = deviceID;
+    deviceDescriptor->pHwInfo->platform->usRevId = revisionID;
 
     // If supported, get additional device info from hardware config blob.
     getDeviceInfoFromHardwareConfigBlob();
-    this->devName = descriptor->devName;
-    SystemInfo* sysInfo = descriptor->pHwInfo->gtSystemInfo;
+    this->devName = deviceDescriptor->devName;
+    SystemInfo* sysInfo = deviceDescriptor->pHwInfo->gtSystemInfo;
     setEdramSize(sysInfo);
     setLastLevelCacheSize(sysInfo);
 
@@ -132,12 +143,11 @@ int Device::initialize() {
     INFO_LOG("------------------------------------------------------------------\n");
     INFO_LOG("Device ID: \t\t0x%X [%d]\n", this->deviceID, this->revisionID);
     INFO_LOG("Device Name: \t\t%s\n", this->devName);
-    INFO_LOG("\n");
 
     ret = retrieveTopologyInfo(sysInfo);
     if (ret)
         return ret;
-    FeatureTable* featureTable = descriptor->pHwInfo->featureTable;
+    FeatureTable* featureTable = deviceDescriptor->pHwInfo->featureTable;
     setDeviceExtensions(featureTable);
     ret = checkPreemptionSupport(featureTable);
     if (ret)
@@ -146,6 +156,7 @@ int Device::initialize() {
     if (ret)
         return ret;
 
+    INFO_LOG("\n");
     return SUCCESS;
 }
 
@@ -165,7 +176,6 @@ void Device::setLastLevelCacheSize(SystemInfo* sysInfo) {
 }
 
 void Device::setDeviceExtensions(FeatureTable* featureTable) {
-    std::string deviceExtensions;
     if (featureTable->flags.ftrSupportsOcl30) {
         deviceExtensions += "-ocl-version=300 ";
     } else {
@@ -174,31 +184,35 @@ void Device::setDeviceExtensions(FeatureTable* featureTable) {
     deviceExtensions += "-cl-disable-zebin ";
     //if (enableStatelessToStatefulWithOffset)
         deviceExtensions += "-cl-intel-has-buffer-offset-arg ";
-    //if (isForceEmuInt32DivRemSPWARequired)
+    /*
+    if (isForceEmuInt32DivRemSPWARequired)
         deviceExtensions += "-cl-intel-force-emu-sp-int32divrem ";
+    */
+    deviceExtensions += "-fpreserve-vec3-type ";
+    deviceExtensions += "-cl-ext=-all";
     deviceExtensions.append(deviceExtensionsList);
     if (featureTable->flags.ftrSupportsOcl21) {
         if (featureTable->flags.ftrSupportsIndependentForwardProgress)
-            deviceExtensions += "cl_khr_subgroups ";
+            deviceExtensions += ",+cl_khr_subgroups";
         if (featureTable->flags.ftrSVM)
-            deviceExtensions += "cl_intel_spirv_device_side_avc_motion_estimation ";
-        deviceExtensions += "cl_intel_spirv_subgroups ";
-        deviceExtensions += "cl_khr_spirv_no_integer_wrap_decoration ";
-        deviceExtensions += "cl_intel_unified_shared_memory_preview ";
+            deviceExtensions += ",+cl_intel_spirv_device_side_avc_motion_estimation";
+        deviceExtensions += ",+cl_intel_spirv_subgroups";
+        deviceExtensions += ",+cl_khr_spirv_no_integer_wrap_decoration";
+        deviceExtensions += ",+cl_intel_unified_shared_memory_preview";
     }
     if (featureTable->flags.ftrSVM) {
-        deviceExtensions += "cl_intel_motion_estimation ";
-        deviceExtensions += "cl_intel_device_side_avc_motion_estimation ";
+        deviceExtensions += ",+cl_intel_motion_estimation";
+        deviceExtensions += ",+cl_intel_device_side_avc_motion_estimation";
     }
     //if (supportsAdvancedVme)
-        deviceExtensions += "cl_intel_advanced_motion_estimation ";
+        deviceExtensions += ",+cl_intel_advanced_motion_estimation";
     if (featureTable->flags.ftrSupportsInteger64BitAtomics) {
-        deviceExtensions += "cl_khr_int64_base_atomics ";
-        deviceExtensions += "cl_khr_int64_extended_atomics ";
+        deviceExtensions += ",+cl_khr_int64_base_atomics";
+        deviceExtensions += ",+cl_khr_int64_extended_atomics";
     }
     //if (isPciBusInfoValid)
     //TODO: What is pci_bus_info?
-        deviceExtensions += "cl_khr_pci_bus_info ";
+        deviceExtensions += ",+cl_khr_pci_bus_info";
 }
 
 
@@ -208,9 +222,8 @@ bool Device::checkDriverVersion() {
     version.name = name;
     version.name_len = 5;
     int ret = ioctl(fd, DRM_IOCTL_VERSION, &version);
-    if (ret) {
+    if (ret)
         return false;
-    }
     name[4] = '\0';
     strncpy(driver_name, name, 5);
     INFO_LOG("Kernel driver: \t\t%s\n", this->driver_name);
@@ -224,7 +237,6 @@ std::unique_ptr<DeviceDescriptor> Device::getDeviceInfoFromDescriptorTable(uint1
         if (deviceID == d.deviceId) {
             descriptor->pHwInfo = d.pHwInfo;
             descriptor->setupHardwareInfo = d.setupHardwareInfo;
-            //device->eGtType = d.eGtType;
             descriptor->devName = d.devName;
             break;
         }
@@ -393,7 +405,7 @@ int Device::checkPreemptionSupport(FeatureTable* featureTable) {
     int ret = getParamIoctl(I915_PARAM_HAS_SCHEDULER, &schedulerFeature);
     if (ret)
         return QUERY_FAILED;
-    if (schedulerFeature & I915_SCHEDULER_CAP_PREEMPTION &&
+    if ((schedulerFeature & I915_SCHEDULER_CAP_PREEMPTION) &&
         featureTable->flags.ftrGpGpuMidThreadLevelPreempt) {
         this->isMidThreadLevelPreemptionSupported = true;
     }

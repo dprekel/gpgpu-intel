@@ -21,3 +21,9 @@ This creates a shared library and installs it into `/usr/local/lib`. Before link
 export "$LD_LIBRARY_PATH:/usr/local"
 ```
 
+
+
+When using OpenCL, there is no way to dump your device kernel into a file to inspect/disassemble it. You have to run your OpenCL host program within the Intercept Layer for OpenCL. Here, you just specify the enableBinaryDump field of the BuildKernel API as true.
+
+## Dependencies
+Different to Intels NEO OpenCL driver, this driver doesn't need interface headers of the IGC to build successfully. This poises a risk of compatibility issues with specific IGC builds. 

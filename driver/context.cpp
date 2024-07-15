@@ -18,12 +18,10 @@
 
 Context::Context(Device* device) 
         : device(device),
+          hwInfo(device->getDeviceDescriptor()->pHwInfo),
           workItemsPerWorkGroup{1, 1, 1},
           globalWorkItems{1, 1, 1},
           numWorkGroups{1, 1, 1} {             //TODO: Check if all ones is correct here
-    this->hwInfo = device->getDeviceDescriptor()->pHwInfo;
-    this->fclMain = device->fclMain;
-    this->igcMain = device->igcMain;
     setMaxWorkGroupSize();
     setMaxThreadsForVfe();
 }
@@ -947,17 +945,18 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
+    /*
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
     if (ret) {
         return GEM_EXECBUFFER_FAILED;
     }
+    */
     return SUCCESS;
 }
 
 
 int Context::finishExecution() {
     //TODO: Clear execObjects vector here
-    //TODO: Check if polling also works if this ioctl isn't sent
     std::chrono::high_resolution_clock::time_point time1, time2;
 
     drm_i915_gem_wait wait = {0};
@@ -966,7 +965,7 @@ int Context::finishExecution() {
     time1 = std::chrono::high_resolution_clock::now();
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_WAIT, &wait);
     if (ret)
-        return GEM_WAIT_FAILED;
+        return POST_SYNC_OPERATION_FAILED;
     time2 = std::chrono::high_resolution_clock::now();
     int64_t elapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(time2 - time1).count();
     DBG_LOG("[DEBUG] GEM_WAIT time: %f seconds\n", elapsedTime/1e9);

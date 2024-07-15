@@ -21,8 +21,7 @@ int main() {
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
     pContext* context = CreateContext(devices[0], &err);
-    pKernel* kernel = BuildKernel(context, "matmul.cl", build_options.c_str(), false, &err);
-    printf("err: %d\n", err);
+    pKernel* kernel = BuildKernel(context, "matmul.cl", build_options.c_str(), true, &err);
 
     size_t size = 3968;
     size_t matrix_memory_size = size*size*sizeof(float);

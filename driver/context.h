@@ -99,8 +99,6 @@ class Context : public pContext {
 
     Device* device;
     Kernel* kernel = nullptr;
-    CIFMain* igcMain = nullptr;
-    CIFMain* fclMain = nullptr;
 
   private:
     bool isGraphicsBaseAddressRequired(int bufferType);

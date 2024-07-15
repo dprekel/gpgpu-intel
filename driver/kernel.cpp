@@ -18,7 +18,11 @@
 
 
 Kernel::Kernel(Context* context)
-         : context(context) {
+         : context(context),
+           device(context->device),
+           igcMain(device->getIgcMain()),
+           fclMain(device->getFclMain()),
+           deviceExtensions(device->getDeviceExtensions()) {
 }
 
 Kernel::~Kernel() {
@@ -77,8 +81,8 @@ IgcBuffer* Kernel::loadProgramSource(const char* filename) {
     fread(source.get(), 1, size*sizeof(char), file);
     fclose(file);
     source[size] = '\0';
-    DBG_LOG("%s\n", source.get());
-    auto programSourceBuffer = createIgcBuffer(context->igcMain, source.get(), strlen(source.get()) + 1);
+    //DBG_LOG("%s\n", source.get());
+    auto programSourceBuffer = createIgcBuffer(igcMain, source.get(), strlen(source.get()) + 1);
     if (!programSourceBuffer)
         return nullptr;
     return programSourceBuffer;
@@ -118,7 +122,7 @@ IgcBuffer* Kernel::createIgcBuffer(CIFMain* cifMain, const char* data, size_t si
 FclOclDeviceCtx* Kernel::getFclDeviceCtx() {
     uint64_t interfaceID = 95846467711642693;
     uint64_t interfaceVersion = 0x5;
-    ICIF* DeviceCtx = createInterface(context->fclMain, interfaceID, interfaceVersion);
+    ICIF* DeviceCtx = createInterface(fclMain, interfaceID, interfaceVersion);
     FclOclDeviceCtx* newDeviceCtx = static_cast<FclOclDeviceCtx*>(DeviceCtx);
     if (!newDeviceCtx)
         return nullptr;
@@ -173,12 +177,11 @@ void Kernel::transferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSy
     igcGetSystemInfo->SetIsDynamicallyPopulated(gtSystemInfo->IsDynamicallyPopulated);
 }
 
-
 //TODO: Retrieve outProfilingTimerResolution from device info
 IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
     uint64_t interfaceID = 0x15483dac4ed88c8u;
     uint64_t interfaceVersion = 2u;
-    ICIF* DeviceCtx = createInterface(context->igcMain, interfaceID, interfaceVersion);
+    ICIF* DeviceCtx = createInterface(igcMain, interfaceID, interfaceVersion);
     IgcOclDeviceCtx* newDeviceCtx = static_cast<IgcOclDeviceCtx*>(DeviceCtx);
     if (!newDeviceCtx)
         return nullptr;
@@ -207,24 +210,24 @@ IgcOclDeviceCtx* Kernel::getIgcDeviceCtx() {
 
 
 int Kernel::build(const char* filename, const char* buildOptions) {
+    fileName = filename;
     auto programSourceBuffer = loadProgramSource(filename);
     if (!programSourceBuffer)
         return SOURCE_LOAD_ERROR;
-    deviceDescriptor = context->device->getDeviceDescriptor();
+    deviceDescriptor = device->getDeviceDescriptor();
     if (!deviceDescriptor)
         return UNSUPPORTED_HARDWARE;
 
-    //TODO: Look into cl_device_caps.cpp to retrieve these from hardware info
-    const char* internalOptions = "-ocl-version=300 -cl-disable-zebin -cl-intel-has-buffer-offset-arg -D__IMAGE_SUPPORT__=1 -fpreserve-vec3-type -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_fp16,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_icd,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_intel_command_queue_families,+cl_intel_subgroups,+cl_intel_required_subgroup_size,+cl_intel_subgroups_short,+cl_khr_spir,+cl_intel_accelerator,+cl_intel_driver_diagnostics,+cl_khr_priority_hints,+cl_khr_throttle_hints,+cl_khr_create_command_queue,+cl_intel_subgroups_char,+cl_intel_subgroups_long,+cl_khr_il_program,+cl_intel_mem_force_host_memory,+cl_khr_subgroup_extended_types,+cl_khr_subgroup_non_uniform_vote,+cl_khr_subgroup_ballot,+cl_khr_subgroup_non_uniform_arithmetic,+cl_khr_subgroup_shuffle,+cl_khr_subgroup_shuffle_relative,+cl_khr_subgroup_clustered_reduce,+cl_intel_device_attribute_query,+cl_khr_suggested_local_work_size,+cl_khr_fp64,+cl_khr_subgroups,+cl_intel_spirv_device_side_avc_motion_estimation,+cl_intel_spirv_media_block_io,+cl_intel_spirv_subgroups,+cl_khr_spirv_no_integer_wrap_decoration,+cl_intel_unified_shared_memory_preview,+cl_khr_mipmap_image,+cl_khr_mipmap_image_writes,+cl_intel_planar_yuv,+cl_intel_packed_yuv,+cl_intel_motion_estimation,+cl_intel_device_side_avc_motion_estimation,+cl_intel_advanced_motion_estimation,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_khr_image2d_from_buffer,+cl_khr_depth_images,+cl_khr_3d_image_writes,+cl_intel_media_block_io,+cl_intel_va_api_media_sharing,+cl_intel_sharing_format_query,+cl_khr_pci_bus_info";
-    auto internalOptionsBuffer = createIgcBuffer(context->igcMain, internalOptions, strlen(internalOptions) + 1);
-    auto buildOptionsBuffer = createIgcBuffer(context->igcMain, buildOptions, strlen(buildOptions) + 1);
+    const char* internalOptions = deviceExtensions.c_str();
+    auto internalOptionsBuffer = createIgcBuffer(igcMain, internalOptions, strlen(internalOptions) + 1);
+    auto buildOptionsBuffer = createIgcBuffer(igcMain, buildOptions, strlen(buildOptions) + 1);
 
     // Frontend Compilation
     auto fclDeviceCtx = getFclDeviceCtx();
     if (!fclDeviceCtx) {
         return FRONTEND_BUILD_ERROR;
     }
-    uint64_t fclTranslationCtxVersion = 0x1;
+    uint64_t fclTranslationCtxVersion = 1u;
     auto fclTranslationCtx = fclDeviceCtx->CreateTranslationCtx(fclTranslationCtxVersion, codeType::oclC, codeType::spirV);
     if (!fclTranslationCtx) {
         clearFclBuffers(fclDeviceCtx, nullptr, nullptr);
@@ -261,8 +264,8 @@ int Kernel::build(const char* filename, const char* buildOptions) {
     if (!igcDeviceCtx) {
         return BACKEND_BUILD_ERROR;
     }
-    auto idsBuffer = createIgcBuffer(context->igcMain, nullptr, 0);
-    auto valuesBuffer = createIgcBuffer(context->igcMain, nullptr, 0);
+    auto idsBuffer = createIgcBuffer(igcMain, nullptr, 0);
+    auto valuesBuffer = createIgcBuffer(igcMain, nullptr, 0);
     uint64_t igcTranslationCtxVersion = 0x3;
 
     auto igcTranslationCtx = igcDeviceCtx->CreateTranslationCtx(igcTranslationCtxVersion, codeType::spirV, codeType::oclGenBin);
@@ -330,12 +333,12 @@ int Kernel::retrieveSystemRoutineInstructions() {
     uint64_t interfaceID = 0xfffe2429681d9502;
     uint64_t interfaceVersion = 1u;
 
-    ICIF* RoutineBufferCtx = createInterface(context->igcMain, interfaceID, interfaceVersion);
+    ICIF* RoutineBufferCtx = createInterface(igcMain, interfaceID, interfaceVersion);
     auto systemRoutineBuffer = static_cast<IgcBuffer*>(RoutineBufferCtx);
     if (!systemRoutineBuffer)
         return SIP_ERROR;
 
-    ICIF* AreaBufferCtx = createInterface(context->igcMain, interfaceID, interfaceVersion);
+    ICIF* AreaBufferCtx = createInterface(igcMain, interfaceID, interfaceVersion);
     auto stateSaveAreaBuffer = static_cast<IgcBuffer*>(AreaBufferCtx);
     if (!stateSaveAreaBuffer) {
         systemRoutineBuffer->Release();
@@ -643,18 +646,24 @@ int Kernel::extractMetadata() {
 }
 
 int Kernel::dumpBinary() {
-    //TODO: Add chipsetID and source file name to binary name
-    //TODO: Clear file if it already exists
-    std::string filename = "/tmp/kernel.isabin";
-    FILE* file = fopen(filename.c_str(), "w");
-    if (!file)
+    std::string binaryName = "/tmp/";
+    size_t lastDotPos = fileName.find_last_of(".");
+    if (lastDotPos != std::string::npos) {
+        binaryName += fileName.substr(0, lastDotPos);
+    } else {
+        binaryName += fileName;
+    }
+    binaryName += ".isabin";
+    FILE* dumpFile = fopen(binaryName.c_str(), "w");
+    if (!dumpFile)
         return KERNEL_DUMP_ERROR;
     size_t kernelSize = kernelData.header->KernelHeapSize;
-    size_t bytesWritten = fwrite(kernelData.isa, 1, kernelSize, file);
+    size_t bytesWritten = fwrite(kernelData.isa, 1, kernelSize, dumpFile);
     if (bytesWritten != kernelSize)
         return KERNEL_DUMP_ERROR;
-
-    //TODO: After this, disassemble with "./iga64 -d -p "GEN9" kernel.isabin"
+    fclose(dumpFile);
+    DBG_LOG("[DEBUG] Kernel binary saved!\n");
+    // After this, disassemble with "./iga64 -d -p "GEN9" kernel.isabin"
     return SUCCESS;
 }
 

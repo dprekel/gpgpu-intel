@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <string>
 
 #include "context.h"
 #include "gpgpu.h"
@@ -46,15 +47,13 @@ class Device : public pDevice {
     static std::vector<int> openDevices(int* err);
     static CompilerInfo initCompiler(int* ret);
     int initialize();
-    //TODO: Only one function that returns DeviceDescriptor
-    //TODO: Either initialize values in initializer list or in class body, be consistent!
-    //TODO: Try to make all member variables private
     std::unique_ptr<DeviceDescriptor> getDeviceInfoFromDescriptorTable(uint16_t deviceID);
+    CIFMain* getIgcMain();
+    CIFMain* getFclMain();
     DeviceDescriptor* getDeviceDescriptor();
+    std::string& getDeviceExtensions();
 
     Context* context = nullptr;
-    CIFMain* igcMain = nullptr;
-    CIFMain* fclMain = nullptr;
     int fd = 0;
     uint64_t gpuBaseAddress = 0u;
   private:
@@ -69,7 +68,10 @@ class Device : public pDevice {
     int getParamIoctl(int param, int* paramValue);
     std::unique_ptr<uint8_t[]> queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length);
     
-    std::unique_ptr<DeviceDescriptor> descriptor;
+    CIFMain* igcMain = nullptr;
+    CIFMain* fclMain = nullptr;
+    std::unique_ptr<DeviceDescriptor> deviceDescriptor;
+    std::string deviceExtensions;
     uint32_t numDevices = 0u;
     char driver_name[5];
     int deviceID = 0;
