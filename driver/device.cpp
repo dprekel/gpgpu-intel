@@ -44,7 +44,7 @@ Device::~Device() {
 
 
 std::vector<int> Device::openDevices(int* err) {
-    const char* pciDevicesDirectory = "/dev/dri/by-path";
+    const char* pciDevicesDirectory = "/dev/driv/by-path";
     std::vector<std::string> files;
     std::vector<int> deviceIDs;
     DIR* dir = opendir(pciDevicesDirectory);
@@ -74,7 +74,7 @@ std::vector<int> Device::openDevices(int* err) {
         if (offset < 33 || path[offset - 13] != '-')
             continue;
         int fileDescriptor = open(path, O_RDWR | O_CLOEXEC);
-        if (fileDescriptor == -1)
+        if (!fileDescriptor)
             continue;
         deviceIDs.push_back(fileDescriptor);
     }
@@ -106,6 +106,10 @@ DeviceDescriptor* Device::getDeviceDescriptor() {
 
 std::string& Device::getDeviceExtensions() {
     return deviceExtensions;
+}
+
+bool Device::getMidThreadPreemptionSupport() {
+    return isMidThreadLevelPreemptionSupported;
 }
 
 

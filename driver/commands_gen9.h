@@ -6,6 +6,7 @@
 
 #pragma pack(1)
 
+
 struct MEDIA_STATE_FLUSH {
     struct TheStructure {
         //DW0

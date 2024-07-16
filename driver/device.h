@@ -52,6 +52,7 @@ class Device : public pDevice {
     CIFMain* getFclMain();
     DeviceDescriptor* getDeviceDescriptor();
     std::string& getDeviceExtensions();
+    bool getMidThreadPreemptionSupport();
 
     Context* context = nullptr;
     int fd = 0;

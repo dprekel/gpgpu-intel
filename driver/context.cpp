@@ -21,7 +21,8 @@ Context::Context(Device* device)
           hwInfo(device->getDeviceDescriptor()->pHwInfo),
           workItemsPerWorkGroup{1, 1, 1},
           globalWorkItems{1, 1, 1},
-          numWorkGroups{1, 1, 1} {             //TODO: Check if all ones is correct here
+          numWorkGroups{1, 1, 1},             //TODO: Check if all ones is correct here
+          isMidThreadLevelPreemptionSupported(device->getMidThreadPreemptionSupport()) {
     setMaxWorkGroupSize();
     setMaxThreadsForVfe();
 }
@@ -724,54 +725,50 @@ int Context::createCommandStreamReceiver() {
     cmd9->Bitfield.TextureCacheInvalidationEnable = true;
     cmd9->Bitfield.DcFlushEnable = true;
 
-    //TODO: Additional Pipeline Select (if 3DPipelineSelectWARequired)
 
     // Program State Base Address
     auto cmd10 = commandStreamCSR->ptrOffset<STATE_BASE_ADDRESS*>(sizeof(STATE_BASE_ADDRESS));
     *cmd10 = STATE_BASE_ADDRESS::init();
 
     cmd10->Bitfield.DynamicStateBaseAddressModifyEnable = true;
-    cmd10->Bitfield.DynamicStateBufferSizeModifyEnable = true;
+    cmd10->Bitfield.DynamicStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
     cmd10->Bitfield.DynamicStateBaseAddress = dshAllocation->gpuAddress >> 0xc;
+    cmd10->Bitfield.DynamicStateBufferSizeModifyEnable = true;
     cmd10->Bitfield.DynamicStateBufferSize = dshAllocation->size / MemoryConstants::pageSize;
 
     cmd10->Bitfield.SurfaceStateBaseAddressModifyEnable = true;
+    cmd10->Bitfield.SurfaceStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
     cmd10->Bitfield.SurfaceStateBaseAddress = sshAllocation->gpuAddress >> 0xc;
 
     cmd10->Bitfield.IndirectObjectBaseAddressModifyEnable = true;
-    cmd10->Bitfield.IndirectObjectBufferSizeModifyEnable = true;
+    cmd10->Bitfield.IndirectObjectMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
     cmd10->Bitfield.IndirectObjectBaseAddress = iohAllocation->gpuBaseAddress >> 0xc;
+    cmd10->Bitfield.IndirectObjectBufferSizeModifyEnable = true;
     cmd10->Bitfield.IndirectObjectBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
 
     cmd10->Bitfield.InstructionBaseAddressModifyEnable = true;
-    cmd10->Bitfield.InstructionBufferSizeModifyEnable = true;
+    cmd10->Bitfield.InstructionMemoryObjectControlState_IndexToMocsTables = MOCS::AggressiveCaching;
     cmd10->Bitfield.InstructionBaseAddress = decanonize(kernelAllocation->gpuBaseAddress) >> 0xc;
+    cmd10->Bitfield.InstructionBufferSizeModifyEnable = true;
     cmd10->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
-    //TODO: Set MOCS value
-    uint32_t mocsValue = getMocsIndex();
-    cmd10->Bitfield.InstructionMemoryObjectControlState_Reserved = mocsValue;
-    cmd10->Bitfield.InstructionMemoryObjectControlState_IndexToMocsTables = mocsValue >> 1;
 
     if (scratchAllocation) {
         uint64_t gshAddress = scratchAllocation->gpuAddress - scratchSpaceOffset;
         cmd10->Bitfield.GeneralStateBaseAddressModifyEnable = true;
-        cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
+        cmd10->Bitfield.GeneralStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
         cmd10->Bitfield.GeneralStateBaseAddress = decanonize(gshAddress) >> 0xc;
+        cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
         cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
-        //cmd10->Bitfield.GeneralStateBufferSize = scratchAllocation->size / MemoryConstants::pageSize;
     }
 
-    //TODO: Set MOCS value
-    cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlState_Reserved = mocsValue;
-    cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlState_IndexToMocsTables = mocsValue >> 1;
+    cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlState_IndexToMocsTables = MOCS::AggressiveCaching;
 
     cmd10->Bitfield.BindlessSurfaceStateBaseAddressModifyEnable = true;
+    cmd10->Bitfield.BindlessSurfaceStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
     cmd10->Bitfield.BindlessSurfaceStateBaseAddress = sshAllocation->gpuAddress >> 0xc;
     uint32_t bindlessSize = static_cast<uint32_t>((sshAllocation->size - MemoryConstants::pageSize) / 64) - 1;
     cmd10->Bitfield.BindlessSurfaceStateSize = bindlessSize;
 
-
-    //TODO: Additional Pipeline Select (if 3DPipelineSelectWARequired)
 
     // Program System Instruction Pointer
     auto cmd11 = commandStreamCSR->ptrOffset<STATE_SIP*>(sizeof(STATE_SIP));
@@ -877,13 +874,6 @@ void Context::alignToCacheLine(BufferObject* commandBuffer) {
 }
 
 
-uint32_t Context::getMocsIndex() {
-    //TODO: Add switch-case for index determination
-    uint32_t index = 4u;
-    return index;
-}
-
-
 int Context::populateAndSubmitExecBuffer() {
     execBuffer = kernel->getExecData();
     execBuffer.push_back(kernelAllocation.get());
@@ -893,10 +883,10 @@ int Context::populateAndSubmitExecBuffer() {
     execBuffer.push_back(iohAllocation.get());
     execBuffer.push_back(sshAllocation.get());
     execBuffer.push_back(tagAllocation.get());
-    //if (midThreadPreemption) {
-        execBuffer.push_back(preemptionAllocation.get());
+    execBuffer.push_back(preemptionAllocation.get());
+    if (isMidThreadLevelPreemptionSupported) {
         execBuffer.push_back(sipAllocation.get());
-    //}
+    }
     //execBuffer.push_back(commandStreamTask.get());
     execBuffer.push_back(commandStreamCSR.get());
 
@@ -945,12 +935,10 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
-    /*
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
     if (ret) {
         return GEM_EXECBUFFER_FAILED;
     }
-    */
     return SUCCESS;
 }
 
@@ -975,7 +963,7 @@ int Context::finishExecution() {
     time1 = std::chrono::high_resolution_clock::now();
     uint32_t* pollAddress = static_cast<uint32_t*>(tagAllocation->cpuAddress);
     while (*pollAddress != this->completionTag && timeDiff <= timeoutMilliseconds) {
-        sleep(0.1);
+        sleep(1);
         sched_yield();
         time2 = std::chrono::high_resolution_clock::now();
         timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(time2 - time1).count();

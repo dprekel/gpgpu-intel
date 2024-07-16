@@ -586,9 +586,7 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     surfaceState->Bitfield.Depth = Length.SurfaceState.Depth;
     surfaceState->Bitfield.VerticalLineStride = 0u;
     surfaceState->Bitfield.VerticalLineStrideOffset = 0u;
-    uint32_t mocsIndex = context->getMocsIndex();
-    surfaceState->Bitfield.MemoryObjectControlState_Reserved = mocsIndex; // leads to data loss, I don't know why this is necessary
-    surfaceState->Bitfield.MemoryObjectControlState_IndexToMocsTables = (mocsIndex >> 1);
+    surfaceState->Bitfield.MemoryObjectControlState_IndexToMocsTables = MOCS::AggressiveCaching;
     surfaceState->Bitfield.SurfaceBaseAddress = bufferObject->gpuAddress;
 
     execData.push_back(bufferObject);

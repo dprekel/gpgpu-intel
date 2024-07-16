@@ -12,6 +12,8 @@
 #include "kernel.h"
 #include "utils.h"
 
+#define BITFIELD_RANGE(startbit, endbit) ((endbit) - (startbit) + 1)
+
 class Device;
 class Kernel;
 
@@ -92,7 +94,6 @@ class Context : public pContext {
     int createSipAllocation(size_t sipSize, const char* sipBinaryRaw);
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
     int constructBufferObjects();
-    uint32_t getMocsIndex();
     int populateAndSubmitExecBuffer();
     int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t residencyCount, size_t batchSize);
     int finishExecution();
@@ -150,8 +151,39 @@ class Context : public pContext {
     uint32_t perThreadDataSize = 0u;
     uint64_t gpuBaseAddress = 0u;
     uint32_t completionTag = 0u;
+    bool isMidThreadLevelPreemptionSupported = false;
     bool isSipKernelAllocated = false;
 };
 
 
 
+// GEN9 hardware has 64 16bit control registers for L3 caching policy and 64 32bit control
+// registers for LLC/eDRAM caching policy. Each index into the two register files
+// represents a unique Memory Object Control State (MOCS). In STATE_BASE_ADDRESS and
+// RENDER_SURFACE_STATE you can specify the caching policy of a buffer object by writing a
+// MOCS index into the corresponding field. More information about the registers and
+// the 64 MOCS indices can be found in the hardware documentation.
+struct L3_CONTROL_REG {
+    uint16_t EnableSkipCaching : BITFIELD_RANGE(0, 0);
+    uint16_t SkipCacheabilityControl : BITFIELD_RANGE(1, 3);
+    uint16_t L3CacheabilityControl : BITFIELD_RANGE(4, 5);
+    uint16_t Reserved : BITFIELD_RANGE(6, 16);
+};
+
+struct LLC_EDRAM_CONTROL_REG {
+    uint32_t LLCeDRAMCacheabilityControl : BITFIELD_RANGE(0, 1);
+    uint32_t TargetCache : BITFIELD_RANGE(2, 3);
+    uint32_t CacheReplacementManagement : BITFIELD_RANGE(4, 5);
+    uint32_t DontAllocateOnMiss : BITFIELD_RANGE(6, 6);
+    uint32_t EnableReverseSkipCaching : BITFIELD_RANGE(7, 7);
+    uint32_t SkipCacheabilityControl : BITFIELD_RANGE(8, 10);
+    uint32_t PageFaultingMode : BITFIELD_RANGE(11, 13);
+    uint32_t SnoopControlField : BITFIELD_RANGE(14, 14);
+    uint32_t ClassOfService : BITFIELD_RANGE(15, 16);
+    uint32_t Reserved : BITFIELD_RANGE(17, 31);
+};
+
+enum MOCS {
+    PageTableControlledCaching = 0x0,
+    AggressiveCaching = 0x2
+};
