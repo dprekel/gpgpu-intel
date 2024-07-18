@@ -7,6 +7,7 @@
 #pragma pack(1)
 
 
+//GEN11 too
 struct MEDIA_STATE_FLUSH {
     struct TheStructure {
         //DW0
@@ -40,6 +41,7 @@ struct MEDIA_STATE_FLUSH {
     }
 };
 
+// GEN11 too
 struct MEDIA_INTERFACE_DESCRIPTOR_LOAD {
     struct TheStructure {
         //DW0
@@ -77,6 +79,7 @@ struct MEDIA_INTERFACE_DESCRIPTOR_LOAD {
     }
 };
 
+// Some differences to GEN11
 struct MEDIA_VFE_STATE {
     struct TheStructure {
         //DW0
@@ -153,6 +156,7 @@ struct MEDIA_VFE_STATE {
     }
 };
 
+// Sampler State was added in GEN11
 struct STATE_BASE_ADDRESS {
     struct TheStructure {
         //DW0
@@ -248,6 +252,7 @@ struct STATE_BASE_ADDRESS {
     }
 };
 
+// GEN11 too
 struct GPGPU_CSR_BASE_ADDRESS {
     struct TheStructure {
         //DW0
@@ -280,6 +285,7 @@ struct GPGPU_CSR_BASE_ADDRESS {
     }
 };
 
+// GEN11 too
 struct STATE_SIP {
     struct TheStructure {
         //DW0
@@ -312,6 +318,7 @@ struct STATE_SIP {
     }
 };
 
+// GEN11 too
 struct GPGPU_WALKER {
     struct TheStructure {
         //DW0
@@ -379,6 +386,7 @@ struct GPGPU_WALKER {
     }
 };
 
+// TileCacheFlushEnable was added in GEN11
 struct PIPE_CONTROL {
     struct TheStructure {
         //DW0
@@ -472,6 +480,7 @@ struct PIPE_CONTROL {
     }
 };
 
+// MediaSamplerPowerClockGateDisable was added in GEN11
 struct PIPELINE_SELECT {
     struct TheStructure {
         //DW0
@@ -507,6 +516,7 @@ struct PIPELINE_SELECT {
     }
 };
 
+// AddCsMmioStartOffset was added in GEN11
 struct MI_LOAD_REGISTER_IMM {
     struct TheStructure {
         //Dw0

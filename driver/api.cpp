@@ -33,13 +33,13 @@ API_CALL std::vector<pDevice*> CreateDevices(int* ret) {
 }
 
 
-API_CALL pContext* CreateContext(pDevice* dev, int* ret) {
+API_CALL pContext* CreateContext(std::vector<pDevice*>& dev, size_t devIndex, int* ret) {
     *ret = 0;
-    if (!dev) {
+    if (devIndex >= dev.size()){
         *ret = NO_DEVICE_ERROR;
         return nullptr;
     }
-    Device* device = static_cast<Device*>(dev);
+    Device* device = static_cast<Device*>(dev[devIndex]);
     if (device->context) {
         *ret = CONTEXT_ALREADY_EXISTS;
         return nullptr;
@@ -150,11 +150,14 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
 }
 
 
-API_CALL int ReleaseDevice(pDevice* dev) {
-    if (!dev)
+API_CALL int ReleaseDevice(std::vector<pDevice*>& dev, size_t devIndex) {
+    if (devIndex >= dev.size())
         return NO_DEVICE_ERROR;
-    Device* device = static_cast<Device*>(dev);
+    if (!dev[devIndex])
+        return NO_DEVICE_ERROR;
+    Device* device = static_cast<Device*>(dev[devIndex]);
     delete device;
+    device = nullptr;
     return SUCCESS;
 }
 
@@ -164,6 +167,7 @@ API_CALL int ReleaseContext(pContext* cont) {
         return NO_CONTEXT_ERROR;
     Context* context = static_cast<Context*>(cont);
     delete context;
+    context = nullptr;
     return SUCCESS;
 }
 
@@ -173,6 +177,7 @@ API_CALL int ReleaseKernel(pKernel* kern) {
         return NO_KERNEL_ERROR;
     Kernel* kernel = static_cast<Kernel*>(kern);
     delete kernel;
+    kernel = nullptr;
     return SUCCESS;
 }
 
@@ -182,6 +187,7 @@ API_CALL int ReleaseBuffer(pBuffer* buf) {
         return NO_BUFFER_ERROR;
     Buffer* buffer = static_cast<Buffer*>(buf);
     delete buffer;
+    buffer = nullptr;
     return SUCCESS;
 }
 

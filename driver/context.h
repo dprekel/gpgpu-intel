@@ -34,7 +34,9 @@ namespace MemoryConstants {
     constexpr uint64_t kiloByteShiftSize = 10;
     constexpr uint64_t megaByte = 1024 * kiloByte;
     constexpr uint64_t gigaByte = 1024 * megaByte;
+    constexpr uint64_t cpuVirtualAddressSize = 48;
     constexpr size_t pageSize = 4 * kiloByte;
+    constexpr size_t pageSize64k = 64 * kiloByte;
     constexpr size_t cacheLineSize = 64;
     constexpr uint32_t sizeOf4GBinPageEntities = (gigaByte * 4 - pageSize) / pageSize;
 };
@@ -67,6 +69,8 @@ struct BufferObject {
         offset += ptr_offset;
         return reinterpret_cast<T>(newAddr);
     }
+    void deleteHandle();
+
     int fd = 0;
     int bufferType = 0;
     void* cpuAddress = nullptr;
@@ -149,7 +153,6 @@ class Context : public pContext {
     uint32_t GRFSize = 0u;
     uint32_t crossThreadDataSize = 0u;
     uint32_t perThreadDataSize = 0u;
-    uint64_t gpuBaseAddress = 0u;
     uint32_t completionTag = 0u;
     bool isMidThreadLevelPreemptionSupported = false;
     bool isSipKernelAllocated = false;
@@ -163,6 +166,12 @@ class Context : public pContext {
 // RENDER_SURFACE_STATE you can specify the caching policy of a buffer object by writing a
 // MOCS index into the corresponding field. More information about the registers and
 // the 64 MOCS indices can be found in the hardware documentation.
+enum MOCS {
+    PageTableControlledCaching = 0x0,
+    AggressiveCaching = 0x2
+};
+
+// These registers are not used directly in this code, but indirectly through MOCS index:
 struct L3_CONTROL_REG {
     uint16_t EnableSkipCaching : BITFIELD_RANGE(0, 0);
     uint16_t SkipCacheabilityControl : BITFIELD_RANGE(1, 3);
@@ -183,7 +192,3 @@ struct LLC_EDRAM_CONTROL_REG {
     uint32_t Reserved : BITFIELD_RANGE(17, 31);
 };
 
-enum MOCS {
-    PageTableControlledCaching = 0x0,
-    AggressiveCaching = 0x2
-};

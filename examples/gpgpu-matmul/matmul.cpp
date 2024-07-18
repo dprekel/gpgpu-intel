@@ -20,7 +20,7 @@ int main() {
                               + " -DTILE_GROUP_M=" + std::to_string(TILE_GROUP_M)
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
-    pContext* context = CreateContext(devices[0], &err);
+    pContext* context = CreateContext(devices, 0u, &err);
     pKernel* kernel = BuildKernel(context, "matmul.cl", build_options.c_str(), true, &err);
 
     size_t size = 3968;
@@ -64,10 +64,10 @@ int main() {
 
     err = ReleaseKernel(kernel);
     err = ReleaseContext(context);
-    err = ReleaseDevice(devices[0]);
     err = ReleaseBuffer(matrix_A);
     err = ReleaseBuffer(matrix_B);
     err = ReleaseBuffer(matrix_C);
+    err = ReleaseDevice(devices, 0u);
     return 0;
 }
 

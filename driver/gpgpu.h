@@ -57,7 +57,8 @@ class pKernel {
 };
 
 extern std::vector<pDevice*> CreateDevices(int* err);
-extern pContext* CreateContext(pDevice* device, 
+extern pContext* CreateContext(std::vector<pDevice*>& dev, 
+                        size_t devIndex,
                         int* err);
 extern pBuffer* CreateBuffer(pContext* context,
                         size_t size,
@@ -76,7 +77,8 @@ extern int EnqueueNDRangeKernel(pContext* context,
                         uint32_t work_dim,
                         const size_t* global_work_size,
                         const size_t* local_work_size);
-extern int ReleaseDevice(pDevice* device);
+extern int ReleaseDevice(std::vector<pDevice*>& dev,
+                        size_t devIndex);
 extern int ReleaseContext(pContext* context);
 extern int ReleaseKernel(pKernel* kernel);
 extern int ReleaseBuffer(pBuffer* buffer);

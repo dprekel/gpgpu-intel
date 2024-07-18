@@ -44,7 +44,7 @@ Device::~Device() {
 
 
 std::vector<int> Device::openDevices(int* err) {
-    const char* pciDevicesDirectory = "/dev/driv/by-path";
+    const char* pciDevicesDirectory = "/dev/dri/by-path";
     std::vector<std::string> files;
     std::vector<int> deviceIDs;
     DIR* dir = opendir(pciDevicesDirectory);
@@ -156,7 +156,7 @@ int Device::initialize() {
     ret = checkPreemptionSupport(featureTable);
     if (ret)
         return ret;
-    ret = calculateGraphicsBaseAddress();
+    ret = initHeapAllocatorForSoftpinning();
     if (ret)
         return ret;
 
@@ -176,7 +176,6 @@ void Device::setEdramSize(SystemInfo* sysInfo) {
 }
 
 void Device::setLastLevelCacheSize(SystemInfo* sysInfo) {
-
 }
 
 void Device::setDeviceExtensions(FeatureTable* featureTable) {
@@ -278,6 +277,8 @@ void Device::getDeviceInfoFromHardwareConfigBlob() {
 }
 
 int Device::retrieveTopologyInfo(SystemInfo* sysInfo) {
+    //TODO: This function has a serious issue with GEN11: total subSliceCount * EUsPerSubSlice
+    //      doesn't give total number of EUs
     auto data = queryIoctl(DRM_I915_QUERY_TOPOLOGY_INFO, 0u, 0);
     auto topologyInfo = reinterpret_cast<drm_i915_query_topology_info*>(data.get());
     if (!topologyInfo)
@@ -331,7 +332,7 @@ int Device::retrieveTopologyInfo(SystemInfo* sysInfo) {
     return SUCCESS;
 }
 
-int Device::calculateGraphicsBaseAddress() {
+int Device::initHeapAllocatorForSoftpinning() {
     // Soft-Pinning means that the kernel driver doesn't relocate buffer objects (BOs) that 
     // have been passed over from userspace. The kernel driver looks up the physical address
     // of the BO in the page table of the current CPU process and uses that to create a PTE 
@@ -353,21 +354,40 @@ int Device::calculateGraphicsBaseAddress() {
     ret = ioctl(fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &contextParam);
     if (ret)
         return QUERY_FAILED;
-    uint64_t gttSize = contextParam.value;
+    uint64_t GTTSize = contextParam.value;
 
     // Calculate Graphics Base Address.
-    uint64_t gpuAddressSpace = gttSize - 1;
+    uint64_t gpuAddressSpace = GTTSize - 1;
     uint64_t gfxBase = 0x0;
     uint64_t gfxHeapSize = 4 * MemoryConstants::gigaByte;
-    //TODO: Query cpuVirtualAddressSize
-    uint64_t cpuVirtualAddressSize = 48;
-    if (cpuVirtualAddressSize == 48 && gpuAddressSpace == maxNBitValue(48)) {
+    if (gpuAddressSpace == maxNBitValue(MemoryConstants::cpuVirtualAddressSize)) {
         gfxBase = maxNBitValue(48 - 1) + 1;
+        heapAllocator.gpuBaseAddress = gfxBase + gfxHeapSize;
     } else {
         return UNSUPPORTED_HARDWARE;
     }
+    // Initialize Heap Allocator.
+    heapAllocator.pLeftBound = heapAllocator.gpuBaseAddress + MemoryConstants::megaByte;
+    heapAllocator.pRightBound = heapAllocator.gpuBaseAddress + gfxHeapSize - MemoryConstants::pageSize64k;
+    heapAllocator.availableSize = heapAllocator.pRightBound - heapAllocator.pLeftBound;
+    heapAllocator.allocatedSize = 0u;
 
-    this->gpuBaseAddress = canonize(140741783322624);
+    return SUCCESS;
+}
+
+int Device::allocateHeapMemoryForSoftpinning(BufferObject* bo) {
+    bo->gpuBaseAddress = canonize(heapAllocator.gpuBaseAddress);
+    size_t sizeToAllocate = alignUp(bo->size, MemoryConstants::pageSize);
+    if (heapAllocator.pLeftBound + sizeToAllocate <= heapAllocator.pRightBound) {
+        heapAllocator.pRightBound -= sizeToAllocate;        
+        heapAllocator.availableSize -= sizeToAllocate;
+        heapAllocator.allocatedSize += sizeToAllocate;
+        bo->gpuAddress = canonize(heapAllocator.pRightBound);
+    } else {
+        // Very unlikely that this happens. You would need to allocate 4 GB of memory for
+        // kernel instructions and indirect data.
+        return BUFFER_ALLOCATION_FAILED;
+    }
     return SUCCESS;
 }
 

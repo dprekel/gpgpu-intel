@@ -53,6 +53,10 @@ BufferObject::BufferObject(int fd, int bufferType, void* cpuAddress, uint32_t ha
 BufferObject::~BufferObject() {
     DBG_LOG("[DEBUG] BufferObject destructor called for type [%d]\n", this->bufferType);
     alignedFree(this->cpuAddress);
+    deleteHandle();
+}
+
+void BufferObject::deleteHandle() {
     // Make sure the BO isn't used anymore.
     drm_i915_gem_wait wait = {0};
     wait.bo_handle = this->handle;
@@ -67,7 +71,6 @@ BufferObject::~BufferObject() {
     if (ret)
         DBG_LOG("[DEBUG] ioctl(GEM_CLOSE) failed with error %d\n", ret);
 }
-
 
 
 void Context::setMaxWorkGroupSize() {
@@ -134,14 +137,18 @@ std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size, int buf
     }
     auto bo = std::make_unique<BufferObject>(device->fd, bufferType, pAlignedMemoryPtr, userptr.handle, size);
     if (isGraphicsBaseAddressRequired(bufferType)) {
-        //TODO: Reserve memory to pin to
-        //TODO: Do a prior assignment in context constructor
-        bo->gpuBaseAddress = device->gpuBaseAddress;
+        ret = device->allocateHeapMemoryForSoftpinning(bo.get());
+        if (ret) {
+            alignedFree(pAlignedMemoryPtr);
+            bo->deleteHandle();
+            return nullptr;
+        }
     } else {
         bo->gpuAddress = reinterpret_cast<uint64_t>(pAlignedMemory);
     }
     return bo;
 }
+
 
 
 int Context::createDRMContext() {
@@ -319,7 +326,6 @@ int Context::allocateISAMemory() {
         if (!kernelAllocation)
             return KERNEL_ALLOCATION_FAILED;
     }
-    kernelAllocation->gpuAddress = canonize(140746078199808);
     memcpy(kernelAllocation->cpuAddress, kernelData->isa, kernelISASize);
     return SUCCESS;
 }
@@ -386,7 +392,6 @@ int Context::createIndirectObjectHeap() {
         if (!iohAllocation)
             return BUFFER_ALLOCATION_FAILED;
     }
-    iohAllocation->gpuAddress = canonize(140746078134272);
     // Patch CrossThreadData
     char* crossThreadData = kernel->getCrossThreadData();
     for (uint32_t i = 0; i < 3; i++) {
@@ -560,7 +565,6 @@ int Context::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
     sipAllocation = allocateBufferObject(sipAllocSize, BufferType::KERNEL_ISA_INTERNAL);
     if (!sipAllocation)
         return BUFFER_ALLOCATION_FAILED;
-    sipAllocation->gpuAddress = canonize(140746078216192);
     memcpy(sipAllocation->cpuAddress, sipBinaryRaw, sipSize);
     isSipKernelAllocated = true;
     return SUCCESS;
@@ -959,11 +963,11 @@ int Context::finishExecution() {
     DBG_LOG("[DEBUG] GEM_WAIT time: %f seconds\n", elapsedTime/1e9);
 
     int64_t timeDiff = 0;
-    int64_t timeoutMilliseconds = 20000;
+    int64_t timeoutMilliseconds = 200;
     time1 = std::chrono::high_resolution_clock::now();
     uint32_t* pollAddress = static_cast<uint32_t*>(tagAllocation->cpuAddress);
     while (*pollAddress != this->completionTag && timeDiff <= timeoutMilliseconds) {
-        sleep(1);
+        usleep(1);
         sched_yield();
         time2 = std::chrono::high_resolution_clock::now();
         timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(time2 - time1).count();

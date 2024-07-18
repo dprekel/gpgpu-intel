@@ -39,6 +39,14 @@ struct CompilerInfo {
     CIFMain* fclMain = nullptr;
 };
 
+struct HeapAllocator {
+    uint64_t gpuBaseAddress = 0u;
+    uint64_t pLeftBound = 0u;
+    uint64_t pRightBound = 0u;
+    size_t availableSize = 0u;
+    size_t allocatedSize = 0u;
+};
+
 
 class Device : public pDevice {
   public:
@@ -47,6 +55,7 @@ class Device : public pDevice {
     static std::vector<int> openDevices(int* err);
     static CompilerInfo initCompiler(int* ret);
     int initialize();
+    int allocateHeapMemoryForSoftpinning(BufferObject* bo);
     std::unique_ptr<DeviceDescriptor> getDeviceInfoFromDescriptorTable(uint16_t deviceID);
     CIFMain* getIgcMain();
     CIFMain* getFclMain();
@@ -56,7 +65,6 @@ class Device : public pDevice {
 
     Context* context = nullptr;
     int fd = 0;
-    uint64_t gpuBaseAddress = 0u;
   private:
     bool checkDriverVersion();
     void getDeviceInfoFromHardwareConfigBlob();
@@ -65,13 +73,14 @@ class Device : public pDevice {
     void setDeviceExtensions(FeatureTable* featureTable);
     int checkPreemptionSupport(FeatureTable* featureTable);
     int retrieveTopologyInfo(SystemInfo* sysInfo);
-    int calculateGraphicsBaseAddress();
+    int initHeapAllocatorForSoftpinning();
     int getParamIoctl(int param, int* paramValue);
     std::unique_ptr<uint8_t[]> queryIoctl(uint32_t queryId, uint32_t queryItemFlags, int32_t length);
     
     CIFMain* igcMain = nullptr;
     CIFMain* fclMain = nullptr;
     std::unique_ptr<DeviceDescriptor> deviceDescriptor;
+    HeapAllocator heapAllocator;
     std::string deviceExtensions;
     uint32_t numDevices = 0u;
     char driver_name[5];
