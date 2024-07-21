@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <CL/cl.h>
 
+#define TILE_SIZE_K     8
 #define TILE_SIZE_M     1
 #define TILE_GROUP_M    16
 #define TILE_SIZE_N     128
@@ -89,14 +90,15 @@ int main() {
     uint64_t sizeSource;
     const char* raw_text = loadProgramSource("matmul.cl", &sizeSource);
     cl_program program = clCreateProgramWithSource(context, 1, &raw_text, 0, &err);
-    printf("err: %d\n", err);
+    printf("clCreateProgramWithSource: %d\n", err);
 
     std::string build_options = "-DTILE_SIZE_M=" + std::to_string(TILE_SIZE_M)
                               + " -DTILE_GROUP_M=" + std::to_string(TILE_GROUP_M)
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
-                              + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
+                              + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N)
+                              + " -DTILE_SIZE_K=8" + std::to_string(TILE_SIZE_K);
     err = clBuildProgram(program, num_devices, deviceStruct, build_options.c_str(), 0, 0);
-    printf("err: %d\n", err);
+    printf("clBuildProgram: %d\n", err);
     if (err == CL_BUILD_PROGRAM_FAILURE) {
         size_t log_size;
         clGetProgramBuildInfo(program, *deviceStruct, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
@@ -115,9 +117,17 @@ int main() {
         return err;
     }
 
-    const char* kernel_name = "matmul";
-    cl_kernel kernel = clCreateKernel(program, kernel_name, &err);
-    printf("err: %d\n", err);
+    // Create kernel 1
+    const char* kernel1_name = "matmul";
+    cl_kernel kernel1 = clCreateKernel(program, kernel1_name, &err);
+    printf("clCreateKernel: %d\n", err);
+
+    // Create kernel 2
+    /*
+    const char* kernel2_name = "gemm_nn";
+    cl_kernel kernel2 = clCreateKernel(program, kernel2_name, &err);
+    printf("clCreateKernel: %d\n", err);
+    */
 
     // Allocating memory for matrices
     size_t size = 3968;
@@ -135,52 +145,83 @@ int main() {
     }
     
     cl_mem bufferA = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_USE_HOST_PTR, matrix_memory_size, matrix_A, &err);
-    printf("err: %d\n", err);
+    printf("clCreateBuffer: %d\n", err);
     cl_mem bufferB = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_USE_HOST_PTR, matrix_memory_size, matrix_B, &err);
-    printf("err: %d\n", err);
+    printf("clCreateBuffer: %d\n", err);
     cl_mem bufferC = clCreateBuffer(context, CL_MEM_READ_WRITE|CL_MEM_USE_HOST_PTR, matrix_memory_size, matrix_C, &err);
-    printf("err: %d\n", err);
+    printf("clCreateBuffer: %d\n", err);
     
 
+    // Arguments for Kernel 1:
     cl_int ldabc = static_cast<int>(size);
-    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&bufferA);
-    err = clSetKernelArg(kernel, 1, sizeof(cl_int), (void*)&ldabc);
-    err = clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&bufferB);
-    err = clSetKernelArg(kernel, 3, sizeof(cl_int), (void*)&ldabc);
-    err = clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&bufferC);
-    err = clSetKernelArg(kernel, 5, sizeof(cl_int), (void*)&ldabc);
-    err = clSetKernelArg(kernel, 6, sizeof(cl_int), (void*)&ldabc);
+    err = clSetKernelArg(kernel1, 0, sizeof(cl_mem), (void*)&bufferA);
+    err = clSetKernelArg(kernel1, 1, sizeof(cl_int), (void*)&ldabc);
+    err = clSetKernelArg(kernel1, 2, sizeof(cl_mem), (void*)&bufferB);
+    err = clSetKernelArg(kernel1, 3, sizeof(cl_int), (void*)&ldabc);
+    err = clSetKernelArg(kernel1, 4, sizeof(cl_mem), (void*)&bufferC);
+    err = clSetKernelArg(kernel1, 5, sizeof(cl_int), (void*)&ldabc);
+    err = clSetKernelArg(kernel1, 6, sizeof(cl_int), (void*)&ldabc);
     printf("sizeof cl_mem: %lu\n", sizeof(cl_mem));
-    printf("err: %d\n", err);
+    printf("clSetKernelArg: %d\n", err);
+
+    // Arguments for Kernel 2:
+    /*
+    cl_int ldabc = static_cast<int>(size);
+    float alpha = 1.0f;
+    float beta = 0.0f;
+    err = clSetKernelArg(kernel2, 0, sizeof(cl_mem), (void*)&bufferA);
+    err = clSetKernelArg(kernel2, 1, sizeof(cl_int), (void*)&ldabc);
+    err = clSetKernelArg(kernel2, 2, sizeof(cl_mem), (void*)&bufferB);
+    err = clSetKernelArg(kernel2, 3, sizeof(cl_int), (void*)&ldabc);
+    err = clSetKernelArg(kernel2, 4, sizeof(cl_mem), (void*)&bufferC);
+    err = clSetKernelArg(kernel2, 5, sizeof(cl_int), (void*)&ldabc);
+    err = clSetKernelArg(kernel2, 6, sizeof(cl_int), (void*)&ldabc);
+    err = clSetKernelArg(kernel2, 7, sizeof(cl_int), (void*)&alpha);
+    err = clSetKernelArg(kernel2, 8, sizeof(cl_int), (void*)&beta);
+    printf("clSetKernelArg: %d\n", err);
+    */
 
     // number of work items per work group dimension
     const size_t local[2] = {TILE_GROUP_M, TILE_GROUP_N};
     // total number of work items in each dimension
     const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
 
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 5; i++) {
+
+        // Execute Kernel 1:
         uint64_t start = nanos();
-        err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, 0, 0);
-        printf("err: %d\n", err);
-        //err = clFinish(queue);
+        err = clEnqueueNDRangeKernel(queue, kernel1, 2, NULL, global, local, 0, 0, 0);
+        printf("clEnqueueNDRangeKernel: %d\n", err);
+        err = clFinish(queue);
         uint64_t end = nanos();
         double time = (end - start)/1e6;
         printf("Runtime: %f ms\n", time);
-        // we need to use clEnqueueReadBuffer because the memory was remapped by clCreateBuffer
-        float* result_C = (float*)malloc(matrix_memory_size);
-        err = clEnqueueReadBuffer(queue, bufferC, CL_TRUE, 0, matrix_memory_size, result_C, 0, NULL, NULL);
-        //sleep(15);
         printf("matrix_C[0] = %f\n", matrix_C[0]);
         printf("matrix_C[size*100] = %f\n", matrix_C[size *100]);
         printf("matrix_C[matrix_size-1] = %f\n", matrix_C[matrix_size - 1]);
         printf("matrix_C[matrix_size] = %f\n", matrix_C[matrix_size]);
-        free(result_C);
+
+        // Execute Kernel 2:
+        /*
+        uint64_t start = nanos();
+        err = clEnqueueNDRangeKernel(queue, kernel2, 2, NULL, global, local, 0, 0, 0);
+        printf("clEnqueueNDRangeKernel: %d\n", err);
+        err = clFinish(queue);
+        uint64_t end = nanos();
+        uint64_t time = (end - start)/1e6;
+        printf("Runtime: %f ms\n", time);
+        printf("matrix_C[0] = %f\n", matrix_C[0]);
+        printf("matrix_C[size*100] = %f\n", matrix_C[size *100]);
+        printf("matrix_C[matrix_size-1] = %f\n", matrix_C[matrix_size - 1]);
+        printf("matrix_C[matrix_size] = %f\n", matrix_C[matrix_size]);
+        */
     }
 
     clReleaseMemObject(bufferA);
     clReleaseMemObject(bufferB);
     clReleaseMemObject(bufferC);
-    clReleaseKernel(kernel);
+    clReleaseKernel(kernel1);
+    //clReleaseKernel(kernel2);
     clReleaseProgram(program);
     clReleaseCommandQueue(queue);
     clReleaseContext(context);

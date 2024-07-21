@@ -51,15 +51,20 @@ int main() {
     // total number of work items in each dimension
     const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
 
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 5; i++) {
         err = EnqueueNDRangeKernel(context, kernel, 2, global, local);
         if (err) {
             printf("ExecBuffer failed!\n");
         }
+        sleep(25);
         printf("  matCMem[0] = %f\n", matCMem[0]);
         printf("  matCMem[size*100] = %f\n", matCMem[size *100]);
+        printf("  matCMem[7500000] = %f\n", matCMem[7500000]);
         printf("  matCMem[matrix_size-10] = %f\n", matCMem[matrix_size - 10]);
         printf("  matCMem[matrix_size] = %f\n", matCMem[matrix_size]);
+        for (size_t i = 0; i < matrix_size; i++) {
+            matCMem[i] = 0.0;
+        }
     }
 
     err = ReleaseKernel(kernel);

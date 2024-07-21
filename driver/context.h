@@ -67,6 +67,7 @@ struct BufferObject {
         uintptr_t baseAddr = reinterpret_cast<uintptr_t>(cpuAddress);
         uintptr_t newAddr = baseAddr + offset;
         offset += ptr_offset;
+        currentTaskOffset += ptr_offset;
         return reinterpret_cast<T>(newAddr);
     }
     void deleteHandle();
@@ -78,6 +79,7 @@ struct BufferObject {
     uint64_t gpuAddress = 0u;
     uint32_t handle = 0u;
     size_t offset = 0u;
+    size_t currentTaskOffset = 0u;
     size_t size = 0u;
 };
 
@@ -99,7 +101,7 @@ class Context : public pContext {
     int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
     int constructBufferObjects();
     int populateAndSubmitExecBuffer();
-    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t residencyCount, size_t batchSize);
+    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t residencyCount, size_t batchSize, size_t batchStartOffset);
     int finishExecution();
 
     Device* device;
@@ -112,7 +114,7 @@ class Context : public pContext {
     int createSurfaceStateHeap();
     int createIndirectObjectHeap();
     int createDynamicStateHeap();
-    //int createCommandStreamTask();
+    int createCommandStreamTask();
     int createCommandStreamReceiver();
     void patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant);
     void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize);
@@ -133,7 +135,7 @@ class Context : public pContext {
     std::unique_ptr<BufferObject> iohAllocation;
     std::unique_ptr<BufferObject> dshAllocation;
     std::unique_ptr<BufferObject> sipAllocation;
-    //std::unique_ptr<BufferObject> commandStreamTask;
+    std::unique_ptr<BufferObject> commandStreamTask;
     std::unique_ptr<BufferObject> commandStreamCSR;
 
     std::vector<BufferObject*> execBuffer;
@@ -156,6 +158,8 @@ class Context : public pContext {
     uint32_t completionTag = 0u;
     bool isMidThreadLevelPreemptionSupported = false;
     bool isSipKernelAllocated = false;
+
+    uint32_t taskCount = 0u;
 };
 
 
