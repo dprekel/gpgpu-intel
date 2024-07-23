@@ -122,7 +122,7 @@ API_CALL int SetKernelArg(pKernel* kern,
 }
 
 
-API_CALL int EnqueueNDRangeKernel(pContext* cont,
+API_CALL int ExecuteKernel(pContext* cont,
                         pKernel* kern,
                         uint32_t work_dim,
                         const size_t* global_work_size,
@@ -130,10 +130,10 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     if (!cont)
         return NO_CONTEXT_ERROR;
     Context* context = static_cast<Context*>(cont);
-    if (!kern || !context->getKernelData())
+    if (!kern)
         return INVALID_KERNEL;
-    context->kernel = static_cast<Kernel*>(kern);
-    int ret = context->validateWorkGroups(work_dim, global_work_size, local_work_size);
+    Kernel* kernel = static_cast<Kernel*>(kern);
+    int ret = context->validateWorkGroups(kernel, work_dim, global_work_size, local_work_size);
     if (ret)
         return ret;
     ret = context->constructBufferObjects();
@@ -142,10 +142,9 @@ API_CALL int EnqueueNDRangeKernel(pContext* cont,
     ret = context->populateAndSubmitExecBuffer();
     if (ret)
         return ret;
-    //ret = context->finishExecution();
+    ret = context->finishExecution();
     if (ret)
         return ret;
-    context->kernel = nullptr; //TODO: maybe this is not good
     return SUCCESS;
 }
 

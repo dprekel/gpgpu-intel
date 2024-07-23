@@ -46,6 +46,14 @@ std::vector<BufferObject*> Kernel::getExecData() {
     return execData;
 }
 
+KernelFromPatchtokens* Kernel::getKernelData() {
+    return &kernelData;
+}
+
+BufferObject* Kernel::getKernelAllocation() {
+    return kernelAllocation.get();
+}
+
 //TODO: How do I close the compiler?
 int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
     auto dlopenFlag = RTLD_LAZY | RTLD_DEEPBIND;
@@ -372,9 +380,6 @@ void Kernel::clearSystemRoutineBuffers(IgcBuffer* systemRoutine, IgcBuffer* stat
 
 void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData) {
     switch (token->Token) {
-    case PATCH_TOKEN_SAMPLER_STATE_ARRAY:
-        kernelData->samplerStateArray = reinterpret_cast<const PatchSamplerStateArray*>(token);
-        break;
     case PATCH_TOKEN_BINDING_TABLE_STATE:
         kernelData->bindingTableState = reinterpret_cast<const PatchBindingTableState*>(token);
         break;
@@ -421,6 +426,7 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
         argDescriptor[stateless_const->ArgumentNumber]->header = token;
         argDescriptor[stateless_const->ArgumentNumber]->argToken = PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT;
         } break;
+    case PATCH_TOKEN_SAMPLER_STATE_ARRAY:
     case PATCH_TOKEN_SAMPLER_KERNEL_ARGUMENT:
     case PATCH_TOKEN_IMAGE_MEMORY_OBJECT_KERNEL_ARGUMENT:
     case PATCH_TOKEN_STATELESS_DEVICE_QUEUE_KERNEL_ARGUMENT:
@@ -621,14 +627,15 @@ int Kernel::extractMetadata() {
         decodeToken(token, &kernelData);
         decodePos = decodePos + token->Size;
     }
-    context->setKernelData(&kernelData);
     //TODO: Check if all necessary patchtokens are not nullptr
     if (kernelData.bindingTableState == nullptr)
         return INVALID_KERNEL_FORMAT;
     DBG_LOG("[DEBUG] Binding Table States: %u\n", kernelData.bindingTableState->Count);
     if (unsupportedKernelArgs || hasBindlessMode)
         return INVALID_KERNEL_FORMAT;
+    DBG_LOG("[DEBUG] Processing Patchtokens successful!\n");
     //TODO: Check if GROMACS uses implicit args
+
     uint32_t crossThreadDataSize = kernelData.dataParameterStream->DataParameterStreamSize;
     if (crossThreadDataSize) {
         crossThreadData = std::make_unique<char[]>(crossThreadDataSize);
@@ -639,7 +646,14 @@ int Kernel::extractMetadata() {
         sshLocal = std::make_unique<char[]>(sshSize);
         memcpy(sshLocal.get(), kernelData.surfaceState, sshSize);
     }
-    DBG_LOG("[DEBUG] Processing Patchtokens successful!\n");
+    // Allocate kernel BO
+    size_t kernelISASize = static_cast<size_t>(kernelData.header->KernelHeapSize);
+    size_t alignedAllocationSize = alignUp(kernelISASize, MemoryConstants::pageSize);
+    kernelAllocation = context->allocateBufferObject(alignedAllocationSize, BufferType::KERNEL_ISA);
+    if (!kernelAllocation)
+        return BUFFER_ALLOCATION_FAILED;
+    memcpy(kernelAllocation->cpuAddress, kernelData.isa, kernelISASize);
+
     return SUCCESS;
 }
 

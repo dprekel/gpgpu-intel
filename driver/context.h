@@ -88,8 +88,6 @@ class Context : public pContext {
   public:
     Context(Device* device);
     ~Context();
-    void setKernelData(KernelFromPatchtokens* kernelData);
-    KernelFromPatchtokens* getKernelData();
     BufferObject* getBatchBuffer();
     bool isSIPKernelAllocated();
     void setMaxWorkGroupSize();
@@ -98,10 +96,10 @@ class Context : public pContext {
     int createDRMContext();
     int allocateReusableBufferObjects();
     int createSipAllocation(size_t sipSize, const char* sipBinaryRaw);
-    int validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
+    int validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
     int constructBufferObjects();
     int populateAndSubmitExecBuffer();
-    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t residencyCount, size_t batchSize, size_t batchStartOffset);
+    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t boCount, size_t batchSize, size_t batchStartOffset);
     int finishExecution();
 
     Device* device;
@@ -109,7 +107,6 @@ class Context : public pContext {
 
   private:
     bool isGraphicsBaseAddressRequired(int bufferType);
-    int allocateISAMemory();
     int createScratchAllocation();
     int createSurfaceStateHeap();
     int createIndirectObjectHeap();
@@ -129,7 +126,6 @@ class Context : public pContext {
     std::unique_ptr<BufferObject> preemptionAllocation;
     std::unique_ptr<BufferObject> tagAllocation;
     std::unique_ptr<BufferObject> dataBatchBuffer;
-    std::unique_ptr<BufferObject> kernelAllocation;
     std::unique_ptr<BufferObject> scratchAllocation;    //TODO: Memory leak here
     std::unique_ptr<BufferObject> sshAllocation;
     std::unique_ptr<BufferObject> iohAllocation;
@@ -151,6 +147,7 @@ class Context : public pContext {
     size_t hwThreadsPerWorkGroup = 0u;
     uint32_t maxWorkItemsPerWorkGroup = 0u;
     uint32_t maxVfeThreads = 0u;
+    uint64_t currentScratchSpaceTotal = 0u;
     uint32_t perThreadScratchSpace = 0u;
     uint32_t GRFSize = 0u;
     uint32_t crossThreadDataSize = 0u;
@@ -158,8 +155,6 @@ class Context : public pContext {
     uint32_t completionTag = 0u;
     bool isMidThreadLevelPreemptionSupported = false;
     bool isSipKernelAllocated = false;
-
-    uint32_t taskCount = 0u;
 };
 
 

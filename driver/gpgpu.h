@@ -14,7 +14,6 @@
 #define CONTEXT_ALREADY_EXISTS               -6
 #define CONTEXT_CREATION_FAILED              -7
 #define BUFFER_ALLOCATION_FAILED             -8
-#define KERNEL_ALLOCATION_FAILED             -9
 #define INVALID_WORK_GROUP_SIZE             -10
 #define NO_DEVICE_ERROR                     -11
 #define NO_CONTEXT_ERROR                    -12
@@ -72,7 +71,7 @@ extern int SetKernelArg(pKernel* kern,
                         uint32_t arg_index,
                         size_t arg_size,
                         void* arg_value);
-extern int EnqueueNDRangeKernel(pContext* context,
+extern int ExecuteKernel(pContext* context,
                         pKernel* kernel,
                         uint32_t work_dim,
                         const size_t* global_work_size,

@@ -97,12 +97,6 @@ struct PatchItemHeader {
     uint32_t Size;
 };
 
-struct PatchSamplerStateArray : PatchItemHeader {
-    uint32_t Offset;
-    uint32_t Count;
-    uint32_t BorderColorOffset;
-};
-
 struct PatchBindingTableState : PatchItemHeader {
     uint32_t Offset;
     uint32_t Count;
@@ -236,7 +230,6 @@ struct KernelFromPatchtokens {
     const uint8_t* kernelInfo = nullptr;
     const uint8_t* patchList = nullptr;
     const uint8_t* patchListEnd = nullptr;
-    const PatchSamplerStateArray* samplerStateArray = nullptr;
     const PatchBindingTableState* bindingTableState = nullptr;
     const PatchMediaVFEState* mediaVfeState[2] = {nullptr, nullptr};
     const PatchMediaInterfaceDescriptorLoad* mediaInterfaceDescriptorLoad = nullptr;
@@ -276,11 +269,8 @@ struct ArgDescValue : ArgDescriptor {
 
 
 namespace codeType {
-    //constexpr uint64_t oclC = 2305843009183132750ul;
     constexpr uint64_t oclC = 0x1ffffffffe2dac4eul;
-    //constexpr uint64_t spirV = 2305843009202725362ul;
     constexpr uint64_t spirV = 0x1fffffffff58a1f2ul;
-    //constexpr uint64_t oclGenBin = 18425635491780865102ul;
     constexpr uint64_t oclGenBin = 0xffb501db486dac4eul;
 };
 
@@ -293,6 +283,8 @@ class Kernel : public pKernel {
     char* getSurfaceStatePtr();
     char* getCrossThreadData();
     std::vector<BufferObject*> getExecData();
+    KernelFromPatchtokens* getKernelData();
+    BufferObject* getKernelAllocation();
     IgcBuffer* loadProgramSource(const char* filename);
     int initialize();
     int build(const char* filename, const char* options);
@@ -340,6 +332,7 @@ class Kernel : public pKernel {
     std::vector<std::unique_ptr<ArgDescriptor>> argDescriptor;
     std::unique_ptr<char[]> sshLocal;
     std::unique_ptr<char[]> crossThreadData;
+    std::unique_ptr<BufferObject> kernelAllocation;
     std::vector<BufferObject*> execData;
 };
 

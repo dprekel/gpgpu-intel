@@ -86,14 +86,6 @@ void Context::setMaxThreadsForVfe() {
     maxVfeThreads = hwInfo->gtSystemInfo->EUCount * numThreadsPerEU;
 }
 
-void Context::setKernelData(KernelFromPatchtokens* kernelData) {
-    this->kernelData = kernelData;
-}
-
-KernelFromPatchtokens* Context::getKernelData() {
-    return kernelData;
-}
-
 BufferObject* Context::getBatchBuffer() {
     return dataBatchBuffer.get();
 }
@@ -243,7 +235,10 @@ int Context::allocateReusableBufferObjects() {
 - Total number of work items must be specified, otherwise it alway returns INVALID_WORK_GROUP_SIZE
 - If local_work_size is nullptr, then workItemsPerWorkGroup[i] will always be 1, which leads to INVALID_WORK_GROUP_SIZE
 */
-int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size) {
+int Context::validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size) {
+    this->kernel = kernel;
+    this->kernelData = kernel->getKernelData();
+
     if (work_dim > 3) {
         return INVALID_WORK_GROUP_SIZE;
     }
@@ -286,10 +281,7 @@ int Context::validateWorkGroups(uint32_t work_dim, const size_t* global_work_siz
 
 
 int Context::constructBufferObjects() {
-    int ret = allocateISAMemory();
-    if (ret)
-        return ret;
-    ret = createScratchAllocation();
+    int ret = createScratchAllocation();
     if (ret)
         return ret;
     ret = createSurfaceStateHeap();
@@ -311,47 +303,25 @@ int Context::constructBufferObjects() {
 }
 
 
-int Context::allocateISAMemory() {
-    size_t kernelISASize = static_cast<size_t>(kernelData->header->KernelHeapSize);
-    size_t alignedAllocationSize = alignUp(kernelISASize, MemoryConstants::pageSize);
-    bool hasRequiredAllocationSize;
-    if (kernelAllocation) {
-        hasRequiredAllocationSize = (kernelAllocation->size >= alignedAllocationSize) ? true : false;
-    }
-    if (!kernelAllocation || !hasRequiredAllocationSize) {
-        kernelAllocation.reset(); // after freeing, the kernel driver still holds a handle to this object, but I don't think this causes issues
-        kernelAllocation = allocateBufferObject(alignedAllocationSize, BufferType::KERNEL_ISA);
-        if (!kernelAllocation)
-            return KERNEL_ALLOCATION_FAILED;
-    }
-    memcpy(kernelAllocation->cpuAddress, kernelData->isa, kernelISASize);
-    return SUCCESS;
-}
-
-
-//TODO: Check why Intels GEMM uses no Scratch Space
-//TODO: Check necessary alignment size
-//TODO: Make sure that mediaVfeState[0] is never nullptr
 int Context::createScratchAllocation() {
     uint32_t computeUnitsUsedForScratch = hwInfo->gtSystemInfo->MaxSubSlicesSupported
                                         * hwInfo->gtSystemInfo->MaxEuPerSubSlice
                                         * hwInfo->gtSystemInfo->ThreadCount
                                         / hwInfo->gtSystemInfo->EUCount;
-    if (!scratchAllocation) {
-        uint32_t requiredScratchSize = kernelData->mediaVfeState[0]->PerThreadScratchSpace;
-        size_t requiredScratchSizeInBytes = requiredScratchSize * computeUnitsUsedForScratch;
-        if (requiredScratchSize) {
-            size_t alignedAllocationSize = alignUp(requiredScratchSizeInBytes, MemoryConstants::pageSize);
-            scratchAllocation = allocateBufferObject(alignedAllocationSize, BufferType::SCRATCH_SURFACE);
-            if (!scratchAllocation)
-                return BUFFER_ALLOCATION_FAILED;
-            requiredScratchSize >>= static_cast<uint32_t>(MemoryConstants::kiloByteShiftSize);
-            while (requiredScratchSize >>= 1) {
-                perThreadScratchSpace++;
-            }
-            return SUCCESS;
+    uint32_t requiredScratchSpace = kernelData->mediaVfeState[0]->PerThreadScratchSpace;
+    size_t requiredScratchSizeInBytes = requiredScratchSpace * computeUnitsUsedForScratch;
+    size_t alignedAllocationSize = alignUp(requiredScratchSizeInBytes, MemoryConstants::pageSize);
+    if (alignedAllocationSize > currentScratchSpaceTotal) {
+        scratchAllocation.reset();
+        scratchAllocation = allocateBufferObject(alignedAllocationSize, BufferType::SCRATCH_SURFACE);
+        if (!scratchAllocation)
+            return BUFFER_ALLOCATION_FAILED;
+        currentScratchSpaceTotal = alignedAllocationSize;
+
+        requiredScratchSpace >>= static_cast<uint32_t>(MemoryConstants::kiloByteShiftSize);
+        while (requiredScratchSpace >>= 1) {
+            perThreadScratchSpace++;
         }
-        perThreadScratchSpace = 0u;
     }
     return SUCCESS;
 }
@@ -398,7 +368,8 @@ int Context::createIndirectObjectHeap() {
         if (!iohAllocation)
             return BUFFER_ALLOCATION_FAILED;
     }
-    iohAllocation->gpuAddress = canonize(0x8001fffd6000);
+    //TODO: Check why address is different
+    //iohAllocation->gpuAddress = canonize(0x8001fffd6000);
     // Patch CrossThreadData
     char* crossThreadData = kernel->getCrossThreadData();
     for (uint32_t i = 0; i < 3; i++) {
@@ -551,9 +522,10 @@ int Context::createDynamicStateHeap() {
         if (!dshAllocation)
             return BUFFER_ALLOCATION_FAILED;
     }
+    BufferObject* kernelBO = kernel->getKernelAllocation();
     auto interfaceDescriptor = dshAllocation->ptrOffset<INTERFACE_DESCRIPTOR_DATA*>(sizeof(INTERFACE_DESCRIPTOR_DATA));
     *interfaceDescriptor = INTERFACE_DESCRIPTOR_DATA::init();
-    uint64_t kernelStartOffset = kernelAllocation->gpuAddress - kernelAllocation->gpuBaseAddress;
+    uint64_t kernelStartOffset = kernelBO->gpuAddress - kernelBO->gpuBaseAddress;
     interfaceDescriptor->Bitfield.KernelStartPointerHigh = kernelStartOffset >> 32;
     interfaceDescriptor->Bitfield.KernelStartPointer = static_cast<uint32_t>(kernelStartOffset) >> 0x6;
     interfaceDescriptor->Bitfield.DenormMode = INTERFACE_DESCRIPTOR_DATA::DENORM_MODE_SETBYKERNEL;
@@ -587,12 +559,12 @@ int Context::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
 }
 
 int Context::createCommandStreamTask() {
-    //TODO: Reset offset value if EnqueueNDRangeKernel is called multiple times
     if (!commandStreamTask) {
         commandStreamTask = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
         if (!commandStreamTask)
             return BUFFER_ALLOCATION_FAILED;
     }
+    commandStreamTask->currentTaskOffset = 0u;
     // Program MEDIA_STATE_FLUSH
     auto cmd1 = commandStreamTask->ptrOffset<MEDIA_STATE_FLUSH*>(sizeof(MEDIA_STATE_FLUSH));
     *cmd1 = MEDIA_STATE_FLUSH::init();
@@ -665,15 +637,14 @@ int Context::createCommandStreamTask() {
 
 
 int Context::createCommandStreamReceiver() {
-    //TODO: Reset offset value if EnqueueNDRangeKernel is called multiple times
-    //TODO: This doesn't seem to work if it runs in a loop more than two times
     if (!commandStreamCSR) {
         commandStreamCSR = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
         if (!commandStreamCSR)
             return BUFFER_ALLOCATION_FAILED;
     }
-    taskCount += 1;
-    if (taskCount == 1) {
+    commandStreamCSR->currentTaskOffset = 0u;
+    //taskCount += 1;
+    //if (taskCount == 1) {
         // Program Pipeline Selection
         auto cmd1 = commandStreamCSR->ptrOffset<PIPELINE_SELECT*>(sizeof(PIPELINE_SELECT));
         *cmd1 = PIPELINE_SELECT::init();
@@ -719,6 +690,7 @@ int Context::createCommandStreamReceiver() {
         cmd6->Bitfield.DcFlushEnable = true;
 
         // Program VFE state
+        //TODO: gets dirty if ScratchAllocation needs to be resized
         auto cmd7 = commandStreamCSR->ptrOffset<MEDIA_VFE_STATE*>(sizeof(MEDIA_VFE_STATE));
         *cmd7 = MEDIA_VFE_STATE::init();
         cmd7->Bitfield.MaximumNumberOfThreads = this->maxVfeThreads - 1;
@@ -749,6 +721,7 @@ int Context::createCommandStreamReceiver() {
 
 
         // Program State Base Address
+        //TODO: gets dirty if ScratchAllocation needs to be resized
         auto cmd10 = commandStreamCSR->ptrOffset<STATE_BASE_ADDRESS*>(sizeof(STATE_BASE_ADDRESS));
         *cmd10 = STATE_BASE_ADDRESS::init();
 
@@ -768,9 +741,10 @@ int Context::createCommandStreamReceiver() {
         cmd10->Bitfield.IndirectObjectBufferSizeModifyEnable = true;
         cmd10->Bitfield.IndirectObjectBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
 
+        BufferObject* kernelBO = kernel->getKernelAllocation();
         cmd10->Bitfield.InstructionBaseAddressModifyEnable = true;
         cmd10->Bitfield.InstructionMemoryObjectControlState_IndexToMocsTables = MOCS::AggressiveCaching;
-        cmd10->Bitfield.InstructionBaseAddress = decanonize(kernelAllocation->gpuBaseAddress) >> 0xc;
+        cmd10->Bitfield.InstructionBaseAddress = decanonize(kernelBO->gpuBaseAddress) >> 0xc;
         cmd10->Bitfield.InstructionBufferSizeModifyEnable = true;
         cmd10->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
 
@@ -813,9 +787,8 @@ int Context::createCommandStreamReceiver() {
         cmd13->Bitfield.AddressSpaceIndicator = MI_BATCH_BUFFER_START::ADDRESS_SPACE_INDICATOR_PPGTT;
 
         alignToCacheLine(commandStreamCSR.get());
-    }
+    //}
 
-    DBG_LOG("[DEBUG] BatchBuffer creation successful!\n");
     return SUCCESS;
 }
 
@@ -836,7 +809,7 @@ void Context::alignToCacheLine(BufferObject* bo) {
 
 int Context::populateAndSubmitExecBuffer() {
     execBuffer = kernel->getExecData();
-    execBuffer.push_back(kernelAllocation.get());
+    execBuffer.push_back(kernel->getKernelAllocation());
     if (scratchAllocation)
         execBuffer.push_back(scratchAllocation.get());
     execBuffer.push_back(dshAllocation.get());
@@ -848,34 +821,21 @@ int Context::populateAndSubmitExecBuffer() {
         execBuffer.push_back(sipAllocation.get());
     }
     execBuffer.push_back(commandStreamTask.get());
-    size_t batchSize;
-    size_t batchStartOffset;
-    size_t residencyCount;
-    if (taskCount == 1) {
-        execBuffer.push_back(commandStreamCSR.get());
-        batchSize = commandStreamCSR->currentTaskOffset;
-        batchStartOffset = commandStreamCSR->offset - commandStreamCSR->currentTaskOffset;
-        residencyCount = execBuffer.size();
-        execObjects.resize(residencyCount);
-    } else {
-        batchSize = commandStreamTask->currentTaskOffset;
-        batchStartOffset = commandStreamTask->offset - commandStreamTask->currentTaskOffset;
-        residencyCount = execBuffer.size();
-        execObjects.resize(residencyCount);
-    }
+    execBuffer.push_back(commandStreamCSR.get());
 
-    int ret = exec(execObjects.data(), execBuffer.data(), residencyCount, batchSize, batchStartOffset);
+    size_t batchSize = commandStreamCSR->currentTaskOffset;
+    size_t batchStartOffset = commandStreamCSR->offset - commandStreamCSR->currentTaskOffset;
+    size_t boCount = execBuffer.size();
+    execObjects.resize(boCount);
+
+    DBG_LOG("[DEBUG] Executing Batchbuffer ...  ");
+    fflush(stdout);
+    int ret = exec(execObjects.data(), execBuffer.data(), boCount, batchSize, batchStartOffset);
     if (ret) {
         execBuffer.clear();
-        //TODO: What else must be done here?
         return GEM_EXECBUFFER_FAILED;
     }
-    for (auto& bo : execBuffer) {
-        bo->currentTaskOffset = 0u;
-    }
     execBuffer.clear();
-    //TODO: Reset offset values of BOs
-    //TODO: Do ssh, dsh and ioh need an offset reset?
 
     return SUCCESS;
 }
@@ -893,13 +853,13 @@ void Context::fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject
 }
 
 
-int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtr, size_t residencyCount, size_t batchSize, size_t batchStartOffset) {
-    for (size_t i = 0; i < residencyCount; i++) {
+int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtr, size_t boCount, size_t batchSize, size_t batchStartOffset) {
+    for (size_t i = 0; i < boCount; i++) {
         fillExecObject(execObjects[i], execBufferPtr[i]);
     }
     drm_i915_gem_execbuffer2 execbuf = {0};
     execbuf.buffers_ptr = reinterpret_cast<uintptr_t>(execObjects);
-    execbuf.buffer_count = static_cast<uint32_t>(residencyCount);
+    execbuf.buffer_count = static_cast<uint32_t>(boCount);
     execbuf.batch_start_offset = static_cast<uint32_t>(batchStartOffset);
     execbuf.batch_len = static_cast<uint32_t>(alignUp(batchSize, 8));
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
@@ -914,8 +874,6 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
 
 
 int Context::finishExecution() {
-    //execObjects.clear();
-    //TODO: Clear execObjects vector here
     std::chrono::high_resolution_clock::time_point time1, time2;
 
     drm_i915_gem_wait wait = {0};
@@ -927,22 +885,25 @@ int Context::finishExecution() {
         return POST_SYNC_OPERATION_FAILED;
     time2 = std::chrono::high_resolution_clock::now();
     int64_t elapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(time2 - time1).count();
-    DBG_LOG("[DEBUG] GEM_WAIT time: %f seconds\n", elapsedTime/1e9);
 
-    int64_t timeDiff = 0;
-    int64_t timeoutMilliseconds = 200;
-    time1 = std::chrono::high_resolution_clock::now();
+    //int64_t timeDiff = 0;
+    //int64_t timeoutMilliseconds = 200;
+    //time1 = std::chrono::high_resolution_clock::now();
     uint32_t* pollAddress = static_cast<uint32_t*>(tagAllocation->cpuAddress);
+    /*
     while (*pollAddress != this->completionTag && timeDiff <= timeoutMilliseconds) {
+        //TODO: Replace usleep with intrinsic
         usleep(1);
         sched_yield();
         time2 = std::chrono::high_resolution_clock::now();
         timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(time2 - time1).count();
     }
     DBG_LOG("[DEBUG] Timeout: %f seconds\n", timeDiff/1e3);
-    DBG_LOG("[DEBUG] completionTag: %u\n", *pollAddress);
+    */
     if (*pollAddress != this->completionTag)
         return POST_SYNC_OPERATION_FAILED;
+    DBG_LOG("Done!\n");
+    DBG_LOG("[DEBUG] Batchbuffer finished! (Tag value: %u, Execution time: %.2f seconds)\n", *pollAddress, elapsedTime/1e9);
 
     return SUCCESS;
 }
