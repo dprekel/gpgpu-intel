@@ -123,11 +123,9 @@ int main() {
     printf("clCreateKernel: %d\n", err);
 
     // Create kernel 2
-    /*
     const char* kernel2_name = "gemm_nn";
     cl_kernel kernel2 = clCreateKernel(program, kernel2_name, &err);
     printf("clCreateKernel: %d\n", err);
-    */
 
     // Allocating memory for matrices
     size_t size = 3968;
@@ -165,8 +163,6 @@ int main() {
     printf("clSetKernelArg: %d\n", err);
 
     // Arguments for Kernel 2:
-    /*
-    cl_int ldabc = static_cast<int>(size);
     float alpha = 1.0f;
     float beta = 0.0f;
     err = clSetKernelArg(kernel2, 0, sizeof(cl_mem), (void*)&bufferA);
@@ -179,14 +175,13 @@ int main() {
     err = clSetKernelArg(kernel2, 7, sizeof(cl_int), (void*)&alpha);
     err = clSetKernelArg(kernel2, 8, sizeof(cl_int), (void*)&beta);
     printf("clSetKernelArg: %d\n", err);
-    */
 
     // number of work items per work group dimension
     const size_t local[2] = {TILE_GROUP_M, TILE_GROUP_N};
     // total number of work items in each dimension
     const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 10; i++) {
 
         // Execute Kernel 1:
         uint64_t start = nanos();
@@ -202,26 +197,24 @@ int main() {
         printf("matrix_C[matrix_size] = %f\n", matrix_C[matrix_size]);
 
         // Execute Kernel 2:
-        /*
-        uint64_t start = nanos();
+        start = nanos();
         err = clEnqueueNDRangeKernel(queue, kernel2, 2, NULL, global, local, 0, 0, 0);
         printf("clEnqueueNDRangeKernel: %d\n", err);
         err = clFinish(queue);
-        uint64_t end = nanos();
-        uint64_t time = (end - start)/1e6;
+        end = nanos();
+        time = (end - start)/1e6;
         printf("Runtime: %f ms\n", time);
         printf("matrix_C[0] = %f\n", matrix_C[0]);
         printf("matrix_C[size*100] = %f\n", matrix_C[size *100]);
         printf("matrix_C[matrix_size-1] = %f\n", matrix_C[matrix_size - 1]);
         printf("matrix_C[matrix_size] = %f\n", matrix_C[matrix_size]);
-        */
     }
 
     clReleaseMemObject(bufferA);
     clReleaseMemObject(bufferB);
     clReleaseMemObject(bufferC);
     clReleaseKernel(kernel1);
-    //clReleaseKernel(kernel2);
+    clReleaseKernel(kernel2);
     clReleaseProgram(program);
     clReleaseCommandQueue(queue);
     clReleaseContext(context);
