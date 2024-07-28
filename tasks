@@ -5,7 +5,6 @@ Issues / Jobs left
 CreateDevice:
 
 CreateContext:
-- Preemption buffer only if midThreadPreemption is true
 
 CreateBuffer:
 - do I need alignUp?

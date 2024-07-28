@@ -29,5 +29,5 @@ When using OpenCL, there is no way to dump your device kernel into a file to ins
 Different to Intels NEO OpenCL driver, this driver doesn't need interface headers of the IGC to build successfully. This poises a risk of compatibility issues with specific IGC builds. 
 
 ## Driver Internals
-![](GPU_Driver_Flowchart.png?raw=true)
+![](images/GPU_Driver_Flowchart.png?raw=true)
 The batchbuffer is then put into a ring buffer by the kernel driver so that the Command Streamer Engine of the GPU can directly access it by DMA. The Command Streamer then executes the commands one by one.
