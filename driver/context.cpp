@@ -390,8 +390,12 @@ int Context::createIndirectObjectHeap() {
     this->hwThreadsPerWorkGroup = threadsPerWG;
 
     iohAllocation->offset += static_cast<size_t>(crossThreadDataSize);
-    //generateLocalIDsSimd(iohAllocation->cpuAddress, threadsPerWG, simdSize);
-    generateLocalIDs(iohAllocation.get());
+    void* perThreadDataOffset = ptrOffset(iohAllocation->cpuAddress, iohAllocation->offset);
+    if (simdSize != 8) {
+        generateLocalIDsSimd(perThreadDataOffset, threadsPerWG, simdSize);
+    } else {
+        return -1;
+    }
 
     // Calculate total size of PerThreadData
     this->GRFSize = 32; // one general purpose register file (GRF) has 32 bytes on GEN9
@@ -418,13 +422,6 @@ void Context::patchKernelConstant(const PatchDataParameterBuffer* info, char* cr
     }
 }
 
-void Context::generateLocalIDs(BufferObject* ioh) {
-    uint16_t* iohOffset = static_cast<uint16_t*>(ptrOffset(ioh->cpuAddress, ioh->offset));
-    memset(iohOffset, 0x0, 96);
-    for (int i = 0; i < 16; i++) {
-        iohOffset[i] = i;
-    }
-}
 
 alignas(32)
 const uint16_t initialLocalID[] = {
@@ -432,7 +429,7 @@ const uint16_t initialLocalID[] = {
     16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
 
 void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize) {
-    const uint32_t numChannels = 8u;
+    const uint32_t numChannels = 16u;
     const int passes = simdSize / numChannels;
     int pass = 0;
     uint32_t dimNum[3] = {0, 1, 2};
@@ -504,13 +501,13 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint
             __m256i deltaY = _mm256_blendv_epi8(one, zero, xWrap);
             y += deltaY;
             yWrap = y >= vLwsY;
-            __m256i deltaY2 = _mm256_blendv_epi8(one, zero, yWrap);
+            __m256i deltaY2 = _mm256_blendv_epi8(vLwsY, zero, yWrap);
             y -= deltaY2;
             __m256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
             z += deltaZ;
             buffer = ptrOffset(buffer, 3 * threadSkipSize);
         }
-        ioh = ptrOffset(ioh, 8 * sizeof(uint16_t));
+        ioh = ptrOffset(ioh, numChannels * sizeof(uint16_t));
     } while (++pass < passes);
 }
 
@@ -643,151 +640,149 @@ int Context::createCommandStreamReceiver() {
             return BUFFER_ALLOCATION_FAILED;
     }
     commandStreamCSR->currentTaskOffset = 0u;
-    //taskCount += 1;
-    //if (taskCount == 1) {
-        // Program Pipeline Selection
-        auto cmd1 = commandStreamCSR->ptrOffset<PIPELINE_SELECT*>(sizeof(PIPELINE_SELECT));
-        *cmd1 = PIPELINE_SELECT::init();
-        uint32_t enablePipelineSelectMaskBits = 0x3;
-        uint32_t mediaSamplerDopClockGateMaskBits = 0x10;
-        cmd1->Bitfield.MaskBits = enablePipelineSelectMaskBits | mediaSamplerDopClockGateMaskBits;
-        cmd1->Bitfield.PipelineSelection = PIPELINE_SELECT::PIPELINE_SELECTION_GPGPU;
-        // Clock Gating is a technique to dynamically adjust the clock frequency of the Media
-        // Pipeline Hardware. It contains texture mapping units (TMUs) which are responsible for
-        // texture sampling. Since this driver doesn't support sampler objects, it makes sense
-        // to enable Clock Gating to save power.
-        cmd1->Bitfield.MediaSamplerDopClockGateEnable = true;
 
-        // Program L3 Cache:
-        auto cmd2 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
-        *cmd2 = MI_LOAD_REGISTER_IMM::init();
-        uint32_t L3ValueNoSLM = 0x80000340;
-        cmd2->Bitfield.RegisterOffset = MMIOAddresses::L3Register >> 0x2;
-        cmd2->Bitfield.DataDword = L3ValueNoSLM;
+    // Program Pipeline Selection
+    auto cmd1 = commandStreamCSR->ptrOffset<PIPELINE_SELECT*>(sizeof(PIPELINE_SELECT));
+    *cmd1 = PIPELINE_SELECT::init();
+    uint32_t enablePipelineSelectMaskBits = 0x3;
+    uint32_t mediaSamplerDopClockGateMaskBits = 0x10;
+    cmd1->Bitfield.MaskBits = enablePipelineSelectMaskBits | mediaSamplerDopClockGateMaskBits;
+    cmd1->Bitfield.PipelineSelection = PIPELINE_SELECT::PIPELINE_SELECTION_GPGPU;
+    // Clock Gating is a technique to dynamically adjust the clock frequency of the Media
+    // Pipeline Hardware. It contains texture mapping units (TMUs) which are responsible for
+    // texture sampling. Since this driver doesn't support sampler objects, it makes sense
+    // to enable Clock Gating to save power.
+    cmd1->Bitfield.MediaSamplerDopClockGateEnable = true;
 
-        // Program Thread Arbitration
-        auto cmd3 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
-        *cmd3 = PIPE_CONTROL::init();
-        cmd3->Bitfield.CommandStreamerStallEnable = true;
+    // Program L3 Cache:
+    auto cmd2 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
+    *cmd2 = MI_LOAD_REGISTER_IMM::init();
+    uint32_t L3ValueNoSLM = 0x80000340;
+    cmd2->Bitfield.RegisterOffset = MMIOAddresses::L3Register >> 0x2;
+    cmd2->Bitfield.DataDword = L3ValueNoSLM;
 
-        auto cmd4 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
-        *cmd4 = MI_LOAD_REGISTER_IMM::init();
-        uint32_t requiredThreadArbitrationPolicy = ThreadArbitrationPolicy::RoundRobin;
-        cmd4->Bitfield.RegisterOffset = MMIOAddresses::debugControlReg2 >> 0x2;
-        cmd4->Bitfield.DataDword = requiredThreadArbitrationPolicy;
+    // Program Thread Arbitration
+    auto cmd3 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
+    *cmd3 = PIPE_CONTROL::init();
+    cmd3->Bitfield.CommandStreamerStallEnable = true;
 
-        // Program Preemption
-        auto cmd5 = commandStreamCSR->ptrOffset<GPGPU_CSR_BASE_ADDRESS*>(sizeof(GPGPU_CSR_BASE_ADDRESS));
-        *cmd5 = GPGPU_CSR_BASE_ADDRESS::init();
-        cmd5->Bitfield.GpgpuCsrBaseAddress = preemptionAllocation->gpuAddress >> 0xc;
+    auto cmd4 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
+    *cmd4 = MI_LOAD_REGISTER_IMM::init();
+    uint32_t requiredThreadArbitrationPolicy = ThreadArbitrationPolicy::RoundRobin;
+    cmd4->Bitfield.RegisterOffset = MMIOAddresses::debugControlReg2 >> 0x2;
+    cmd4->Bitfield.DataDword = requiredThreadArbitrationPolicy;
 
-        // Program Pipe Control
-        auto cmd6 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
-        *cmd6 = PIPE_CONTROL::init();
-        cmd6->Bitfield.CommandStreamerStallEnable = true;
-        cmd6->Bitfield.RenderTargetCacheFlushEnable = true;
-        cmd6->Bitfield.DepthCacheFlushEnable = true;
-        cmd6->Bitfield.DcFlushEnable = true;
+    // Program Preemption
+    auto cmd5 = commandStreamCSR->ptrOffset<GPGPU_CSR_BASE_ADDRESS*>(sizeof(GPGPU_CSR_BASE_ADDRESS));
+    *cmd5 = GPGPU_CSR_BASE_ADDRESS::init();
+    cmd5->Bitfield.GpgpuCsrBaseAddress = preemptionAllocation->gpuAddress >> 0xc;
 
-        // Program VFE state
-        //TODO: gets dirty if ScratchAllocation needs to be resized
-        auto cmd7 = commandStreamCSR->ptrOffset<MEDIA_VFE_STATE*>(sizeof(MEDIA_VFE_STATE));
-        *cmd7 = MEDIA_VFE_STATE::init();
-        cmd7->Bitfield.MaximumNumberOfThreads = this->maxVfeThreads - 1;
-        cmd7->Bitfield.NumberOfUrbEntries = 0x1;
-        cmd7->Bitfield.UrbEntryAllocationSize = 0x782;
-        cmd7->Bitfield.PerThreadScratchSpace = this->perThreadScratchSpace;
-        cmd7->Bitfield.StackSize = this->perThreadScratchSpace;
-        size_t scratchSpaceOffset = 4096u;
-        uint32_t lowAddress = static_cast<uint32_t>(0xffffffff & scratchSpaceOffset);
-        uint32_t highAddress = static_cast<uint32_t>(0xffffffff & (scratchSpaceOffset >> 32));
-        cmd7->Bitfield.ScratchSpaceBasePointer = lowAddress >> 0xa;
-        cmd7->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
+    // Program Pipe Control
+    auto cmd6 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
+    *cmd6 = PIPE_CONTROL::init();
+    cmd6->Bitfield.CommandStreamerStallEnable = true;
+    cmd6->Bitfield.RenderTargetCacheFlushEnable = true;
+    cmd6->Bitfield.DepthCacheFlushEnable = true;
+    cmd6->Bitfield.DcFlushEnable = true;
 
-        // Program register for preemption
-        auto cmd8 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
-        uint32_t preemptMask = ((1 << 1) | (1 << 2)) << 16;
-        uint32_t preemptValue = 0 | preemptMask;
-        *cmd8 = MI_LOAD_REGISTER_IMM::init();
-        cmd8->Bitfield.RegisterOffset = MMIOAddresses::preemptConfigReg >> 0x2;
-        cmd8->Bitfield.DataDword = preemptValue;
+    // Program VFE state
+    //TODO: gets dirty if ScratchAllocation needs to be resized
+    auto cmd7 = commandStreamCSR->ptrOffset<MEDIA_VFE_STATE*>(sizeof(MEDIA_VFE_STATE));
+    *cmd7 = MEDIA_VFE_STATE::init();
+    cmd7->Bitfield.MaximumNumberOfThreads = this->maxVfeThreads - 1;
+    cmd7->Bitfield.NumberOfUrbEntries = 0x1;
+    cmd7->Bitfield.UrbEntryAllocationSize = 0x782;
+    cmd7->Bitfield.PerThreadScratchSpace = this->perThreadScratchSpace;
+    cmd7->Bitfield.StackSize = this->perThreadScratchSpace;
+    size_t scratchSpaceOffset = 4096u;
+    uint32_t lowAddress = static_cast<uint32_t>(0xffffffff & scratchSpaceOffset);
+    uint32_t highAddress = static_cast<uint32_t>(0xffffffff & (scratchSpaceOffset >> 32));
+    cmd7->Bitfield.ScratchSpaceBasePointer = lowAddress >> 0xa;
+    cmd7->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
 
-        // Program Pipe Control
-        auto cmd9 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
-        *cmd9 = PIPE_CONTROL::init();
-        cmd9->Bitfield.CommandStreamerStallEnable = true;
-        cmd9->Bitfield.TextureCacheInvalidationEnable = true;
-        cmd9->Bitfield.DcFlushEnable = true;
+    // Program register for preemption
+    auto cmd8 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
+    uint32_t preemptMask = ((1 << 1) | (1 << 2)) << 16;
+    uint32_t preemptValue = 0 | preemptMask;
+    *cmd8 = MI_LOAD_REGISTER_IMM::init();
+    cmd8->Bitfield.RegisterOffset = MMIOAddresses::preemptConfigReg >> 0x2;
+    cmd8->Bitfield.DataDword = preemptValue;
 
-
-        // Program State Base Address
-        //TODO: gets dirty if ScratchAllocation needs to be resized
-        auto cmd10 = commandStreamCSR->ptrOffset<STATE_BASE_ADDRESS*>(sizeof(STATE_BASE_ADDRESS));
-        *cmd10 = STATE_BASE_ADDRESS::init();
-
-        cmd10->Bitfield.DynamicStateBaseAddressModifyEnable = true;
-        cmd10->Bitfield.DynamicStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
-        cmd10->Bitfield.DynamicStateBaseAddress = dshAllocation->gpuAddress >> 0xc;
-        cmd10->Bitfield.DynamicStateBufferSizeModifyEnable = true;
-        cmd10->Bitfield.DynamicStateBufferSize = dshAllocation->size / MemoryConstants::pageSize;
-
-        cmd10->Bitfield.SurfaceStateBaseAddressModifyEnable = true;
-        cmd10->Bitfield.SurfaceStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
-        cmd10->Bitfield.SurfaceStateBaseAddress = sshAllocation->gpuAddress >> 0xc;
-
-        cmd10->Bitfield.IndirectObjectBaseAddressModifyEnable = true;
-        cmd10->Bitfield.IndirectObjectMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
-        cmd10->Bitfield.IndirectObjectBaseAddress = iohAllocation->gpuBaseAddress >> 0xc;
-        cmd10->Bitfield.IndirectObjectBufferSizeModifyEnable = true;
-        cmd10->Bitfield.IndirectObjectBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
-
-        BufferObject* kernelBO = kernel->getKernelAllocation();
-        cmd10->Bitfield.InstructionBaseAddressModifyEnable = true;
-        cmd10->Bitfield.InstructionMemoryObjectControlState_IndexToMocsTables = MOCS::AggressiveCaching;
-        cmd10->Bitfield.InstructionBaseAddress = decanonize(kernelBO->gpuBaseAddress) >> 0xc;
-        cmd10->Bitfield.InstructionBufferSizeModifyEnable = true;
-        cmd10->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
-
-        if (scratchAllocation) {
-            uint64_t gshAddress = scratchAllocation->gpuAddress - scratchSpaceOffset;
-            cmd10->Bitfield.GeneralStateBaseAddressModifyEnable = true;
-            cmd10->Bitfield.GeneralStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
-            cmd10->Bitfield.GeneralStateBaseAddress = decanonize(gshAddress) >> 0xc;
-            cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
-            cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
-        }
-
-        cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlState_IndexToMocsTables = MOCS::AggressiveCaching;
-
-        cmd10->Bitfield.BindlessSurfaceStateBaseAddressModifyEnable = true;
-        cmd10->Bitfield.BindlessSurfaceStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
-        cmd10->Bitfield.BindlessSurfaceStateBaseAddress = sshAllocation->gpuAddress >> 0xc;
-        uint32_t bindlessSize = static_cast<uint32_t>((sshAllocation->size - MemoryConstants::pageSize) / 64) - 1;
-        cmd10->Bitfield.BindlessSurfaceStateSize = bindlessSize;
+    // Program Pipe Control
+    auto cmd9 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
+    *cmd9 = PIPE_CONTROL::init();
+    cmd9->Bitfield.CommandStreamerStallEnable = true;
+    cmd9->Bitfield.TextureCacheInvalidationEnable = true;
+    cmd9->Bitfield.DcFlushEnable = true;
 
 
-        // Program System Instruction Pointer
-        auto cmd11 = commandStreamCSR->ptrOffset<STATE_SIP*>(sizeof(STATE_SIP));
-        *cmd11 = STATE_SIP::init();
-        uint64_t sipAddressOffset = sipAllocation->gpuAddress - sipAllocation->gpuBaseAddress;
-        cmd11->Bitfield.SystemInstructionPointer = sipAddressOffset >> 0x4;
+    // Program State Base Address
+    //TODO: gets dirty if ScratchAllocation needs to be resized
+    auto cmd10 = commandStreamCSR->ptrOffset<STATE_BASE_ADDRESS*>(sizeof(STATE_BASE_ADDRESS));
+    *cmd10 = STATE_BASE_ADDRESS::init();
 
-        // Program Pipe Control
-        auto cmd12 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
-        *cmd12 = PIPE_CONTROL::init();
-        cmd12->Bitfield.CommandStreamerStallEnable = true;
+    cmd10->Bitfield.DynamicStateBaseAddressModifyEnable = true;
+    cmd10->Bitfield.DynamicStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
+    cmd10->Bitfield.DynamicStateBaseAddress = dshAllocation->gpuAddress >> 0xc;
+    cmd10->Bitfield.DynamicStateBufferSizeModifyEnable = true;
+    cmd10->Bitfield.DynamicStateBufferSize = dshAllocation->size / MemoryConstants::pageSize;
 
-        // Program MI_BATCH_BUFFER_START
-        auto cmd13 = commandStreamCSR->ptrOffset<MI_BATCH_BUFFER_START*>(sizeof(MI_BATCH_BUFFER_START));
-        *cmd13 = MI_BATCH_BUFFER_START::init();
-        size_t taskOffset = commandStreamTask->offset - commandStreamTask->currentTaskOffset;
-        auto taskAddress = ptrOffset(commandStreamTask->gpuAddress, taskOffset);
-        cmd13->Bitfield.BatchBufferStartAddress_Graphicsaddress47_2 = taskAddress >> 0x2;
-        //cmd13->Bitfield.BatchBufferStartAddress_Graphicsaddress47_2 = commandStreamTask->gpuAddress >> 0x2;
-        cmd13->Bitfield.AddressSpaceIndicator = MI_BATCH_BUFFER_START::ADDRESS_SPACE_INDICATOR_PPGTT;
+    cmd10->Bitfield.SurfaceStateBaseAddressModifyEnable = true;
+    cmd10->Bitfield.SurfaceStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
+    cmd10->Bitfield.SurfaceStateBaseAddress = sshAllocation->gpuAddress >> 0xc;
 
-        alignToCacheLine(commandStreamCSR.get());
-    //}
+    cmd10->Bitfield.IndirectObjectBaseAddressModifyEnable = true;
+    cmd10->Bitfield.IndirectObjectMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
+    cmd10->Bitfield.IndirectObjectBaseAddress = iohAllocation->gpuBaseAddress >> 0xc;
+    cmd10->Bitfield.IndirectObjectBufferSizeModifyEnable = true;
+    cmd10->Bitfield.IndirectObjectBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
+
+    BufferObject* kernelBO = kernel->getKernelAllocation();
+    cmd10->Bitfield.InstructionBaseAddressModifyEnable = true;
+    cmd10->Bitfield.InstructionMemoryObjectControlState_IndexToMocsTables = MOCS::AggressiveCaching;
+    cmd10->Bitfield.InstructionBaseAddress = decanonize(kernelBO->gpuBaseAddress) >> 0xc;
+    cmd10->Bitfield.InstructionBufferSizeModifyEnable = true;
+    cmd10->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
+
+    if (scratchAllocation) {
+        uint64_t gshAddress = scratchAllocation->gpuAddress - scratchSpaceOffset;
+        cmd10->Bitfield.GeneralStateBaseAddressModifyEnable = true;
+        cmd10->Bitfield.GeneralStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
+        cmd10->Bitfield.GeneralStateBaseAddress = decanonize(gshAddress) >> 0xc;
+        cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
+        cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
+    }
+
+    cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlState_IndexToMocsTables = MOCS::AggressiveCaching;
+
+    cmd10->Bitfield.BindlessSurfaceStateBaseAddressModifyEnable = true;
+    cmd10->Bitfield.BindlessSurfaceStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
+    cmd10->Bitfield.BindlessSurfaceStateBaseAddress = sshAllocation->gpuAddress >> 0xc;
+    uint32_t bindlessSize = static_cast<uint32_t>((sshAllocation->size - MemoryConstants::pageSize) / 64) - 1;
+    cmd10->Bitfield.BindlessSurfaceStateSize = bindlessSize;
+
+
+    // Program System Instruction Pointer
+    auto cmd11 = commandStreamCSR->ptrOffset<STATE_SIP*>(sizeof(STATE_SIP));
+    *cmd11 = STATE_SIP::init();
+    uint64_t sipAddressOffset = sipAllocation->gpuAddress - sipAllocation->gpuBaseAddress;
+    cmd11->Bitfield.SystemInstructionPointer = sipAddressOffset >> 0x4;
+
+    // Program Pipe Control
+    auto cmd12 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
+    *cmd12 = PIPE_CONTROL::init();
+    cmd12->Bitfield.CommandStreamerStallEnable = true;
+
+    // Program MI_BATCH_BUFFER_START
+    auto cmd13 = commandStreamCSR->ptrOffset<MI_BATCH_BUFFER_START*>(sizeof(MI_BATCH_BUFFER_START));
+    *cmd13 = MI_BATCH_BUFFER_START::init();
+    size_t taskOffset = commandStreamTask->offset - commandStreamTask->currentTaskOffset;
+    auto taskAddress = ptrOffset(commandStreamTask->gpuAddress, taskOffset);
+    cmd13->Bitfield.BatchBufferStartAddress_Graphicsaddress47_2 = taskAddress >> 0x2;
+    //cmd13->Bitfield.BatchBufferStartAddress_Graphicsaddress47_2 = commandStreamTask->gpuAddress >> 0x2;
+    cmd13->Bitfield.AddressSpaceIndicator = MI_BATCH_BUFFER_START::ADDRESS_SPACE_INDICATOR_PPGTT;
+
+    alignToCacheLine(commandStreamCSR.get());
 
     return SUCCESS;
 }
@@ -865,10 +860,12 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
+    /*
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
     if (ret) {
         return GEM_EXECBUFFER_FAILED;
     }
+    */
     return SUCCESS;
 }
 

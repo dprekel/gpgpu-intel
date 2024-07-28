@@ -115,18 +115,16 @@ class Context : public pContext {
     int createCommandStreamReceiver();
     void patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant);
     void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize);
-    void generateLocalIDs(BufferObject* ioh);
     void alignToCacheLine(BufferObject* commandBuffer);
     void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo);
 
     const HardwareInfo* hwInfo = nullptr;
     KernelFromPatchtokens* kernelData = nullptr;
 
-    //TODO: Check everything in scratchAllocation
     std::unique_ptr<BufferObject> preemptionAllocation;
     std::unique_ptr<BufferObject> tagAllocation;
     std::unique_ptr<BufferObject> dataBatchBuffer;
-    std::unique_ptr<BufferObject> scratchAllocation;    //TODO: Memory leak here
+    std::unique_ptr<BufferObject> scratchAllocation;
     std::unique_ptr<BufferObject> sshAllocation;
     std::unique_ptr<BufferObject> iohAllocation;
     std::unique_ptr<BufferObject> dshAllocation;
