@@ -76,7 +76,6 @@ int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
     return SUCCESS;
 }
 
-//TODO: Check this function, valgrind says there are invalid reads
 IgcBuffer* Kernel::loadProgramSource(const char* filename) {
     FILE* file = fopen(filename, "r");
     if (!file)
@@ -85,7 +84,7 @@ IgcBuffer* Kernel::loadProgramSource(const char* filename) {
     uint64_t size = ftell(file);
     rewind(file);
 
-    std::unique_ptr<char[]> source(new char[size + 1]);
+    source = std::make_unique<char[]>(size + 1);
     fread(source.get(), 1, size*sizeof(char), file);
     fclose(file);
     source[size] = '\0';

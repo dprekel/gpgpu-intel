@@ -315,6 +315,7 @@ class Kernel : public pKernel {
     CIFMain* fclMain;
     std::string& deviceExtensions;
     std::string fileName;
+    std::unique_ptr<char[]> source;
 
     IgcOclDeviceCtx* igcDeviceCtx = nullptr;
     IgcBuffer* igcBuildOutput = nullptr;
