@@ -94,7 +94,7 @@ int main() {
     printf("err: %d\n", err);
 
     size_t nsamples = 262144u;
-    size_t noptions = 262144u;
+    size_t noptions = 65536u;
     size_t array_memory_size = noptions * sizeof(float);
     std::string build_options = std::string("-D__DO_FLOAT__ ") +
                                 std::string("-cl-denorms-are-zero ") +
@@ -180,7 +180,7 @@ int main() {
     size_t* local_size = nullptr;
     size_t global_size[1] = {noptions};
 
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 10; i++) {
         uint64_t start = nanos();
         err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global_size, local_size, 0, 0, 0);
         printf("err: %d\n", err);
