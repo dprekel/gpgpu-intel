@@ -21,7 +21,7 @@ Context::Context(Device* device)
           hwInfo(device->getDeviceDescriptor()->pHwInfo),
           workItemsPerWorkGroup{1, 1, 1},
           globalWorkItems{1, 1, 1},
-          numWorkGroups{1, 1, 1},             //TODO: Check if all ones is correct here
+          numWorkGroups{1, 1, 1},
           isMidThreadLevelPreemptionSupported(device->getMidThreadPreemptionSupport()) {
     setMaxWorkGroupSize();
     setMaxThreadsForVfe();
@@ -73,6 +73,7 @@ void BufferObject::deleteHandle() {
 }
 
 
+//TODO: Make a GEN check before submitting a kernel to GPU!!!!
 //TODO: Check this function
 void Context::setMaxWorkGroupSize() {
     uint32_t numThreadsPerEU = hwInfo->gtSystemInfo->ThreadCount / hwInfo->gtSystemInfo->EUCount;
@@ -354,7 +355,8 @@ int Context::createSurfaceStateHeap() {
         bti.Bitfield.SurfaceStatePointer = offsetedSurfaceStateOffset >> 0x6;
         dstBtiTableBase[i] = bti;
     }
-    //provisorisch:
+    //TODO: Change the following:
+    //improvised:
     sshAllocation->offset += numberOfBindingTableStates * sizeof(RENDER_SURFACE_STATE);
     sshAllocation->offset += numberOfBindingTableStates * sizeof(BINDING_TABLE_STATE);
     sshAllocation->offset = alignUp(sshAllocation->offset, MemoryConstants::cacheLineSize);
@@ -391,16 +393,16 @@ int Context::createIndirectObjectHeap() {
     this->hwThreadsPerWorkGroup = threadsPerWG;
 
     iohAllocation->offset += static_cast<size_t>(crossThreadDataSize);
+    this->GRFSize = 32; // one general purpose register file (GRF) has 32 bytes on GEN9
     void* perThreadDataOffset = ptrOffset(iohAllocation->cpuAddress, iohAllocation->offset);
     if (simdSize == 16 || simdSize == 32) {
         generateLocalIDsSimd<__m256i>(perThreadDataOffset, threadsPerWG, simdSize, 16u);
     } else if (simdSize == 8) {
         generateLocalIDsSimd<__m128i>(perThreadDataOffset, threadsPerWG, simdSize, 8u);
     } else {
-        return -1;
+        generateLocalIDsForSimdOne(perThreadDataOffset);
     }
     // Calculate total size of PerThreadData
-    this->GRFSize = 32; // one general purpose register file (GRF) has 32 bytes on GEN9
     uint32_t numLocalIdChannels = kernelData->threadPayload->LocalIDXPresent
                                 + kernelData->threadPayload->LocalIDYPresent
                                 + kernelData->threadPayload->LocalIDZPresent;
@@ -508,6 +510,20 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint
     } while (++pass < passes);
 }
 
+
+void Context::generateLocalIDsForSimdOne(void* ioh) {
+    uint32_t dimNum[3] = {0, 1, 2};
+    for (int i = 0; i < workItemsPerWorkGroup[dimNum[0]]; i++) {
+        for (int j = 0; j < workItemsPerWorkGroup[dimNum[1]]; j++) {
+            for (int k = 0; k < workItemsPerWorkGroup[dimNum[2]]; k++) {
+                static_cast<uint16_t*>(ioh)[0] = k;
+                static_cast<uint16_t*>(ioh)[1] = j;
+                static_cast<uint16_t*>(ioh)[2] = i;
+                ioh = ptrOffset(ioh, GRFSize);
+            }
+        }
+    }
+}
 
 
 int Context::createDynamicStateHeap() {

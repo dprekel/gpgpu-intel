@@ -107,6 +107,7 @@ class Context : public pContext {
 
   private:
     template<typename Vec> void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize, uint32_t numChannels);
+    void generateLocalIDsForSimdOne(void* ioh);
     bool isGraphicsBaseAddressRequired(int bufferType) const;
     int createScratchAllocation();
     int createSurfaceStateHeap();
