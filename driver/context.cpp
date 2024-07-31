@@ -87,15 +87,15 @@ void Context::setMaxThreadsForVfe() {
     maxVfeThreads = hwInfo->gtSystemInfo->EUCount * numThreadsPerEU;
 }
 
-BufferObject* Context::getBatchBuffer() {
+BufferObject* Context::getBatchBuffer() const {
     return dataBatchBuffer.get();
 }
 
-bool Context::isSIPKernelAllocated() {
+bool Context::isSIPKernelAllocated() const {
     return isSipKernelAllocated;
 }
 
-bool Context::isGraphicsBaseAddressRequired(int bufferType) {
+bool Context::isGraphicsBaseAddressRequired(int bufferType) const {
     return bufferType == BufferType::INTERNAL_HEAP ||
            bufferType == BufferType::KERNEL_ISA ||
            bufferType == BufferType::KERNEL_ISA_INTERNAL;
@@ -309,7 +309,7 @@ int Context::createScratchAllocation() {
                                         * hwInfo->gtSystemInfo->MaxEuPerSubSlice
                                         * hwInfo->gtSystemInfo->ThreadCount
                                         / hwInfo->gtSystemInfo->EUCount;
-    uint32_t requiredScratchSpace = kernelData->mediaVfeState[0]->PerThreadScratchSpace;
+    uint32_t requiredScratchSpace = kernelData->mediaVfeState->PerThreadScratchSpace;
     size_t requiredScratchSizeInBytes = requiredScratchSpace * computeUnitsUsedForScratch;
     size_t alignedAllocationSize = alignUp(requiredScratchSizeInBytes, MemoryConstants::pageSize);
     if (alignedAllocationSize > currentScratchSpaceTotal) {

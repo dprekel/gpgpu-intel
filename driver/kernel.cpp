@@ -54,12 +54,9 @@ BufferObject* Kernel::getKernelAllocation() {
     return kernelAllocation.get();
 }
 
-//TODO: How do I close the compiler?
 int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
     auto dlopenFlag = RTLD_LAZY | RTLD_DEEPBIND;
-    std::string directory = ""; //"/home/david/igc/igc2/";
-    std::string filename = directory + libName;
-    void* handle = dlopen(filename.c_str(), dlopenFlag);
+    void* handle = dlopen(libName, dlopenFlag);
     if (!handle) {
         return COMPILER_LOAD_ERROR;
     }
@@ -125,7 +122,6 @@ IgcBuffer* Kernel::createIgcBuffer(CIFMain* cifMain, const char* data, size_t si
     return buffer;
 }
 
-//TODO: Test the whole process with different kernels
 FclOclDeviceCtx* Kernel::getFclDeviceCtx() {
     uint64_t interfaceID = 95846467711642693;
     uint64_t interfaceVersion = 0x5;
@@ -383,10 +379,7 @@ void Kernel::decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* ke
         kernelData->bindingTableState = reinterpret_cast<const PatchBindingTableState*>(token);
         break;
     case PATCH_TOKEN_MEDIA_VFE_STATE:
-        kernelData->mediaVfeState[0] = reinterpret_cast<const PatchMediaVFEState*>(token);
-        break;
-    case PATCH_TOKEN_MEDIA_VFE_STATE_SLOT1:
-        kernelData->mediaVfeState[1] = reinterpret_cast<const PatchMediaVFEState*>(token);
+        kernelData->mediaVfeState = reinterpret_cast<const PatchMediaVFEState*>(token);
         break;
     case PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD:
         kernelData->mediaInterfaceDescriptorLoad = reinterpret_cast<const PatchMediaInterfaceDescriptorLoad*>(token);
@@ -599,6 +592,12 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     return SUCCESS;
 }
 
+bool Kernel::validatePatchtokens() const {
+    return kernelData.bindingTableState && kernelData.mediaVfeState &&
+           kernelData.executionEnvironment && kernelData.dataParameterStream &&
+           kernelData.threadPayload;
+}
+
 
 int Kernel::extractMetadata() {
     // The following usage of reinterpret_cast could lead to undefined behaviour. Checking the header magic
@@ -626,12 +625,11 @@ int Kernel::extractMetadata() {
         decodeToken(token, &kernelData);
         decodePos = decodePos + token->Size;
     }
-    //TODO: Check if all necessary patchtokens are not nullptr
-    if (kernelData.bindingTableState == nullptr)
+    if (!validatePatchtokens())
         return INVALID_KERNEL_FORMAT;
-    DBG_LOG("[DEBUG] Binding Table States: %u\n", kernelData.bindingTableState->Count);
     if (unsupportedKernelArgs || hasBindlessMode)
         return INVALID_KERNEL_FORMAT;
+    DBG_LOG("[DEBUG] Binding Table States: %u\n", kernelData.bindingTableState->Count);
     DBG_LOG("[DEBUG] Processing Patchtokens successful!\n");
     //TODO: Check if GROMACS uses implicit args
 

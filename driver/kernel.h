@@ -108,10 +108,12 @@ struct PatchMediaVFEState : PatchItemHeader {
     uint32_t PerThreadScratchSpace;
 };
 
+//TODO: Do we need this?
 struct PatchMediaInterfaceDescriptorLoad : PatchItemHeader {
     uint32_t InterfaceDescriptorDataOffset;
 };
 
+//TODO: Do we need this?
 struct PatchInterfaceDescriptorData : PatchItemHeader {
     uint32_t Offset;
     uint32_t SamplerStateOffset;
@@ -153,6 +155,7 @@ struct PatchExecutionEnvironment : PatchItemHeader {
     uint64_t SIMDInfo;
 };
 
+//TODO: Do we need this?
 struct PatchKernelAttributesInfo : PatchItemHeader {
     uint32_t AttributesSize;
 };
@@ -231,11 +234,14 @@ struct KernelFromPatchtokens {
     const uint8_t* patchList = nullptr;
     const uint8_t* patchListEnd = nullptr;
     const PatchBindingTableState* bindingTableState = nullptr;
-    const PatchMediaVFEState* mediaVfeState[2] = {nullptr, nullptr};
+    const PatchMediaVFEState* mediaVfeState = nullptr;
+    //TODO: Do we need this?
     const PatchMediaInterfaceDescriptorLoad* mediaInterfaceDescriptorLoad = nullptr;
+    //TODO: Do we need this?
     const PatchInterfaceDescriptorData* interfaceDescriptorData = nullptr;
     const PatchExecutionEnvironment* executionEnvironment = nullptr;
     const PatchDataParameterStream* dataParameterStream = nullptr;
+    //TODO: Do we need this?
     const PatchKernelAttributesInfo* kernelAttributesInfo = nullptr;
     const PatchThreadPayload* threadPayload = nullptr;
     struct {
@@ -304,6 +310,7 @@ class Kernel : public pKernel {
     void transferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo);
     void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
+    bool validatePatchtokens() const;
     void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset, uint32_t dataParamOffset);
     int setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue);
     int setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue);

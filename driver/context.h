@@ -88,8 +88,8 @@ class Context : public pContext {
   public:
     Context(Device* device);
     ~Context();
-    BufferObject* getBatchBuffer();
-    bool isSIPKernelAllocated();
+    BufferObject* getBatchBuffer() const;
+    bool isSIPKernelAllocated() const;
     void setMaxWorkGroupSize();
     void setMaxThreadsForVfe();
     std::unique_ptr<BufferObject> allocateBufferObject(size_t size, int bufferType);
@@ -107,7 +107,7 @@ class Context : public pContext {
 
   private:
     template<typename Vec> void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize, uint32_t numChannels);
-    bool isGraphicsBaseAddressRequired(int bufferType);
+    bool isGraphicsBaseAddressRequired(int bufferType) const;
     int createScratchAllocation();
     int createSurfaceStateHeap();
     int createIndirectObjectHeap();
