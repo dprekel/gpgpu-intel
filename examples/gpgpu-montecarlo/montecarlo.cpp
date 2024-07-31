@@ -13,6 +13,7 @@
 int main() {
     int err = 0;
     std::vector<pDevice*> devices = CreateDevices(&err);
+    printf("[DEBUG] CreateDevices: %d\n", err);
 
     size_t nsamples = 262144u;
     std::string build_options = std::string("-D__DO_FLOAT__ ") +
@@ -22,16 +23,23 @@ int main() {
                                 std::string("-DNSAMP=") +
                                 std::to_string(nsamples);
     pContext* context = CreateContext(devices, 0u, &err);
+    printf("[DEBUG] CreateContext: %d\n", err);
     pKernel* kernel = BuildKernel(context, "montecarlo.cl", build_options.c_str(), true, &err);
+    printf("[DEBUG] BuildKernel: %d\n", err);
 
     size_t noptions = 65536u;
     size_t array_memory_size = noptions * sizeof(float);
     
     pBuffer* s0Host = CreateBuffer(context, array_memory_size, &err);
+    printf("[DEBUG] CreateBuffer: %d\n", err);
     pBuffer* xHost = CreateBuffer(context, array_memory_size, &err);
+    printf("[DEBUG] CreateBuffer: %d\n", err);
     pBuffer* tHost = CreateBuffer(context, array_memory_size, &err);
+    printf("[DEBUG] CreateBuffer: %d\n", err);
     pBuffer* vcallHost = CreateBuffer(context, array_memory_size, &err);
+    printf("[DEBUG] CreateBuffer: %d\n", err);
     pBuffer* vputHost = CreateBuffer(context, array_memory_size, &err);
+    printf("[DEBUG] CreateBuffer: %d\n", err);
     for (size_t i = 0; i < noptions; i++) {
         float* s0HostMem = static_cast<float*>(s0Host->mem);
         s0HostMem[i] = 1.0f;
@@ -46,21 +54,29 @@ int main() {
 
     float risk_free = 0.05f;
     float sigma = 0.2f;
-    err = SetKernelArg(kernel, 0, sizeof(vcallHost), static_cast<void*>(&vcallHost));
-    err = SetKernelArg(kernel, 1, sizeof(vputHost),  static_cast<void*>(&vputHost));
+    err = SetKernelArg(kernel, 0, sizeof(vcallHost), static_cast<void*>(vcallHost));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 1, sizeof(vputHost),  static_cast<void*>(vputHost));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 2, sizeof(float),     static_cast<void*>(&risk_free));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 3, sizeof(float),     static_cast<void*>(&sigma));
-    err = SetKernelArg(kernel, 4, sizeof(s0Host),    static_cast<void*>(&s0Host));
-    err = SetKernelArg(kernel, 5, sizeof(xHost),     static_cast<void*>(&xHost));
-    err = SetKernelArg(kernel, 6, sizeof(tHost),     static_cast<void*>(&tHost));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 4, sizeof(s0Host),    static_cast<void*>(s0Host));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 5, sizeof(xHost),     static_cast<void*>(xHost));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 6, sizeof(tHost),     static_cast<void*>(tHost));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
 
-    const size_t* local = nullptr;
-    const size_t global[1] = {noptions};
+    const size_t local[3] = {256, 1, 1};
+    const size_t global[3] = {noptions, 1, 1};
 
     for (int i = 0; i < 10; i++) {
         printf("\n");
         printf("[DEBUG] Starting Task %d\n", i+1);
         err = ExecuteKernel(context, kernel, 1, global, local);
+        printf("[DEBUG] ExecuteKernel: %d\n", err);
         if (err) {
             printf("[DEBUG] Batchbuffer failed with %d\n", err);
         }

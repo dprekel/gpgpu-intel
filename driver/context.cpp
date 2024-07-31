@@ -73,6 +73,7 @@ void BufferObject::deleteHandle() {
 }
 
 
+//TODO: Check this function
 void Context::setMaxWorkGroupSize() {
     uint32_t numThreadsPerEU = hwInfo->gtSystemInfo->ThreadCount / hwInfo->gtSystemInfo->EUCount;
     uint32_t maxThreadsPerWorkGroup = hwInfo->gtSystemInfo->MaxEuPerSubSlice * numThreadsPerEU;
@@ -391,12 +392,13 @@ int Context::createIndirectObjectHeap() {
 
     iohAllocation->offset += static_cast<size_t>(crossThreadDataSize);
     void* perThreadDataOffset = ptrOffset(iohAllocation->cpuAddress, iohAllocation->offset);
-    if (simdSize != 8) {
-        generateLocalIDsSimd(perThreadDataOffset, threadsPerWG, simdSize);
+    if (simdSize == 16 || simdSize == 32) {
+        generateLocalIDsSimd<__m256i>(perThreadDataOffset, threadsPerWG, simdSize, 16u);
+    } else if (simdSize == 8) {
+        generateLocalIDsSimd<__m128i>(perThreadDataOffset, threadsPerWG, simdSize, 8u);
     } else {
         return -1;
     }
-
     // Calculate total size of PerThreadData
     this->GRFSize = 32; // one general purpose register file (GRF) has 32 bytes on GEN9
     uint32_t numLocalIdChannels = kernelData->threadPayload->LocalIDXPresent
@@ -428,82 +430,77 @@ const uint16_t initialLocalID[] = {
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
     16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
 
-void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize) {
-    const uint32_t numChannels = 16u;
+template <typename Vec>
+void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize, uint32_t numChannels) {
     const int passes = simdSize / numChannels;
     int pass = 0;
     uint32_t dimNum[3] = {0, 1, 2};
 
-    __m256i vLwsX = _mm256_set1_epi16(workItemsPerWorkGroup[dimNum[0]]);
-    __m256i vLwsY = _mm256_set1_epi16(workItemsPerWorkGroup[dimNum[1]]);
+    Vec vLwsX = _mm_set<Vec>(workItemsPerWorkGroup[dimNum[0]]);
+    Vec vLwsY = _mm_set<Vec>(workItemsPerWorkGroup[dimNum[1]]);
 
-    __m256i zero = _mm256_set1_epi16(0u);
-    __m256i one = _mm256_set1_epi16(1u);
+    Vec zero = _mm_set<Vec>(0u);
+    Vec one = _mm_set<Vec>(1u);
 
     const uint64_t threadSkipSize = ((simdSize == 32) ? 32 : 16) * sizeof(uint16_t);
 
-    __m256i vSimdX = _mm256_set1_epi16(simdSize);
-    __m256i vSimdY = zero;
-    __m256i vSimdZ = zero;
+    Vec vSimdX = _mm_set<Vec>(simdSize);
+    Vec vSimdY = zero;
+    Vec vSimdZ = zero;
 
-    __m256i xWrap;
-    __m256i yWrap;
-
-    bool isZero1, isZero2;
+    Vec xWrap;
+    Vec yWrap;
 
     do {
         xWrap = vSimdX >= vLwsX;
-        __m256i deltaX = _mm256_blendv_epi8(vLwsX, zero, xWrap);
+        Vec deltaX = _mm_blend(vLwsX, zero, xWrap);
         vSimdX -= deltaX;
-        __m256i deltaY = _mm256_blendv_epi8(one, zero, xWrap);
+        Vec deltaY = _mm_blend(one, zero, xWrap);
         vSimdY += deltaY;
         yWrap = vSimdY >= vLwsY;
-        __m256i deltaY2 = _mm256_blendv_epi8(vLwsY, zero, yWrap);
+        Vec deltaY2 = _mm_blend(vLwsY, zero, yWrap);
         vSimdY -= deltaY2;
-        __m256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
+        Vec deltaZ = _mm_blend(one, zero, yWrap);
         vSimdZ += deltaZ;
-        isZero1 = __builtin_ia32_ptestz256((__v4di)xWrap, (__v4di)xWrap);
-        isZero2 = __builtin_ia32_ptestz256((__v4di)yWrap, (__v4di)yWrap);
-    } while (!isZero1 || !isZero2);
+    } while (!test_zero(xWrap) || !test_zero(yWrap));
     
     do {
         void* buffer = ioh;
 
-        __m256i x = _mm256_load_si256(&initialLocalID[pass * numChannels]);
-        __m256i y = zero;
-        __m256i z = zero;
+        Vec x = _mm_load<Vec>(&initialLocalID[pass * numChannels]);
+        Vec y = zero;
+        Vec z = zero;
 
         do {
             xWrap = x >= vLwsX;
-            __m256i deltaX = _mm256_blendv_epi8(vLwsX, zero, xWrap);
+            Vec deltaX = _mm_blend(vLwsX, zero, xWrap);
             x -= deltaX;
-            __m256i deltaY = _mm256_blendv_epi8(one, zero, xWrap);
+            Vec deltaY = _mm_blend(one, zero, xWrap);
             y += deltaY;
             yWrap = y >= vLwsY;
-            __m256i deltaY2 = _mm256_blendv_epi8(vLwsY, zero, yWrap);
+            Vec deltaY2 = _mm_blend(vLwsY, zero, yWrap);
             y -= deltaY2;
-            __m256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
+            Vec deltaZ = _mm_blend(one, zero, yWrap);
             z += deltaZ;
-            isZero1 = __builtin_ia32_ptestz256((__v4di)xWrap, (__v4di)xWrap);
-        } while (!isZero1);
+        } while (!test_zero(xWrap));
 
         for (size_t i = 0; i < threadsPerWorkGroup; ++i) {
-            __mm256_store_si256(reinterpret_cast<__m256i*>(ptrOffset(buffer, dimNum[0] * threadSkipSize)), x);
-            __mm256_store_si256(reinterpret_cast<__m256i*>(ptrOffset(buffer, dimNum[1] * threadSkipSize)), y);
-            __mm256_store_si256(reinterpret_cast<__m256i*>(ptrOffset(buffer, dimNum[2] * threadSkipSize)), z);
+            _mm_store(reinterpret_cast<Vec*>(ptrOffset(buffer, dimNum[0] * threadSkipSize)), x);
+            _mm_store(reinterpret_cast<Vec*>(ptrOffset(buffer, dimNum[1] * threadSkipSize)), y);
+            _mm_store(reinterpret_cast<Vec*>(ptrOffset(buffer, dimNum[2] * threadSkipSize)), z);
 
             x += vSimdX;
             y += vSimdY;
             z += vSimdZ;
             xWrap = x >= vLwsX;
-            __m256i deltaX = _mm256_blendv_epi8(vLwsX, zero, xWrap);
+            Vec deltaX = _mm_blend(vLwsX, zero, xWrap);
             x -= deltaX;
-            __m256i deltaY = _mm256_blendv_epi8(one, zero, xWrap);
+            Vec deltaY = _mm_blend(one, zero, xWrap);
             y += deltaY;
             yWrap = y >= vLwsY;
-            __m256i deltaY2 = _mm256_blendv_epi8(vLwsY, zero, yWrap);
+            Vec deltaY2 = _mm_blend(vLwsY, zero, yWrap);
             y -= deltaY2;
-            __m256i deltaZ = _mm256_blendv_epi8(one, zero, yWrap);
+            Vec deltaZ = _mm_blend(one, zero, yWrap);
             z += deltaZ;
             buffer = ptrOffset(buffer, 3 * threadSkipSize);
         }

@@ -1,47 +1,65 @@
 #pragma once
 
+#include <immintrin.h>
+#include <stdint.h>
 #include <stdio.h>
+
+#include "context.h"
 
 #define ADDRESS_WIDTH 48
 
+typedef long long __m128i __attribute__((__vector_size__(16), __may_alias__));
 typedef long long __m256i __attribute__((__vector_size__(32), __aligned__(32)));
 typedef long long __v4di __attribute__((__vector_size__ (32)));
+typedef short __v8hi __attribute__ ((__vector_size__ (16)));
 typedef short __v16hi __attribute__((__vector_size__ (32)));
+typedef char __v16qi __attribute__ ((__vector_size__ (16)));
 typedef char __v32qi __attribute__((__vector_size__ (32)));
 
-inline __m256i _mm256_set_epi16(short w15, short w14, short w13, short w12,
-                                short w11, short w10, short w09, short w08,
-                                short w07, short w06, short w05, short w04,
-                                short w03, short w02, short w01, short w00) {
-    return __extension__(__m256i)(__v16hi){ w00, w01, w02, w03, w04, w05, w06, w07, w08, w09, w10, w11, w12, w13, w14, w15 };
-}
 
-inline __m256i _mm256_set1_epi16(short _v) {
+template <typename Vec>
+inline Vec _mm_set(short _v);
+
+template <>
+inline __m256i _mm_set<__m256i>(short _v) {
     return _mm256_set_epi16(_v, _v, _v, _v, _v, _v, _v, _v, _v, _v, _v, _v, _v, _v, _v, _v);
 }
 
-inline __m256i _mm256_blendv_epi8(__m256i __v1, __m256i __v2, __m256i __v3) {
+template <>
+inline __m128i _mm_set<__m128i>(short _v) {
+    return _mm_set1_epi16(_v);
+}
+
+inline __m256i _mm_blend(__m256i __v1, __m256i __v2, __m256i __v3) {
     return (__m256i)__builtin_ia32_pblendvb256((__v32qi)__v2, (__v32qi)__v1, (__v32qi)__v3);
 }
 
-inline void __mm256_store_si256(__m256i* __v1, __m256i __v2) {
+inline __m128i _mm_blend(__m128i __v1, __m128i __v2, __m128i __v3) {
+    return (__m128i)__builtin_ia32_pblendvb128((__v16qi)__v2, (__v16qi)__v1, (__v16qi)__v3);
+}
+
+inline void _mm_store(__m256i* __v1, __m256i __v2) {
     *__v1 = __v2;
 }
 
-inline __m256i _mm256_load_si256(const void* _p) {
-    const __m256i* p = reinterpret_cast<const __m256i*>(_p);
+inline void _mm_store(__m128i* __v1, __m128i __v2) {
+    *__v1 = __v2;
+}
+
+template <typename Vec>
+inline Vec _mm_load(const void* _p) {
+    const Vec* p = reinterpret_cast<const Vec*>(_p);
     return *p;
 }
 
-inline bool isZero(__m256i __v1) {
-    bool x = __builtin_ia32_ptestz256((__v4di)__v1, (__v4di)__v1);
-    if (x) { // __v1 is zero
-        return false;
-    } else {
-        return true;
-    }
-    //return __builtin_ia32_ptestz256((__v4di)__v1, (__v4di)mask) ? false : true;
+inline bool test_zero(__m256i __v) {
+    return _mm256_testz_si256(__v, __v);
 }
+
+inline bool test_zero(__m128i __v) {
+    return _mm_testz_si128(__v, __v);
+}
+
 
 inline size_t alignUp(size_t before, size_t alignment) {
     size_t mask = alignment - 1;

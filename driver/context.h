@@ -106,6 +106,7 @@ class Context : public pContext {
     Kernel* kernel = nullptr;
 
   private:
+    template<typename Vec> void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize, uint32_t numChannels);
     bool isGraphicsBaseAddressRequired(int bufferType);
     int createScratchAllocation();
     int createSurfaceStateHeap();
@@ -114,7 +115,6 @@ class Context : public pContext {
     int createCommandStreamTask();
     int createCommandStreamReceiver();
     void patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant);
-    void generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize);
     void alignToCacheLine(BufferObject* commandBuffer);
     void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo);
 
