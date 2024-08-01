@@ -1,4 +1,4 @@
-CC = clang++
+CC = g++
 CFLAGS = -Wall -fPIC -fvisibility=hidden -mavx2 -std=c++17
 LDFLAGS = -shared -Wl,-rpath=/usr/local/lib
 PREFIX = /usr/local

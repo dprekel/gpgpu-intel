@@ -4,22 +4,22 @@ When finished, this will be a very simple userspace driver for general purpose c
 
 ## Installation
 Building and running this driver requires
-- Intel Processor with integrated GEN8, GEN9 or GEN11 GPU (Xe Graphics not yet supported)
+- Intel Processor with integrated GEN8, GEN9 or GEN11 GPU (GEN12 and Xe/Xe2 not yet supported)
 - Linux distribution of your choice
 
 This driver links against the [Intel Graphics Compiler (IGC)](https://github.com/intel/intel-graphics-compiler). On Ubuntu it can be installed with
 ```sh
 $ sudo apt install libigc-dev libigc-tools libigc1 libigdfcl-dev libigdfcl1
 ```
-Alternatively, there are release builds available here.
+Alternatively, there are release builds available [here](https://github.com/intel/intel-graphics-compiler/releases).
 Compile this driver by doing the following:
 ```sh
 $ git clone https://github.com/dprekel/gpgpu-intel.git
 $ cd gpgpu-intel/driver
-$ make
+$ make DEBUG=1 INFO=1
 $ sudo make install
 ```
-This creates a shared library called `libgpgpu.so` and installs it in `/usr/local/lib`.
+This creates a shared library `libigpgpu.so` and installs it in `/usr/local/lib`. `DEBUG=1` compiles with debug symbols and console logging, `INFO=1` will print device info to the console when running an application.
 
 
 ## Driver Internals

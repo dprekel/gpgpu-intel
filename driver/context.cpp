@@ -521,9 +521,9 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint
 
 void Context::generateLocalIDsForSimdOne(void* ioh) {
     uint32_t dimNum[3] = {0, 1, 2};
-    for (int i = 0; i < workItemsPerWorkGroup[dimNum[0]]; i++) {
-        for (int j = 0; j < workItemsPerWorkGroup[dimNum[1]]; j++) {
-            for (int k = 0; k < workItemsPerWorkGroup[dimNum[2]]; k++) {
+    for (size_t i = 0; i < workItemsPerWorkGroup[dimNum[0]]; i++) {
+        for (size_t j = 0; j < workItemsPerWorkGroup[dimNum[1]]; j++) {
+            for (size_t k = 0; k < workItemsPerWorkGroup[dimNum[2]]; k++) {
                 static_cast<uint16_t*>(ioh)[0] = k;
                 static_cast<uint16_t*>(ioh)[1] = j;
                 static_cast<uint16_t*>(ioh)[2] = i;

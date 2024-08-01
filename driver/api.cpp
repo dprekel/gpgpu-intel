@@ -16,8 +16,10 @@ API_CALL std::vector<pDevice*> CreateDevices(int* ret) {
     *ret = 0;
     std::vector<pDevice*> devices;
     std::vector<int> devIDs = Device::openDevices(ret);
-    if (*ret || devIDs.size() == 0)
+    if (*ret || devIDs.size() == 0) {
+        *ret = NO_DEVICE_ERROR;
         return devices;
+    }
     CompilerInfo compilerInfo = Device::initCompiler(ret);
     if (*ret)
         return devices;

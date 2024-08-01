@@ -19,20 +19,32 @@ bool checkValidity(const float* A, const float* B, const float* C, size_t size, 
 int main() {
     int err = 0;
     std::vector<pDevice*> devices = CreateDevices(&err);
+    printf("[DEBUG] CreateDevices: %d\n", err);
 
     std::string build_options = "-DTILE_SIZE_M=" + std::to_string(TILE_SIZE_M)
                               + " -DTILE_GROUP_M=" + std::to_string(TILE_GROUP_M)
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
     pContext* context = CreateContext(devices, 0u, &err);
+    printf("[DEBUG] CreateContext: %d\n", err);
     pKernel* kernel = BuildKernel(context, "matmul.cl", build_options.c_str(), true, &err);
+    printf("[DEBUG] BuildKernel: %d\n", err);
 
     size_t size = 3968;
     size_t matrix_memory_size = size*size*sizeof(float);
     
     pBuffer* matrix_A = CreateBuffer(context, matrix_memory_size, &err);
+    printf("[DEBUG] CreateBuffer: %d\n", err);
+    if (err)
+        return -1;
     pBuffer* matrix_B = CreateBuffer(context, matrix_memory_size, &err);
+    printf("[DEBUG] CreateBuffer: %d\n", err);
+    if (err)
+        return -1;
     pBuffer* matrix_C = CreateBuffer(context, matrix_memory_size, &err);
+    printf("[DEBUG] CreateBuffer: %d\n", err);
+    if (err)
+        return -1;
     // Initialize matrices A and B with ones
     size_t matrix_size = size*size;
     float* matAMem = (float*)(matrix_A->mem);
@@ -50,6 +62,7 @@ int main() {
     err = SetKernelArg(kernel, 4, sizeof(matrix_C), static_cast<void*>(matrix_C));
     err = SetKernelArg(kernel, 5, sizeof(int),      static_cast<void*>(&size));
     err = SetKernelArg(kernel, 6, sizeof(int),      static_cast<void*>(&size));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
     // number of work items per work group dimension
     const size_t local[2] = {TILE_GROUP_M, TILE_GROUP_N};
     // total number of work items in each dimension

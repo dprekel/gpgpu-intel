@@ -49,7 +49,7 @@ std::vector<int> Device::openDevices(int* err) {
     std::vector<int> deviceIDs;
     DIR* dir = opendir(pciDevicesDirectory);
     if (!dir) {
-        *err = NO_DEVICES_FOUND;
+        *err = NO_DEVICE_ERROR;
         return deviceIDs;
     }
     dirent* entry = nullptr;
