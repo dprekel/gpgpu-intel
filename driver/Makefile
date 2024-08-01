@@ -1,6 +1,6 @@
 CC = g++
 CFLAGS = -Wall -fPIC -fvisibility=hidden -mavx2 -std=c++17
-LDFLAGS = -shared -Wl,-rpath=/usr/local/lib
+LDFLAGS = -shared -ldl -Wl,-rpath=/usr/local/lib
 PREFIX = /usr/local
 ifeq ($(INFO), 1)
 	CFLAGS += -DINFO

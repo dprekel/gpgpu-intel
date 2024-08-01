@@ -1,7 +1,7 @@
 TARGET = montecarlo
 CC = g++
 CFLAGS = -g -Wall
-LDFLAGS = -ligpgpu
+LDFLAGS = -ligpgpu -ldl -Wl,-rpath=/usr/local/lib
 
 .PHONY: default all clean
 

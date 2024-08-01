@@ -143,10 +143,10 @@ int Device::initialize() {
     setLastLevelCacheSize(sysInfo);
 
     INFO_LOG("\n");
-    INFO_LOG("GPU %d\n", numDevices);
+    INFO_LOG("[INFO] GPU %d\n", numDevices);
     INFO_LOG("------------------------------------------------------------------\n");
-    INFO_LOG("Device ID: \t\t0x%X [%d]\n", this->deviceID, this->revisionID);
-    INFO_LOG("Device Name: \t\t%s\n", this->devName);
+    INFO_LOG("[INFO] Device ID: \t\t0x%X [%d]\n", this->deviceID, this->revisionID);
+    INFO_LOG("[INFO] Device Name: \t\t%s\n", this->devName);
 
     ret = retrieveTopologyInfo(sysInfo);
     if (ret)
@@ -229,7 +229,7 @@ bool Device::checkDriverVersion() {
         return false;
     name[4] = '\0';
     strncpy(driver_name, name, 5);
-    INFO_LOG("Kernel driver: \t\t%s\n", this->driver_name);
+    INFO_LOG("[INFO] Kernel driver: \t\t%s\n", this->driver_name);
     return strcmp(name, "i915") == 0;
 }
 
@@ -318,10 +318,10 @@ int Device::retrieveTopologyInfo(SystemInfo* sysInfo) {
             }
         }
     }
-    INFO_LOG("Execution Units: \t%d\n", euCount);
-    INFO_LOG("Slices: \t\t%d\n", sliceCount);
-    INFO_LOG("Subslices per Slice: \t%d\n", subSliceCountPerSlice);
-    INFO_LOG("EUs per Subslice: \t%d\n", euCountPerSubSlice);
+    INFO_LOG("[INFO] Execution Units: \t%d\n", euCount);
+    INFO_LOG("[INFO] Slices: \t\t%d\n", sliceCount);
+    INFO_LOG("[INFO] Subslices per Slice: \t%d\n", subSliceCountPerSlice);
+    INFO_LOG("[INFO] EUs per Subslice: \t%d\n", euCountPerSubSlice);
     sysInfo->EUCount = euCount;
     sysInfo->SubSliceCount = subSliceCount;
     sysInfo->SliceCount = sliceCount;

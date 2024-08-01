@@ -1,7 +1,7 @@
 TARGET = gpgpu
 CC = g++
 CFLAGS = -g -Wall
-LDFLAGS = -ligpgpu -Wl,-rpath=/usr/local/lib
+LDFLAGS = -ligpgpu -ldl -Wl,-rpath=/usr/local/lib
 
 .PHONY: default all clean
 
