@@ -20,8 +20,8 @@ BufferObject* Buffer::getDataBuffer() {
 }
 
 int Buffer::allocateAndPinDataBuffer(size_t size) {
-    //TODO: Do not forget alignUp
-    dataBuffer = context->allocateBufferObject(size, BufferType::BUFFER_HOST_MEMORY);
+    size_t alignedSize = alignUp(size, MemoryConstants::pageSize);
+    dataBuffer = context->allocateBufferObject(alignedSize, BufferType::BUFFER_HOST_MEMORY);
     if (!dataBuffer)
         return BUFFER_ALLOCATION_FAILED;
     mem = dataBuffer->cpuAddress;
@@ -36,11 +36,9 @@ int Buffer::allocateAndPinDataBuffer(size_t size) {
     int ret = context->exec(execObjects.data(), execBuffer.data(), residencyCount, batchSize, 0u);
     if (ret) {
         execBuffer.clear();
-        //TODO: What else must be done here?
         return GEM_EXECBUFFER_FAILED;
     }
     execBuffer.clear();
-    //TODO: Further cleanup
 
     return SUCCESS;
 }

@@ -76,8 +76,13 @@ void BufferObject::deleteHandle() {
 //TODO: Make a GEN check before submitting a kernel to GPU!!!!
 //TODO: Check this function
 void Context::setMaxWorkGroupSize() {
+    uint32_t minSimdSize = 8u;
+    uint32_t maxNumEUsPerSubSlice = (hwInfo->gtSystemInfo->EuCountPerPoolMin == 0 ||
+                                     hwInfo->featureTable->flags.ftrPooledEuEnabled == 0)
+                                  ? (hwInfo->gtSystemInfo->EUCount / hwInfo->gtSystemInfo->SubSliceCount)
+                                  : hwInfo->gtSystemInfo->EuCountPerPoolMin;
     uint32_t numThreadsPerEU = hwInfo->gtSystemInfo->ThreadCount / hwInfo->gtSystemInfo->EUCount;
-    uint32_t maxThreadsPerWorkGroup = hwInfo->gtSystemInfo->MaxEuPerSubSlice * numThreadsPerEU;
+    uint32_t maxThreadsPerWorkGroup = maxNumEUsPerSubSlice * numThreadsPerEU * minSimdSize;
     maxThreadsPerWorkGroup = prevPowerOfTwo(maxThreadsPerWorkGroup);
     this->maxWorkItemsPerWorkGroup = std::min(maxThreadsPerWorkGroup, 1024u);
 }
@@ -699,7 +704,6 @@ int Context::createCommandStreamReceiver() {
     cmd6->Bitfield.DcFlushEnable = true;
 
     // Program VFE state
-    //TODO: gets dirty if ScratchAllocation needs to be resized
     auto cmd7 = commandStreamCSR->ptrOffset<MEDIA_VFE_STATE*>(sizeof(MEDIA_VFE_STATE));
     *cmd7 = MEDIA_VFE_STATE::init();
     cmd7->Bitfield.MaximumNumberOfThreads = this->maxVfeThreads - 1;
@@ -730,7 +734,6 @@ int Context::createCommandStreamReceiver() {
 
 
     // Program State Base Address
-    //TODO: gets dirty if ScratchAllocation needs to be resized
     auto cmd10 = commandStreamCSR->ptrOffset<STATE_BASE_ADDRESS*>(sizeof(STATE_BASE_ADDRESS));
     *cmd10 = STATE_BASE_ADDRESS::init();
 
