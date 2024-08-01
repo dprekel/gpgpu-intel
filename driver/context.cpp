@@ -382,6 +382,9 @@ int Context::createIndirectObjectHeap() {
     char* crossThreadData = kernel->getCrossThreadData();
     for (uint32_t i = 0; i < 3; i++) {
         patchKernelConstant(kernelData->crossThreadPayload.localWorkSize[i], crossThreadData, workItemsPerWorkGroup[i]);
+        patchKernelConstant(kernelData->crossThreadPayload.localWorkSize2[i], crossThreadData, workItemsPerWorkGroup[i]);
+        //TODO: enqueuedLocalWorkSize might not be identical to localWorkSize
+        patchKernelConstant(kernelData->crossThreadPayload.enqueuedLocalWorkSize[i], crossThreadData, workItemsPerWorkGroup[i]);
         patchKernelConstant(kernelData->crossThreadPayload.globalWorkSize[i], crossThreadData, globalWorkItems[i]);
         patchKernelConstant(kernelData->crossThreadPayload.numWorkGroups[i], crossThreadData, numWorkGroups[i]);
     }
@@ -876,12 +879,10 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
-    /*
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
     if (ret) {
         return GEM_EXECBUFFER_FAILED;
     }
-    */
     return SUCCESS;
 }
 

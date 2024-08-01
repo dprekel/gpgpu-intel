@@ -72,7 +72,7 @@ int main() {
     const size_t local[3] = {256, 1, 1};
     const size_t global[3] = {noptions, 1, 1};
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 1; i++) {
         printf("\n");
         printf("[DEBUG] Starting Task %d\n", i+1);
         err = ExecuteKernel(context, kernel, 1, global, local);
