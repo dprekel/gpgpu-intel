@@ -151,6 +151,7 @@ class Context : public pContext {
     uint32_t GRFSize = 0u;
     uint32_t crossThreadDataSize = 0u;
     uint32_t perThreadDataSize = 0u;
+    uint32_t localIDSizePerThread = 0u;
     uint32_t completionTag = 0u;
     bool isMidThreadLevelPreemptionSupported = false;
     bool isSipKernelAllocated = false;

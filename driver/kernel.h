@@ -256,15 +256,13 @@ struct KernelFromPatchtokens {
 };
 
 struct ArgDescriptor {
-    const PatchItemHeader* header = nullptr;
-    int argToken = 0;
     int (Kernel::*KernelArgHandler)(uint32_t argNum, size_t argSize, void* argVal);
+    bool argIsSet = false;
 };
 
 struct ArgDescPointer : ArgDescriptor {
-    uint16_t bindful = 0u;
-    uint16_t bindless = 0u;
-    uint16_t stateless = 0u;
+    uint16_t surfaceStateHeapOffset = 0u;
+    uint16_t crossThreadDataOffset = 0u;
 };
 
 struct ArgDescValue : ArgDescriptor {
@@ -308,11 +306,13 @@ class Kernel : public pKernel {
     IgcOclDeviceCtx* getIgcDeviceCtx();
     void transferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform);
     void transferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo);
-    void decodeToken(const PatchItemHeader* token, KernelFromPatchtokens* kernelData);
+    void decodeToken(const PatchItemHeader* token);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
+    template<typename T> void decodeMemoryObjectArg(T memObjectToken);
+    template<typename T> void setCrossThreadDataOffset(T memObjectToken);
     bool validatePatchtokens() const;
-    void populateKernelArg(uint32_t argNum, uint32_t surfaceStateHeapOffset, uint32_t dataParamOffset);
     int setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue);
+    int setArgLocal(uint32_t argIndex, size_t argSize, void* argValue);
     int setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue);
     void clearFclBuffers(FclOclDeviceCtx* deviceCtx, FclOclTranslationCtx* translationCtx, OclTranslationOutput* output);
     void clearIgcBuffers(IgcBuffer* ids, IgcBuffer* values, IgcOclTranslationCtx* translationCtx, OclTranslationOutput* output);
@@ -334,7 +334,6 @@ class Kernel : public pKernel {
     KernelFromPatchtokens kernelData;
 
     bool unsupportedKernelArgs = false;
-    bool hasBindlessMode = false;
 
     DeviceDescriptor* deviceDescriptor = nullptr;
     std::vector<std::unique_ptr<ArgDescriptor>> argDescriptor;

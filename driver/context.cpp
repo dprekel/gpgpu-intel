@@ -74,7 +74,9 @@ void BufferObject::deleteHandle() {
 
 
 //TODO: Make a GEN check before submitting a kernel to GPU!!!!
-//TODO: Check this function
+//TODO: Return error if local or global size is nullptr
+//TODO: Check what happens if we have #include's in the kernel
+//TODO: Check what happens if we execute two different kernels from the same host program
 void Context::setMaxWorkGroupSize() {
     uint32_t minSimdSize = 8u;
     uint32_t maxNumEUsPerSubSlice = (hwInfo->gtSystemInfo->EuCountPerPoolMin == 0 ||
@@ -311,6 +313,8 @@ int Context::constructBufferObjects() {
 
 
 int Context::createScratchAllocation() {
+    if (!kernelData->mediaVfeState)
+        return SUCCESS;
     uint32_t computeUnitsUsedForScratch = hwInfo->gtSystemInfo->MaxSubSlicesSupported
                                         * hwInfo->gtSystemInfo->MaxEuPerSubSlice
                                         * hwInfo->gtSystemInfo->ThreadCount
@@ -416,7 +420,7 @@ int Context::createIndirectObjectHeap() {
                                 + kernelData->threadPayload->LocalIDZPresent;
     uint32_t numGRFsPerThread = (simdSize == 32 && GRFSize == 32) ? 2 : 1;
     uint32_t localIDSizePerThread = numGRFsPerThread * GRFSize * (simdSize == 1 ? 1u : numLocalIdChannels);
-    localIDSizePerThread = std::max(localIDSizePerThread, GRFSize);
+    this->localIDSizePerThread = std::max(localIDSizePerThread, GRFSize);
     this->perThreadDataSize = this->hwThreadsPerWorkGroup * localIDSizePerThread;
 
     // Align to cache line
@@ -555,7 +559,7 @@ int Context::createDynamicStateHeap() {
     interfaceDescriptor->Bitfield.SharedLocalMemorySize = 0u;
     interfaceDescriptor->Bitfield.NumberOfThreadsInGpgpuThreadGroup = static_cast<uint32_t>(this->hwThreadsPerWorkGroup);
     interfaceDescriptor->Bitfield.CrossThreadConstantDataReadLength = this->crossThreadDataSize / this->GRFSize;
-    uint32_t numGrfPerThreadData = static_cast<uint32_t>(this->perThreadDataSize / this->GRFSize);
+    uint32_t numGrfPerThreadData = static_cast<uint32_t>(this->localIDSizePerThread / this->GRFSize);
     numGrfPerThreadData = std::max(numGrfPerThreadData, 1u);
     interfaceDescriptor->Bitfield.ConstantIndirectUrbEntryReadLength = numGrfPerThreadData;
     interfaceDescriptor->Bitfield.BarrierEnable = kernelData->executionEnvironment->HasBarriers;
@@ -879,10 +883,12 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
+    /*
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
     if (ret) {
         return GEM_EXECBUFFER_FAILED;
     }
+    */
     return SUCCESS;
 }
 

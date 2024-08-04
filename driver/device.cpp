@@ -319,7 +319,7 @@ int Device::retrieveTopologyInfo(SystemInfo* sysInfo) {
         }
     }
     INFO_LOG("[INFO] Execution Units: \t%d\n", euCount);
-    INFO_LOG("[INFO] Slices: \t\t%d\n", sliceCount);
+    INFO_LOG("[INFO] Slices: \t\t\t%d\n", sliceCount);
     INFO_LOG("[INFO] Subslices per Slice: \t%d\n", subSliceCountPerSlice);
     INFO_LOG("[INFO] EUs per Subslice: \t%d\n", euCountPerSubSlice);
     sysInfo->EUCount = euCount;
