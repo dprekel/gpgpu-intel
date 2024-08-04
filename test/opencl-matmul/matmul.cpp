@@ -130,7 +130,6 @@ int main() {
     // Allocating memory for matrices
     size_t size = 3968;
     size_t matrix_memory_size = size*size*sizeof(float);
-    // for such big matrices, malloc should use mmap for allocating memory, so it will be page-aligned. But there is a problem: strace shows me that the driver is remapping the memory, I need a way to avoid this
     float* matrix_A = (float*)alignedMalloc(matrix_memory_size);
     float* matrix_B = (float*)alignedMalloc(matrix_memory_size);
     float* matrix_C = (float*)alignedMalloc(matrix_memory_size);

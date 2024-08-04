@@ -134,6 +134,7 @@ int main() {
     float* vput_refHost = (float*)alignedMalloc(array_memory_size); // Zero result buffer
     float* vcall_refHost = (float*)alignedMalloc(array_memory_size); // Zero result buffer
 
+    /*
     std::generate_n(s0Host, noptions, [](){ return rand_uniform_01();});
     float S0L = 10.0f;
     float S0H = 50.0f;
@@ -151,6 +152,12 @@ int main() {
     float TH = 50.0f;
     for (size_t i = 0; i < noptions; i++) {
         tHost[i] = tHost[i] * (TH - TL) + TL;
+    }
+    */
+    for (size_t i = 0; i < noptions; i++) {
+        s0Host[i] = 1.0f;
+        xHost[i] = 1.0f;
+        tHost[i] = 1.0f;
     }
     for (size_t i = 0; i < noptions; i++) {
         vcallHost[i] = vputHost[i] = vcall_refHost[i] = vput_refHost[i] = 0.0f;
@@ -180,7 +187,7 @@ int main() {
     size_t* local_size = nullptr;
     size_t global_size[1] = {noptions};
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 1; i++) {
         uint64_t start = nanos();
         err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global_size, local_size, 0, 0, 0);
         printf("err: %d\n", err);
@@ -192,13 +199,10 @@ int main() {
         float* vputHostRead = (float*)malloc(array_memory_size);
         //err = clEnqueueReadBuffer(queue, vput, CL_TRUE, 0, array_memory_size, vputHostRead, 0, NULL, NULL);
         //sleep(15);
-        /*
-        printf("matrix_C[0] = %f\n", matrix_C[0]);
-        printf("matrix_C[size*100] = %f\n", matrix_C[size *100]);
-        printf("matrix_C[matrix_size-1] = %f\n", matrix_C[matrix_size - 1]);
-        printf("matrix_C[matrix_size] = %f\n", matrix_C[matrix_size]);
-        */
-        free(vputHostRead);
+        printf("vcallHost[0] = %f\n", vcallHost[0]);
+        printf("vcallHost[100] = %f\n", vcallHost[100]);
+        printf("vcallHost[noptions-1] = %f\n", vcallHost[noptions- 1]);
+        printf("vcallHost[noptions] = %f\n", vcallHost[noptions]);
     }
 
     clReleaseMemObject(s0);

@@ -56,11 +56,17 @@ int main() {
     }
 
     err = SetKernelArg(kernel, 0, sizeof(matrix_A), static_cast<void*>(matrix_A));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 1, sizeof(int),      static_cast<void*>(&size));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 2, sizeof(matrix_B), static_cast<void*>(matrix_B));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 3, sizeof(int),      static_cast<void*>(&size));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 4, sizeof(matrix_C), static_cast<void*>(matrix_C));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 5, sizeof(int),      static_cast<void*>(&size));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 6, sizeof(int),      static_cast<void*>(&size));
     printf("[DEBUG] SetKernelArg: %d\n", err);
     // number of work items per work group dimension
@@ -75,13 +81,11 @@ int main() {
         if (err) {
             printf("[DEBUG] Batchbuffer failed with %d\n", err);
         }
-        /*
         printf("  matCMem[0] = %f\n", matCMem[0]);
         printf("  matCMem[size*100] = %f\n", matCMem[size *100]);
         printf("  matCMem[7500000] = %f\n", matCMem[7500000]);
         printf("  matCMem[matrix_size-10] = %f\n", matCMem[matrix_size - 10]);
         printf("  matCMem[matrix_size] = %f\n", matCMem[matrix_size]);
-        */
         /*
         printf("[DEBUG] Checking validity ...  ");
         fflush(stdout);

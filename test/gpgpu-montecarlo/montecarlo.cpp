@@ -40,15 +40,15 @@ int main() {
     printf("[DEBUG] CreateBuffer: %d\n", err);
     pBuffer* vputHost = CreateBuffer(context, array_memory_size, &err);
     printf("[DEBUG] CreateBuffer: %d\n", err);
+    float* s0HostMem = static_cast<float*>(s0Host->mem);
+    float* xHostMem = static_cast<float*>(xHost->mem);
+    float* tHostMem = static_cast<float*>(tHost->mem);
+    float* vcallHostMem = static_cast<float*>(vcallHost->mem);
+    float* vputHostMem = static_cast<float*>(vputHost->mem);
     for (size_t i = 0; i < noptions; i++) {
-        float* s0HostMem = static_cast<float*>(s0Host->mem);
         s0HostMem[i] = 1.0f;
-        float* xHostMem = static_cast<float*>(xHost->mem);
         xHostMem[i] = 1.0f;
-        float* tHostMem = static_cast<float*>(tHost->mem);
         tHostMem[i] = 1.0f;
-        float* vcallHostMem = static_cast<float*>(vcallHost->mem);
-        float* vputHostMem = static_cast<float*>(vputHost->mem);
         vcallHostMem[i] = vputHostMem[i] = 0.0f;
     }
 
@@ -80,13 +80,10 @@ int main() {
         if (err) {
             printf("[DEBUG] Batchbuffer failed with %d\n", err);
         }
-        /*
-        printf("  matCMem[0] = %f\n", matCMem[0]);
-        printf("  matCMem[size*100] = %f\n", matCMem[size *100]);
-        printf("  matCMem[7500000] = %f\n", matCMem[7500000]);
-        printf("  matCMem[matrix_size-10] = %f\n", matCMem[matrix_size - 10]);
-        printf("  matCMem[matrix_size] = %f\n", matCMem[matrix_size]);
-        */
+        printf("  vcallHostMem[0] = %f\n", vcallHostMem[0]);
+        printf("  vcallHostMem[100] = %f\n", vcallHostMem[100]);
+        printf("  vcallHostMem[noptions-1] = %f\n", vcallHostMem[noptions - 1]);
+        printf("  vcallHostMem[noptions] = %f\n", vcallHostMem[noptions]);
         /*
         printf("[DEBUG] Checking validity ...  ");
         fflush(stdout);

@@ -11,3 +11,6 @@ montecarlo
 montecarlo-intel
 a.out
 localIDs
+fft1d
+vecmult
+vecadd
