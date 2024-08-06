@@ -18,6 +18,7 @@ class Device;
 class Kernel;
 
 enum BufferType {
+    CONSTANT_SURFACE,
     BUFFER_HOST_MEMORY,
     KERNEL_ISA,
     KERNEL_ISA_INTERNAL,
@@ -115,6 +116,7 @@ class Context : public pContext {
     int createDynamicStateHeap();
     int createCommandStreamTask();
     int createCommandStreamReceiver();
+    uint32_t computeSharedLocalMemoryID(uint32_t slmSize);
     void patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant);
     void alignToCacheLine(BufferObject* commandBuffer);
     void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo);
@@ -148,6 +150,7 @@ class Context : public pContext {
     uint32_t maxVfeThreads = 0u;
     uint64_t currentScratchSpaceTotal = 0u;
     uint32_t perThreadScratchSpace = 0u;
+    uint32_t sharedLocalMemorySize = 0u;
     uint32_t GRFSize = 0u;
     uint32_t crossThreadDataSize = 0u;
     uint32_t perThreadDataSize = 0u;

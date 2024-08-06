@@ -18,10 +18,13 @@ struct DeviceDescriptor;
 struct BufferObject;
 
 enum PATCH_TOKEN {
+    PATCH_TOKEN_STATE_SIP = 2,
     PATCH_TOKEN_SAMPLER_STATE_ARRAY = 5,
     PATCH_TOKEN_BINDING_TABLE_STATE = 8,
+    PATCH_TOKEN_ALLOCATE_SIP_SURFACE = 10,
     PATCH_TOKEN_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT = 11,
     PATCH_TOKEN_IMAGE_MEMORY_OBJECT_KERNEL_ARGUMENT = 12,
+    PATCH_TOKEN_ALLOCATE_LOCAL_SURFACE = 15,
     PATCH_TOKEN_SAMPLER_KERNEL_ARGUMENT = 16,
     PATCH_TOKEN_DATA_PARAMETER_BUFFER = 17,
     PATCH_TOKEN_MEDIA_VFE_STATE = 18,
@@ -30,11 +33,25 @@ enum PATCH_TOKEN {
     PATCH_TOKEN_THREAD_PAYLOAD = 22,
     PATCH_TOKEN_EXECUTION_ENVIRONMENT = 23,
     PATCH_TOKEN_DATA_PARAMETER_STREAM = 25,
+    PATCH_TOKEN_KERNEL_ARGUMENT_INFO = 26,
     PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO = 27,
+    PATCH_TOKEN_STRING = 28,
     PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT = 30,
     PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT = 31,
+    PATCH_TOKEN_ALLOCATE_STATELESS_PRINTF_SURFACE = 33,
+    PATCH_TOKEN_ALLOCATE_STATELESS_EVENT_POOL_SURFACE = 36,
+    PATCH_TOKEN_ALLOCATE_STATELESS_PRIVATE_MEMORY = 38,
+    PATCH_TOKEN_ALLOCATE_CONSTANT_MEMORY_SURFACE_PROGRAM_BINARY_INFO = 42,
+    PATCH_TOKEN_ALLOCATE_STATELESS_GLOBAL_MEMORY_SURFACE_WITH_INITIALIZATION = 43,
+    PATCH_TOKEN_ALLOCATE_STATELESS_CONSTANT_MEMORY_SURFACE_WITH_INITIALIZATION = 44,
+    PATCH_TOKEN_ALLOCATE_STATELESS_DEFAULT_DEVICE_QUEUE_SURFACE = 45,
     PATCH_TOKEN_STATELESS_DEVICE_QUEUE_KERNEL_ARGUMENT = 46,
-    PATCH_TOKEN_MEDIA_VFE_STATE_SLOT1 = 55
+    PATCH_TOKEN_GTPIN_FREE_GRF_INFO = 51,
+    PATCH_TOKEN_GTPIN_INFO = 52,
+    PATCH_TOKEN_PROGRAM_SYMBOL_TABLE = 53,
+    PATCH_TOKEN_PROGRAM_RELOCATION_TABLE = 54,
+    PATCH_TOKEN_MEDIA_VFE_STATE_SLOT1 = 55,
+    PATCH_TOKEN_ALLOCATE_SYNC_BUFFER = 56,
 };
 
 enum DATA_PARAMETER {
@@ -43,29 +60,9 @@ enum DATA_PARAMETER {
     DATA_PARAMETER_GLOBAL_WORK_SIZE = 3,
     DATA_PARAMETER_NUM_WORK_GROUPS = 4,
     DATA_PARAMETER_WORK_DIMENSIONS = 5,
-    DATA_PARAMETER_IMAGE_WIDTH = 9,
-    DATA_PARAMETER_IMAGE_HEIGHT = 10,
-    DATA_PARAMETER_IMAGE_DEPTH = 11,
-    DATA_PARAMETER_IMAGE_CHANNEL_DATA_TYPE = 12,
-    DATA_PARAMETER_IMAGE_CHANNEL_ORDER = 13,
-    DATA_PARAMETER_SAMPLER_ADDRESS_MODE = 14,
-    DATA_PARAMETER_SAMPLER_NORMALIZED_COORDS = 15,
     DATA_PARAMETER_GLOBAL_WORK_OFFSET = 16,
-    DATA_PARAMETER_IMAGE_ARRAY_SIZE = 18,
-    DATA_PARAMETER_IMAGE_NUM_SAMPLES = 20,
-    DATA_PARAMETER_SAMPLER_COORDINATE_SNAP_WA_REQUIRED = 21,
-    DATA_PARAMETER_VME_MB_BLOCK_TYPE = 23,
-    DATA_PARAMETER_VME_SUBPIXEL_MODE = 24,
-    DATA_PARAMETER_VME_SAD_ADJUST_MODE = 25,
-    DATA_PARAMETER_VME_SEARCH_PATH_TYPE = 26,
-    DATA_PARAMETER_IMAGE_NUM_MIP_LEVELS = 27,
     DATA_PARAMETER_ENQUEUED_LOCAL_WORK_SIZE = 28,
-    DATA_PARAMETER_OBJECT_ID = 35,
     DATA_PARAMETER_BUFFER_STATEFUL = 43,
-    DATA_PARAMETER_FLAT_IMAGE_BASEOFFSET = 44,
-    DATA_PARAMETER_FLAT_IMAGE_WIDTH = 45,
-    DATA_PARAMETER_FLAT_IMAGE_HEIGHT = 46,
-    DATA_PARAMETER_FLAT_IMAGE_PITCH = 47
 };
 
 #pragma pack( push, 1 )
@@ -101,6 +98,11 @@ struct PatchBindingTableState : PatchItemHeader {
     uint32_t Offset;
     uint32_t Count;
     uint32_t SurfaceStateOffset;
+};
+
+struct PatchAllocateLocalSurface : PatchItemHeader {
+    uint32_t Offset;
+    uint32_t TotalInlineLocalMemorySize;
 };
 
 struct PatchMediaVFEState : PatchItemHeader {
@@ -221,7 +223,21 @@ struct PatchStatelessConstantMemoryObjectKernelArgument : PatchItemHeader {
     uint32_t IsEmulationArgument;
 };
 
+struct PatchAllocateConstantMemorySurfaceWithInitialization : PatchItemHeader {
+    uint32_t ConstantBufferIndex;
+    uint32_t SurfaceStateHeapOffset;
+    uint32_t CrossThreadDataOffset;
+    uint32_t DataParamSize;
+};
+
+struct PatchAllocateConstantMemorySurfaceProgramBinaryInfo : PatchItemHeader {
+    uint32_t ConstantBufferIndex;
+    uint32_t InlineDataSize;
+};
+
 #pragma pack ( pop )
+
+
 
 struct KernelFromPatchtokens {
     const KernelBinaryHeader* header = nullptr;
@@ -234,6 +250,7 @@ struct KernelFromPatchtokens {
     const uint8_t* patchList = nullptr;
     const uint8_t* patchListEnd = nullptr;
     const PatchBindingTableState* bindingTableState = nullptr;
+    const PatchAllocateLocalSurface* allocateLocalSurface = nullptr;
     const PatchMediaVFEState* mediaVfeState = nullptr;
     //TODO: Do we need this?
     const PatchMediaInterfaceDescriptorLoad* mediaInterfaceDescriptorLoad = nullptr;
@@ -243,6 +260,8 @@ struct KernelFromPatchtokens {
     const PatchDataParameterStream* dataParameterStream = nullptr;
     //TODO: Do we need this?
     const PatchKernelAttributesInfo* kernelAttributesInfo = nullptr;
+    const PatchAllocateConstantMemorySurfaceWithInitialization* constantMemorySurface = nullptr;
+    const PatchAllocateConstantMemorySurfaceProgramBinaryInfo* constantMemorySurface2 = nullptr;
     const PatchThreadPayload* threadPayload = nullptr;
     struct {
         const PatchDataParameterBuffer* localWorkSize[3] = {nullptr, nullptr, nullptr};
@@ -288,6 +307,7 @@ class Kernel : public pKernel {
     char* getCrossThreadData();
     std::vector<BufferObject*> getExecData();
     KernelFromPatchtokens* getKernelData();
+    BufferObject* getConstantSurface();
     BufferObject* getKernelAllocation();
     IgcBuffer* loadProgramSource(const char* filename);
     int initialize();
@@ -306,11 +326,15 @@ class Kernel : public pKernel {
     IgcOclDeviceCtx* getIgcDeviceCtx();
     void transferPlatformInfo(PlatformInfo* igcPlatform, Platform* platform);
     void transferSystemInfo(GTSystemInfo* igcGetSystemInfo, SystemInfo* gtSystemInfo);
+    void decodePatchtokensList1(const uint8_t* decodePos, const uint8_t* decodeEnd);
+    void decodePatchtokensList2(const uint8_t* decodePos, const uint8_t* decodeEnd);
     void decodeToken(const PatchItemHeader* token);
     void decodeKernelDataParameterToken(const PatchDataParameterBuffer* token);
     template<typename T> void decodeMemoryObjectArg(T memObjectToken);
     template<typename T> void setCrossThreadDataOffset(T memObjectToken);
     bool validatePatchtokens() const;
+    int allocateConstantSurface();
+    void setSurfaceState(char* surfaceState, size_t bufferSize, uint64_t bufferAddress);
     int setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue);
     int setArgLocal(uint32_t argIndex, size_t argSize, void* argValue);
     int setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue);
@@ -333,12 +357,17 @@ class Kernel : public pKernel {
     const uint8_t* kernelInfoBlob = nullptr;
     KernelFromPatchtokens kernelData;
 
-    bool unsupportedKernelArgs = false;
+    bool hasGlobalVariables = false;
+    bool hasSamplerOrQueueOrImageArgs = false;
+    bool hasKernelPrintf = false;
+    bool needsLinkerSupport = false;
+    bool hasUnsupportedPatchtokens = false;
 
     DeviceDescriptor* deviceDescriptor = nullptr;
     std::vector<std::unique_ptr<ArgDescriptor>> argDescriptor;
     std::unique_ptr<char[]> sshLocal;
     std::unique_ptr<char[]> crossThreadData;
+    std::unique_ptr<BufferObject> constantSurface;
     std::unique_ptr<BufferObject> kernelAllocation;
     std::vector<BufferObject*> execData;
 };

@@ -144,7 +144,7 @@ API_CALL int ExecuteKernel(pContext* cont,
     ret = context->populateAndSubmitExecBuffer();
     if (ret)
         return ret;
-    //ret = context->finishExecution();
+    ret = context->finishExecution();
     if (ret)
         return ret;
     return SUCCESS;

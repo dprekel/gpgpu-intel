@@ -19,6 +19,10 @@ BufferObject* Buffer::getDataBuffer() {
     return dataBuffer.get();
 }
 
+size_t Buffer::getBufferSize() {
+    return size;
+}
+
 int Buffer::allocateAndPinDataBuffer(size_t size) {
     size_t alignedSize = alignUp(size, MemoryConstants::pageSize);
     dataBuffer = context->allocateBufferObject(alignedSize, BufferType::BUFFER_HOST_MEMORY);
@@ -28,6 +32,7 @@ int Buffer::allocateAndPinDataBuffer(size_t size) {
 
     execBuffer.push_back(dataBuffer.get());
     execBuffer.push_back(context->getBatchBuffer());
+    this->size = size;
 
     size_t residencyCount = execBuffer.size();
     execObjects.resize(residencyCount);

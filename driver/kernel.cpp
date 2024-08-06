@@ -50,6 +50,10 @@ KernelFromPatchtokens* Kernel::getKernelData() {
     return &kernelData;
 }
 
+BufferObject* Kernel::getConstantSurface() {
+    return constantSurface.get();
+}
+
 BufferObject* Kernel::getKernelAllocation() {
     return kernelAllocation.get();
 }
@@ -256,9 +260,10 @@ int Kernel::build(const char* filename, const char* buildOptions) {
         return FRONTEND_BUILD_ERROR;
     }
     fclBuildOutput->Retain();
-
+#ifdef DEBUG
     auto spirvIntermediateData = reinterpret_cast<const char*>(fclBuildOutput->GetMemoryRaw());
     size_t spirvIntermediateLength = fclBuildOutput->GetSizeRaw();
+#endif
     clearFclBuffers(fclDeviceCtx, fclTranslationCtx, fclResult);
 
     DBG_LOG("[DEBUG] FCL Success: %s (Size: %lu Bytes)\n", spirvIntermediateData, spirvIntermediateLength);
@@ -298,7 +303,9 @@ int Kernel::build(const char* filename, const char* buildOptions) {
     igcBuildOutput->Retain();
 
     this->deviceBinary = reinterpret_cast<const char*>(igcBuildOutput->GetMemoryRaw());
+#ifdef DEBUG
     size_t deviceBinarySize = igcBuildOutput->GetSizeRaw();
+#endif
     clearIgcBuffers(idsBuffer, valuesBuffer, igcTranslationCtx, igcResult);
 
     DBG_LOG("[DEBUG] IGC Success: %s (Size: %lu Bytes)\n", deviceBinary, deviceBinarySize);
@@ -379,6 +386,9 @@ void Kernel::decodeToken(const PatchItemHeader* token) {
     case PATCH_TOKEN_BINDING_TABLE_STATE:
         kernelData.bindingTableState = reinterpret_cast<const PatchBindingTableState*>(token);
         break;
+    case PATCH_TOKEN_ALLOCATE_LOCAL_SURFACE:
+        kernelData.allocateLocalSurface = reinterpret_cast<const PatchAllocateLocalSurface*>(token);
+        break;
     case PATCH_TOKEN_MEDIA_VFE_STATE:
         kernelData.mediaVfeState = reinterpret_cast<const PatchMediaVFEState*>(token);
         break;
@@ -418,11 +428,46 @@ void Kernel::decodeToken(const PatchItemHeader* token) {
         decodeMemoryObjectArg<const PatchStatelessConstantMemoryObjectKernelArgument*>(tokenParam);
         setCrossThreadDataOffset<const PatchStatelessConstantMemoryObjectKernelArgument*>(tokenParam);
         } break;
+    case PATCH_TOKEN_ALLOCATE_CONSTANT_MEMORY_SURFACE_PROGRAM_BINARY_INFO: {
+        kernelData.constantMemorySurface2 = reinterpret_cast<const PatchAllocateConstantMemorySurfaceProgramBinaryInfo*>(token);
+        } break;
+    case PATCH_TOKEN_ALLOCATE_STATELESS_CONSTANT_MEMORY_SURFACE_WITH_INITIALIZATION: {
+        kernelData.constantMemorySurface = reinterpret_cast<const PatchAllocateConstantMemorySurfaceWithInitialization*>(token);
+        } break;
+    case PATCH_TOKEN_KERNEL_ARGUMENT_INFO:  //TODO: Is this needed by some kernels?
+        break;
+    case PATCH_TOKEN_ALLOCATE_STATELESS_PRIVATE_MEMORY: //TODO: Check this
+        break;
+    case PATCH_TOKEN_STATE_SIP: // never needed
+        break;
+    case PATCH_TOKEN_ALLOCATE_SIP_SURFACE:  // never needed
+        break;
+    case PATCH_TOKEN_GTPIN_FREE_GRF_INFO:  // never needed
+        break;
+    case PATCH_TOKEN_MEDIA_VFE_STATE_SLOT1:  // only needed by Xe Graphics
+        break;
+    case PATCH_TOKEN_ALLOCATE_STATELESS_GLOBAL_MEMORY_SURFACE_WITH_INITIALIZATION:
+        this->hasGlobalVariables = true;
+        break;
     case PATCH_TOKEN_SAMPLER_STATE_ARRAY:
     case PATCH_TOKEN_SAMPLER_KERNEL_ARGUMENT:
     case PATCH_TOKEN_IMAGE_MEMORY_OBJECT_KERNEL_ARGUMENT:
     case PATCH_TOKEN_STATELESS_DEVICE_QUEUE_KERNEL_ARGUMENT:
-        this->unsupportedKernelArgs = true;
+    case PATCH_TOKEN_ALLOCATE_STATELESS_DEFAULT_DEVICE_QUEUE_SURFACE:
+        this->hasSamplerOrQueueOrImageArgs = true;
+        break;
+    case PATCH_TOKEN_ALLOCATE_STATELESS_PRINTF_SURFACE: // needed if kernel contains printf statements
+    case PATCH_TOKEN_STRING:
+        this->hasKernelPrintf = true;
+        break;
+    case PATCH_TOKEN_PROGRAM_SYMBOL_TABLE:
+    case PATCH_TOKEN_PROGRAM_RELOCATION_TABLE:
+        this->needsLinkerSupport = true;
+        break;
+    case PATCH_TOKEN_GTPIN_INFO:  // maybe needed by some kernels
+    case PATCH_TOKEN_ALLOCATE_SYNC_BUFFER:  // What is a Sync Buffer? Is it related to memory barriers?
+    case PATCH_TOKEN_ALLOCATE_STATELESS_EVENT_POOL_SURFACE: // What is this?
+        this->hasUnsupportedPatchtokens = true;
         break;
     default:
         break;
@@ -491,28 +536,6 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
     case DATA_PARAMETER_WORK_DIMENSIONS:
         kernelData.crossThreadPayload.workDimensions = token;
         break;
-    case DATA_PARAMETER_OBJECT_ID:
-    case DATA_PARAMETER_IMAGE_WIDTH:
-    case DATA_PARAMETER_IMAGE_HEIGHT:
-    case DATA_PARAMETER_IMAGE_DEPTH:
-    case DATA_PARAMETER_IMAGE_CHANNEL_DATA_TYPE:
-    case DATA_PARAMETER_IMAGE_CHANNEL_ORDER:
-    case DATA_PARAMETER_IMAGE_ARRAY_SIZE:
-    case DATA_PARAMETER_IMAGE_NUM_SAMPLES:
-    case DATA_PARAMETER_IMAGE_NUM_MIP_LEVELS:
-    case DATA_PARAMETER_FLAT_IMAGE_BASEOFFSET:
-    case DATA_PARAMETER_FLAT_IMAGE_WIDTH:
-    case DATA_PARAMETER_FLAT_IMAGE_HEIGHT:
-    case DATA_PARAMETER_FLAT_IMAGE_PITCH:
-    case DATA_PARAMETER_SAMPLER_COORDINATE_SNAP_WA_REQUIRED:
-    case DATA_PARAMETER_SAMPLER_ADDRESS_MODE:
-    case DATA_PARAMETER_SAMPLER_NORMALIZED_COORDS:
-    case DATA_PARAMETER_VME_MB_BLOCK_TYPE:
-    case DATA_PARAMETER_VME_SUBPIXEL_MODE:
-    case DATA_PARAMETER_VME_SAD_ADJUST_MODE:
-    case DATA_PARAMETER_VME_SEARCH_PATH_TYPE:
-        this->unsupportedKernelArgs = true;
-        break;
     default:
         break;
     }
@@ -520,17 +543,67 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
 
 
 bool Kernel::validatePatchtokens() const {
-    return kernelData.bindingTableState && kernelData.executionEnvironment &&
-           kernelData.dataParameterStream && kernelData.threadPayload;
+    bool valid = true;
+    DBG_LOG("[DEBUG] Binding Table States: %u\n", kernelData.bindingTableState->Count);
+    bool hasEssentialTokens = kernelData.bindingTableState && kernelData.executionEnvironment &&
+                              kernelData.dataParameterStream && kernelData.threadPayload;
+    if (kernelData.executionEnvironment->UseBindlessMode) {
+        DBG_LOG("[DEBUG] Error: Kernel needs bindless mode!\n");
+    }
+    if (!hasEssentialTokens) {
+        DBG_LOG("[DEBUG] Error: Necessary patchtokens missing!\n");
+        valid = false;
+    }
+    if (hasGlobalVariables) {
+        DBG_LOG("[DEBUG] Error: Kernel contains global variables or global constants!\n");
+        valid = false;
+    }
+    if (hasSamplerOrQueueOrImageArgs) {
+        DBG_LOG("[DEBUG] Error: Kernel has sampler, queue or image arguments!\n");
+        valid = false;
+    }
+    if (hasKernelPrintf) {
+        DBG_LOG("[DEBUG] Error: Kernel contains printf statements!\n");
+        valid = false;
+    }
+    if (needsLinkerSupport) {
+        DBG_LOG("[DEBUG] Error: Kernel needs Linker support!\n");
+        valid = false;
+    }        
+    if (hasUnsupportedPatchtokens) {
+        DBG_LOG("[DEBUG] Error: Kernel has unsupported Patchtokens!\n");
+        valid = false;
+    }
+    return valid;
 }
+
+void Kernel::decodePatchtokensList1(const uint8_t* decodePos, const uint8_t* decodeEnd) {
+    while (static_cast<uint64_t>(decodeEnd - decodePos) > sizeof(PatchItemHeader)) {
+        const PatchItemHeader* token = reinterpret_cast<const PatchItemHeader*>(decodePos);
+        if (token->Token != 41 && token->Token != 42)
+            break;
+        decodeToken(token);
+        decodePos = decodePos + token->Size;
+    }
+}
+
+void Kernel::decodePatchtokensList2(const uint8_t* decodePos, const uint8_t* decodeEnd) {
+    while (static_cast<uint64_t>(decodeEnd - decodePos) > sizeof(PatchItemHeader)) {
+        const PatchItemHeader* token = reinterpret_cast<const PatchItemHeader*>(decodePos);
+        decodeToken(token);
+        decodePos = decodePos + token->Size;
+    }
+}
+
 
 int Kernel::extractMetadata() {
     // The following usage of reinterpret_cast could lead to undefined behaviour. Checking the header magic
     // makes sure that the reinterpreted memory has the correct format
     const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary);
-    if (binHeader->Magic != 0x494E5443) {
-        return INVALID_KERNEL_FORMAT;
-    }
+    if (binHeader->Magic != 0x494E5443)
+        return INVALID_KERNEL;
+    if (binHeader->NumberOfKernels > 1)
+        return INVALID_KERNEL;
     header = reinterpret_cast<const uint8_t*>(binHeader);
     patchListBlob = header + sizeof(ProgramBinaryHeader);
     kernelInfoBlob = patchListBlob + binHeader->PatchListSize;
@@ -544,19 +617,13 @@ int Kernel::extractMetadata() {
     kernelData.surfaceState = kernelData.dynamicState + kernelData.header->DynamicStateHeapSize;
     kernelData.patchList = kernelData.surfaceState + kernelData.header->SurfaceStateHeapSize;
     kernelData.patchListEnd = kernelData.patchList + kernelData.header->PatchListSize;
-    const uint8_t* decodePos = kernelData.patchList;
-    while (static_cast<uint64_t>(kernelData.patchListEnd - decodePos) > sizeof(PatchItemHeader)) {
-        const PatchItemHeader* token = reinterpret_cast<const PatchItemHeader*>(decodePos);
-        decodeToken(token);
-        decodePos = decodePos + token->Size;
-    }
+    // Decode global patchtokens
+    decodePatchtokensList1(patchListBlob, kernelInfoBlob);
+    // Decode kernel specific patchtokens
+    decodePatchtokensList2(kernelData.patchList, kernelData.patchListEnd);
     if (!validatePatchtokens())
-        return INVALID_KERNEL_FORMAT;
-    if (unsupportedKernelArgs || kernelData.executionEnvironment->UseBindlessMode)
-        return INVALID_KERNEL_FORMAT;
-    DBG_LOG("[DEBUG] Binding Table States: %u\n", kernelData.bindingTableState->Count);
+        return UNSUPPORTED_PATCHTOKENS;
     DBG_LOG("[DEBUG] Processing Patchtokens successful!\n");
-    //TODO: Check if GROMACS uses implicit args
 
     uint32_t crossThreadDataSize = kernelData.dataParameterStream->DataParameterStreamSize;
     if (crossThreadDataSize) {
@@ -568,6 +635,10 @@ int Kernel::extractMetadata() {
         sshLocal = std::make_unique<char[]>(sshSize);
         memcpy(sshLocal.get(), kernelData.surfaceState, sshSize);
     }
+    // Allocate constant surface
+    int ret = allocateConstantSurface();
+    if (ret)
+        return ret;
     // Allocate kernel BO
     size_t kernelISASize = static_cast<size_t>(kernelData.header->KernelHeapSize);
     size_t alignedAllocationSize = alignUp(kernelISASize, MemoryConstants::pageSize);
@@ -579,6 +650,43 @@ int Kernel::extractMetadata() {
     return SUCCESS;
 }
 
+int Kernel::allocateConstantSurface() {
+    size_t constantSize = (kernelData.constantMemorySurface2) ? kernelData.constantMemorySurface2->InlineDataSize : 0u;
+    if (!constantSize)
+        return SUCCESS;
+    size_t alignedAllocationSize = alignUp(constantSize, MemoryConstants::pageSize);
+    constantSurface = context->allocateBufferObject(alignedAllocationSize, BufferType::CONSTANT_SURFACE);
+    if (!constantSurface)
+        return BUFFER_ALLOCATION_FAILED;
+    const uint8_t* constBufferSrc = ptrOffset(reinterpret_cast<const uint8_t*>(kernelData.constantMemorySurface2), sizeof(PatchAllocateConstantMemorySurfaceProgramBinaryInfo));
+    memcpy(constantSurface->cpuAddress, constBufferSrc, constantSize);
+    if (crossThreadData) {
+        auto crossThreadDataPtr = ptrOffset(crossThreadData.get(), kernelData.constantMemorySurface->CrossThreadDataOffset);
+        uint64_t addressToPatch = constantSurface->gpuAddress;
+        uint64_t* patchLocation = reinterpret_cast<uint64_t*>(crossThreadDataPtr);
+        *patchLocation = addressToPatch;
+    }
+    if (sshLocal) {
+        auto surfaceState = ptrOffset(sshLocal.get(), kernelData.constantMemorySurface->SurfaceStateHeapOffset);
+        size_t sizeToPatch = alignUp(constantSurface->size, 4);
+        setSurfaceState(surfaceState, sizeToPatch, constantSurface->gpuAddress);
+    }
+    return SUCCESS;
+}
+
+void Kernel::setSurfaceState(char* surfaceState, size_t bufferSize, uint64_t bufferAddress) {
+    auto state = reinterpret_cast<RENDER_SURFACE_STATE*>(surfaceState);
+    *state = RENDER_SURFACE_STATE::init();
+    SURFACE_STATE_BUFFER_LENGTH Length = {0};
+    Length.Length = static_cast<uint32_t>(bufferSize - 1);
+    state->Bitfield.Width = Length.SurfaceState.Width;
+    state->Bitfield.Height = Length.SurfaceState.Height;
+    state->Bitfield.Depth = Length.SurfaceState.Depth;
+    state->Bitfield.VerticalLineStride = 0u;
+    state->Bitfield.VerticalLineStrideOffset = 0u;
+    state->Bitfield.MemoryObjectControlState_IndexToMocsTables = MOCS::AggressiveCaching;
+    state->Bitfield.SurfaceBaseAddress = bufferAddress;
+}
 
 int Kernel::setArgument(uint32_t argIndex, size_t argSize, void* argValue) {
     if (argIndex >= argDescriptor.size())
@@ -627,25 +735,15 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
         uint64_t* patchLocation = reinterpret_cast<uint64_t*>(ptrOffset(crossThreadData.get(), descriptor->crossThreadDataOffset));
         *patchLocation = bufferObject->gpuAddress;
     }
-    auto surfaceState = reinterpret_cast<RENDER_SURFACE_STATE*>(ptrOffset(sshLocal.get(), descriptor->surfaceStateHeapOffset));
-    *surfaceState = RENDER_SURFACE_STATE::init();
-    SURFACE_STATE_BUFFER_LENGTH Length = {0};
-    size_t dataBufferSize = alignUp(bufferObject->size, 4);
-    Length.Length = static_cast<uint32_t>(dataBufferSize - 1);
-    surfaceState->Bitfield.Width = Length.SurfaceState.Width;
-    surfaceState->Bitfield.Height = Length.SurfaceState.Height;
-    surfaceState->Bitfield.Depth = Length.SurfaceState.Depth;
-    surfaceState->Bitfield.VerticalLineStride = 0u;
-    surfaceState->Bitfield.VerticalLineStrideOffset = 0u;
-    surfaceState->Bitfield.MemoryObjectControlState_IndexToMocsTables = MOCS::AggressiveCaching;
-    surfaceState->Bitfield.SurfaceBaseAddress = bufferObject->gpuAddress;
+    auto surfaceState = ptrOffset(sshLocal.get(), descriptor->surfaceStateHeapOffset);
+    size_t dataBufferSize = alignUp(buffer->getBufferSize(), 4);
+    setSurfaceState(surfaceState, dataBufferSize, bufferObject->gpuAddress);
 
     execData.push_back(bufferObject);
     descriptor->argIsSet = true;
 
     return SUCCESS;
 }
-
 
 
 int Kernel::dumpBinary() {

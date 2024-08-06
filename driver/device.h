@@ -16,11 +16,14 @@
 #else
 #define INFO_LOG(...) do {} while (0)
 #endif
+
 #ifdef DEBUG
 #define DBG_LOG(...) printf(__VA_ARGS__)
 #else
 #define DBG_LOG(...) do {} while (0)
 #endif
+
+#define CHECK_ERR(err) do { if (err) return err; } while (0)
 
 class Context;
 class Kernel;

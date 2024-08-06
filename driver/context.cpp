@@ -5,7 +5,9 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#ifdef DEBUG
 #include <chrono>
+#endif
 #include <memory>
 #include <vector>
 
@@ -75,7 +77,6 @@ void BufferObject::deleteHandle() {
 
 //TODO: Make a GEN check before submitting a kernel to GPU!!!!
 //TODO: Return error if local or global size is nullptr
-//TODO: Check what happens if we have #include's in the kernel
 //TODO: Check what happens if we execute two different kernels from the same host program
 void Context::setMaxWorkGroupSize() {
     uint32_t minSimdSize = 8u;
@@ -348,7 +349,7 @@ int Context::createSurfaceStateHeap() {
     }
     uint32_t numberOfBindingTableStates = kernelData->bindingTableState->Count;
     if (numberOfBindingTableStates == 0)
-        return 0;
+        return SUCCESS;
     char* srcSsh = kernel->getSurfaceStatePtr();
     uint32_t surfaceStatesOffset = sshAllocation->offset;
     void* dstSurfaceState = ptrOffset(sshAllocation->cpuAddress, surfaceStatesOffset);
@@ -556,7 +557,9 @@ int Context::createDynamicStateHeap() {
     // provisorisch:
     uint32_t bindingTableOffset = sshAllocation->offset - MemoryConstants::cacheLineSize;
     interfaceDescriptor->Bitfield.BindingTablePointer = bindingTableOffset >> 0x5;
-    interfaceDescriptor->Bitfield.SharedLocalMemorySize = 0u;
+    this->sharedLocalMemorySize = (kernelData->allocateLocalSurface) ? kernelData->allocateLocalSurface->TotalInlineLocalMemorySize : 0u;
+    if (sharedLocalMemorySize)
+        interfaceDescriptor->Bitfield.SharedLocalMemorySize = computeSharedLocalMemoryID(sharedLocalMemorySize);
     interfaceDescriptor->Bitfield.NumberOfThreadsInGpgpuThreadGroup = static_cast<uint32_t>(this->hwThreadsPerWorkGroup);
     interfaceDescriptor->Bitfield.CrossThreadConstantDataReadLength = this->crossThreadDataSize / this->GRFSize;
     uint32_t numGrfPerThreadData = static_cast<uint32_t>(this->localIDSizePerThread / this->GRFSize);
@@ -567,6 +570,21 @@ int Context::createDynamicStateHeap() {
     dshAllocation->offset = alignUp(dshAllocation->offset, MemoryConstants::cacheLineSize);
 
     return SUCCESS;
+}
+
+uint32_t Context::computeSharedLocalMemoryID(uint32_t slmSize) {
+    uint32_t slmID;
+    switch (slmSize) {
+    case 1024:  slmID = 0x1; break;
+    case 2048:  slmID = 0x2; break;
+    case 4096:  slmID = 0x3; break;
+    case 8192:  slmID = 0x4; break;
+    case 16384: slmID = 0x5; break;
+    case 32768: slmID = 0x6; break;
+    case 65536: slmID = 0x7; break;
+    default:    slmID = 0x0; break;
+    }
+    return slmID;
 }
 
 
@@ -682,9 +700,10 @@ int Context::createCommandStreamReceiver() {
     // Program L3 Cache:
     auto cmd2 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
     *cmd2 = MI_LOAD_REGISTER_IMM::init();
-    uint32_t L3ValueNoSLM = 0x80000340;
+    uint32_t L3ValueNoSLM = 0x80000340u;
+    uint32_t L3ValueSLM = 0x60000321u;
     cmd2->Bitfield.RegisterOffset = MMIOAddresses::L3Register >> 0x2;
-    cmd2->Bitfield.DataDword = L3ValueNoSLM;
+    cmd2->Bitfield.DataDword = this->sharedLocalMemorySize ? L3ValueSLM : L3ValueNoSLM;
 
     // Program Thread Arbitration
     auto cmd3 = commandStreamCSR->ptrOffset<PIPE_CONTROL*>(sizeof(PIPE_CONTROL));
@@ -719,10 +738,12 @@ int Context::createCommandStreamReceiver() {
     cmd7->Bitfield.PerThreadScratchSpace = this->perThreadScratchSpace;
     cmd7->Bitfield.StackSize = this->perThreadScratchSpace;
     size_t scratchSpaceOffset = 4096u;
-    uint32_t lowAddress = static_cast<uint32_t>(0xffffffff & scratchSpaceOffset);
-    uint32_t highAddress = static_cast<uint32_t>(0xffffffff & (scratchSpaceOffset >> 32));
-    cmd7->Bitfield.ScratchSpaceBasePointer = lowAddress >> 0xa;
-    cmd7->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
+    if (scratchAllocation) {
+        uint32_t lowAddress = static_cast<uint32_t>(0xffffffff & scratchSpaceOffset);
+        uint32_t highAddress = static_cast<uint32_t>(0xffffffff & (scratchSpaceOffset >> 32));
+        cmd7->Bitfield.ScratchSpaceBasePointer = lowAddress >> 0xa;
+        cmd7->Bitfield.ScratchSpaceBasePointerHigh = highAddress;
+    }
 
     // Program register for preemption
     auto cmd8 = commandStreamCSR->ptrOffset<MI_LOAD_REGISTER_IMM*>(sizeof(MI_LOAD_REGISTER_IMM));
@@ -767,14 +788,12 @@ int Context::createCommandStreamReceiver() {
     cmd10->Bitfield.InstructionBufferSizeModifyEnable = true;
     cmd10->Bitfield.InstructionBufferSize = MemoryConstants::sizeOf4GBinPageEntities;
 
-    if (scratchAllocation) {
-        uint64_t gshAddress = scratchAllocation->gpuAddress - scratchSpaceOffset;
-        cmd10->Bitfield.GeneralStateBaseAddressModifyEnable = true;
-        cmd10->Bitfield.GeneralStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
-        cmd10->Bitfield.GeneralStateBaseAddress = decanonize(gshAddress) >> 0xc;
-        cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
-        cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
-    }
+    uint64_t gshAddress = scratchAllocation ? (scratchAllocation->gpuAddress - scratchSpaceOffset) : 0u;
+    cmd10->Bitfield.GeneralStateBaseAddressModifyEnable = true;
+    cmd10->Bitfield.GeneralStateMemoryObjectControlState_IndexToMocsTables = MOCS::PageTableControlledCaching;
+    cmd10->Bitfield.GeneralStateBaseAddress = decanonize(gshAddress) >> 0xc;
+    cmd10->Bitfield.GeneralStateBufferSizeModifyEnable = true;
+    cmd10->Bitfield.GeneralStateBufferSize = 0xfffff;
 
     cmd10->Bitfield.StatelessDataPortAccessMemoryObjectControlState_IndexToMocsTables = MOCS::AggressiveCaching;
 
@@ -827,6 +846,8 @@ void Context::alignToCacheLine(BufferObject* bo) {
 
 int Context::populateAndSubmitExecBuffer() {
     execBuffer = kernel->getExecData();
+    if (kernel->getConstantSurface())
+        execBuffer.push_back(kernel->getConstantSurface());
     execBuffer.push_back(kernel->getKernelAllocation());
     if (scratchAllocation)
         execBuffer.push_back(scratchAllocation.get());
@@ -883,46 +904,33 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
-    /*
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
     if (ret) {
         return GEM_EXECBUFFER_FAILED;
     }
-    */
     return SUCCESS;
 }
 
 
 int Context::finishExecution() {
+#ifdef DEBUG
     std::chrono::high_resolution_clock::time_point time1, time2;
-
+    time1 = std::chrono::high_resolution_clock::now();
+#endif
     drm_i915_gem_wait wait = {0};
     wait.bo_handle = commandStreamCSR->handle;
     wait.timeout_ns = -1;
-    time1 = std::chrono::high_resolution_clock::now();
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_WAIT, &wait);
     if (ret)
         return POST_SYNC_OPERATION_FAILED;
+#ifdef DEBUG
     time2 = std::chrono::high_resolution_clock::now();
     int64_t elapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(time2 - time1).count();
-
-    //int64_t timeDiff = 0;
-    //int64_t timeoutMilliseconds = 200;
-    //time1 = std::chrono::high_resolution_clock::now();
+#endif
     uint32_t* pollAddress = static_cast<uint32_t*>(tagAllocation->cpuAddress);
-    /*
-    while (*pollAddress != this->completionTag && timeDiff <= timeoutMilliseconds) {
-        //TODO: Replace usleep with intrinsic
-        usleep(1);
-        sched_yield();
-        time2 = std::chrono::high_resolution_clock::now();
-        timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(time2 - time1).count();
-    }
-    DBG_LOG("[DEBUG] Timeout: %f seconds\n", timeDiff/1e3);
-    */
     if (*pollAddress != this->completionTag)
         return POST_SYNC_OPERATION_FAILED;
-    DBG_LOG("Done!\n");
+
     DBG_LOG("[DEBUG] Batchbuffer finished! (Tag value: %u, Execution time: %.2f seconds)\n", *pollAddress, elapsedTime/1e9);
 
     return SUCCESS;
