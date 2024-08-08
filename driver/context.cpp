@@ -81,7 +81,7 @@ void BufferObject::deleteHandle() {
 void Context::setMaxWorkGroupSize() {
     uint32_t minSimdSize = 8u;
     uint32_t maxNumEUsPerSubSlice = (hwInfo->gtSystemInfo->EuCountPerPoolMin == 0 ||
-                                     hwInfo->featureTable->flags.ftrPooledEuEnabled == 0)
+                                    hwInfo->featureTable->flags.ftrPooledEuEnabled == 0)
                                   ? (hwInfo->gtSystemInfo->EUCount / hwInfo->gtSystemInfo->SubSliceCount)
                                   : hwInfo->gtSystemInfo->EuCountPerPoolMin;
     uint32_t numThreadsPerEU = hwInfo->gtSystemInfo->ThreadCount / hwInfo->gtSystemInfo->EUCount;
@@ -904,10 +904,12 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
+    /*
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
     if (ret) {
         return GEM_EXECBUFFER_FAILED;
     }
+    */
     return SUCCESS;
 }
 

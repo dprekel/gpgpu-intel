@@ -602,6 +602,7 @@ int Kernel::extractMetadata() {
     const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary);
     if (binHeader->Magic != 0x494E5443)
         return INVALID_KERNEL;
+    DBG_LOG("[DEBUG] Number of Kernels: %u\n", binHeader->NumberOfKernels);
     if (binHeader->NumberOfKernels > 1)
         return INVALID_KERNEL;
     header = reinterpret_cast<const uint8_t*>(binHeader);
