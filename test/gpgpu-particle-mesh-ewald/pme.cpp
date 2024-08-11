@@ -9,12 +9,37 @@
 #include <string>
 #include <vector>
 
+#include "pme.h"
+
 #define CHECK_ERR(err, string)                      \
 do {                                                \
     printf("[DEBUG] %s: %d\n", string, err);        \
     if (err)                                        \
         return err;                                 \
 } while (0)
+
+#define CHECK_ERROR(err)                            \
+do {                                                \
+    if (err) return err;                            \
+} while (0)
+
+
+int readBuffersFromFile(const char* filename, void* buffer) {
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        printf("[DEBUG] Error opening file!\n");
+        return -1;
+    }
+    fseek(file, 0, SEEK_END);
+    uint64_t size = ftell(file);
+    rewind(file);
+    char* buf = static_cast<char*>(buffer);
+    fread(buf, 1, size*sizeof(char), file);
+    buf[size] = '\0';
+    fclose(file);
+    return SUCCESS;
+}
+
 
 int main() {
     int err = 0;
@@ -40,17 +65,45 @@ int main() {
     pKernel* kernel = BuildKernel(context, "nbnxm_ocl_kernels.cl", build_options.c_str(), true, &err);
     printf("[DEBUG] BuildKernel: %d\n", err);
 
-    size_t paramsSize                       =       0;
-    size_t atomCoordinatesAndChargesSize    =  804896;
-    size_t atomicForcesArraySize            =  603672;
-    size_t lennardJonesEnergySize           =       4;
-    size_t electrostaticsEnergySize         =       4;
-    size_t shiftForcesSize                  =     540;
-    size_t LJSqrtsSize                      =  402448;
-    size_t shiftVectorSize                  =     540;
-    size_t pairListIClustersSize            =   55344;
-    size_t pairListJClustersSize            = 2549600;
-    size_t atomInteractionBitsSize          =  409216;
+    cl_nbparam_params params;
+    params.elecType                       = ElecType::EwaldAna;
+    params.vdwType                        = VdwType::CutCombGeom;
+    params.epsfac                         = 138.935455;
+    params.c_rf                           = 1.0;
+    params.two_k_rf                       = 0.0;
+    params.ewald_beta                     = 3.12341309;
+    params.sh_ewald                       = 1.00000125e-05;
+    params.sh_lj_ewald                    = 0.0;
+    params.ewaldcoeff_lj                  = 0.0;
+    params.rcoulomb_sq                    = 1.0;
+    params.rvdw_sq                        = 1.0;
+    params.rvdw_switch                    = 0.0;
+    params.rlistOuter_sq                  = 1.32249999;
+    params.rlistInner_sq                  = 1.00200105;
+    params.dispersion_shift.c2            = 0.0;
+    params.dispersion_shift.c3            = 0.0;
+    params.dispersion_shift.cpot          = -1.0;
+    params.repulsion_shift.c2             = 0.0;
+    params.repulsion_shift.c3             = 0.0;
+    params.repulsion_shift.cpot           = -1.0;
+    params.vdw_switch.c3                  = 0.0;
+    params.vdw_switch.c4                  = 0.0;
+    params.vdw_switch.c5                  = 0.0;
+    params.coulomb_tab_scale              = 7.71402799e+31;
+
+    int bCalcFshift                       = 2;  //TODO: Look this up
+
+    size_t paramsSize                     =       0;  // IN
+    size_t atomCoordinatesAndChargesSize  =  804896;  // IN
+    size_t atomicForcesArraySize          =  603672;  // OUT
+    size_t lennardJonesEnergySize         =       4;  // OUT
+    size_t electrostaticsEnergySize       =       4;  // OUT
+    size_t shiftForcesSize                =     540;  // OUT
+    size_t LJSqrtsSize                    =  402448;  //
+    size_t shiftVectorSize                =     540;  // IN
+    size_t pairListIClustersSize          =   55344;  // IN
+    size_t pairListJClustersSize          = 2549600;  // OUT/IN
+    size_t atomInteractionBitsSize        =  409216;  // IN
 
     pBuffer* atomCoordinatesAndCharges = CreateBuffer(context, atomCoordinatesAndChargesSize, &err);
     CHECK_ERR(err, "CreateBuffer");
@@ -73,11 +126,184 @@ int main() {
     pBuffer* atomInteractionBits = CreateBuffer(context, atomInteractionBitsSize, &err);
     CHECK_ERR(err, "CreateBuffer");
 
-    //err = ReleaseKernel(kernel);
-    //err = ReleaseContext(context);
+    err = readBuffersFromFile("buffer01.bin", atomCoordinatesAndCharges->mem);
+    CHECK_ERROR(err);
+    err = readBuffersFromFile("buffer02.bin", atomicForcesArray->mem);
+    CHECK_ERROR(err);
+    err = readBuffersFromFile("buffer03.bin", lennardJonesEnergy->mem);
+    CHECK_ERROR(err);
+    err = readBuffersFromFile("buffer04.bin", electrostaticsEnergy->mem);
+    CHECK_ERROR(err);
+    err = readBuffersFromFile("buffer05.bin", shiftForces->mem);
+    CHECK_ERROR(err);
+    err = readBuffersFromFile("buffer06.bin", LJSqrts->mem);
+    CHECK_ERROR(err);
+    err = readBuffersFromFile("buffer07.bin", shiftVector->mem);
+    CHECK_ERROR(err);
+    err = readBuffersFromFile("buffer11.bin", pairListIClusters->mem);
+    CHECK_ERROR(err);
+    err = readBuffersFromFile("buffer12.bin", pairListJClusters->mem);
+    CHECK_ERROR(err);
+    err = readBuffersFromFile("buffer13.bin", atomInteractionBits->mem);
+    CHECK_ERROR(err);
+
+    err = SetKernelArg(kernel, 0, sizeof(cl_nbparam_params), static_cast<void*>(&params));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 1, sizeof(pBuffer), static_cast<void*>(atomCoordinatesAndCharges));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 2, sizeof(pBuffer), static_cast<void*>(atomicForcesArray));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 3, sizeof(pBuffer), static_cast<void*>(lennardJonesEnergy));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 4, sizeof(pBuffer), static_cast<void*>(electrostaticsEnergy));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 5, sizeof(pBuffer), static_cast<void*>(shiftForces));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 6, sizeof(pBuffer), static_cast<void*>(LJSqrts));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 7, sizeof(pBuffer), static_cast<void*>(shiftVector));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 8, 0, nullptr);
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 9, 0, nullptr);
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 10, 0, nullptr);
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 11, sizeof(pBuffer), static_cast<void*>(pairListIClusters));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 12, sizeof(pBuffer), static_cast<void*>(pairListIClusters));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 13, sizeof(pBuffer), static_cast<void*>(atomInteractionBits));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 14, sizeof(int), static_cast<void*>(&bCalcFshift));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+    err = SetKernelArg(kernel, 15, sizeof(int), static_cast<void*>(&bCalcFshift));
+    printf("[DEBUG] SetKernelArg: %d\n", err);
+
+    const size_t local[3] = {4, 4, 1};
+    const size_t global[3] = {8268, 4, 1};
+    err = ExecuteKernel(context, kernel, 3, global, local);
+    if (err) {
+        printf("[DEBUG] Batchbuffer failed with %d\n", err);
+    }
+
+    err = ReleaseBuffer(atomCoordinatesAndCharges);
+    err = ReleaseBuffer(atomicForcesArray);
+    err = ReleaseBuffer(lennardJonesEnergy);
+    err = ReleaseBuffer(electrostaticsEnergy);
+    err = ReleaseBuffer(shiftForces);
+    err = ReleaseBuffer(LJSqrts);
+    err = ReleaseBuffer(shiftVector);
+    err = ReleaseBuffer(pairListIClusters);
+    err = ReleaseBuffer(pairListJClusters);
+    err = ReleaseBuffer(atomInteractionBits);
+    err = ReleaseKernel(kernel);
+    err = ReleaseContext(context);
     err = ReleaseDevice(devices, 0u);
     return 0;
 }
+
+
+
+/*
+Patchtokens:
+PATCH_TOKEN_ALLOCATE_CONSTANT_MEMORY_SURFACE_PROGRAM_BINARY_INFO
+PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD
+PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA
+PATCH_TOKEN_BINDING_TABLE_STATE
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT
+PATCH_TOKEN_ALLOCATE_STATELESS_CONSTANT_MEMORY_SURFACE_WITH_INITIALIZATION
+PATCH_TOKEN_ALLOCATE_STATELESS_PRIVATE_MEMORY
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_BUFFER
+PATCH_TOKEN_DATA_PARAMETER_STREAM
+PATCH_TOKEN_THREAD_PAYLOAD
+PATCH_TOKEN_EXECUTION_ENVIRONMENT
+PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+PATCH_TOKEN_KERNEL_ARGUMENT_INFO
+*/
+
+
+
+
 
 
 

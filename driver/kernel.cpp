@@ -434,8 +434,10 @@ void Kernel::decodeToken(const PatchItemHeader* token) {
     case PATCH_TOKEN_ALLOCATE_STATELESS_CONSTANT_MEMORY_SURFACE_WITH_INITIALIZATION: {
         kernelData.constantMemorySurface = reinterpret_cast<const PatchAllocateConstantMemorySurfaceWithInitialization*>(token);
         } break;
-    case PATCH_TOKEN_KERNEL_ARGUMENT_INFO:  //TODO: Is this needed by some kernels?
-        break;
+    case PATCH_TOKEN_KERNEL_ARGUMENT_INFO: {
+        //auto tokenParam = reinterpret_cast<const PatchKernelArgumentInfo*>(token);
+        //decodeAddressSpaceQualifier(tokenParam);
+        } break;
     case PATCH_TOKEN_ALLOCATE_STATELESS_PRIVATE_MEMORY: //TODO: Check this
         break;
     case PATCH_TOKEN_STATE_SIP: // never needed
@@ -474,6 +476,17 @@ void Kernel::decodeToken(const PatchItemHeader* token) {
     }
 }
 
+/*
+void Kernel::decodeAddressSpaceQualifier(const PatchKernelArgumentInfo* token) {
+    const char* addressQualifier = reinterpret_cast<const char*>(token) + token->Size;
+    if (strcmp(addressQualifier, "__local") == 0) {
+        uint32_t argNum = token->ArgumentNumber;
+        auto pointerDesc = static_cast<ArgDescPointer*>(argDescriptor[argNum].get());
+        pointerDesc->KernelArgHandler = &Kernel::setArgLocal;
+    }
+}
+*/
+
 template <typename T>
 void Kernel::decodeMemoryObjectArg(T memObjectToken) {
     uint32_t argNum = memObjectToken->ArgumentNumber;
@@ -496,7 +509,17 @@ void Kernel::setCrossThreadDataOffset(T memObjectToken) {
 void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* token) {
     uint32_t argNum = token->ArgumentNumber;
     switch (token->Type) {
+    case DATA_PARAMETER_SUM_OF_LOCAL_MEMORY_OBJECT_ARGUMENT_SIZES: {
+        if (argDescriptor.size() < argNum + 1)
+            argDescriptor.resize(argNum + 1);
+        auto pointerDesc = std::make_unique<ArgDescPointer>();
+        pointerDesc->KernelArgHandler = &Kernel::setArgLocal;
+        pointerDesc->crossThreadDataOffset = token->Offset;
+        pointerDesc->requiredSlmAlignment = token->SourceOffset;
+        argDescriptor[argNum] = std::move(pointerDesc);
+        } break;
     case DATA_PARAMETER_KERNEL_ARGUMENT: {
+        DBG_LOG("DATA_PARAMETER_KERNEL_ARGUMENT: %u\n", token->ArgumentNumber);
         if (argDescriptor.size() < argNum + 1)
             argDescriptor.resize(argNum + 1);
         auto valueDesc = std::make_unique<ArgDescValue>();
@@ -506,7 +529,14 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
         valueDesc->sourceOffset = token->SourceOffset;
         argDescriptor[argNum] = std::move(valueDesc);
         } break;
+    /*
+    case DATA_PARAMETER_LOCAL_MEMORY_STATELESS_WINDOW_SIZE:
+    case DATA_PARAMETER_LOCAL_MEMORY_STATELESS_WINDOW_START_ADDRESS:
+        DBG_LOG("Local data parameters\n");
+        break;
+    */
     case DATA_PARAMETER_BUFFER_STATEFUL:
+        DBG_LOG("DATA_PARAMETER_BUFFER_STATEFUL: %u\n", token->ArgumentNumber);
         break;
     case DATA_PARAMETER_LOCAL_WORK_SIZE: {
         uint32_t index = token->SourceOffset >> 2;
@@ -692,8 +722,6 @@ void Kernel::setSurfaceState(char* surfaceState, size_t bufferSize, uint64_t buf
 int Kernel::setArgument(uint32_t argIndex, size_t argSize, void* argValue) {
     if (argIndex >= argDescriptor.size())
         return INVALID_KERNEL_ARG;
-    if (!argValue)
-        return INVALID_KERNEL_ARG;
     ArgDescriptor* desc = argDescriptor[argIndex].get();
     if (!desc)
         return INVALID_KERNEL_ARG;
@@ -723,24 +751,34 @@ int Kernel::setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue) {
 }
 
 int Kernel::setArgLocal(uint32_t argIndex, size_t argSize, void* argValue) {
+    auto argDescPointer = static_cast<ArgDescPointer*>(argDescriptor[argIndex].get());
+    uint32_t slmOffset = *ptrOffset(crossThreadData.get(), argDescPointer->crossThreadDataOffset);
+    slmOffset += static_cast<uint32_t>(argSize);
+    //TODO: Implement while loop
+    
+    argDescPointer->argIsSet = true;
     return SUCCESS;
 }
 
 int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     Buffer* buffer = static_cast<Buffer*>(argValue);
-    if (buffer->magic != 0x373E5A13)
-        return INVALID_KERNEL_ARG;
-    BufferObject* bufferObject = buffer->getDataBuffer();
+    if (buffer) {
+        if (buffer->magic != 0x373E5A13)
+            return INVALID_KERNEL_ARG;
+    }
+    BufferObject* bufferObject = buffer ? buffer->getDataBuffer() : nullptr;
     auto descriptor = static_cast<ArgDescPointer*>(argDescriptor[argIndex].get());
     if (descriptor->crossThreadDataOffset) {
         uint64_t* patchLocation = reinterpret_cast<uint64_t*>(ptrOffset(crossThreadData.get(), descriptor->crossThreadDataOffset));
-        *patchLocation = bufferObject->gpuAddress;
+        *patchLocation = bufferObject ? bufferObject->gpuAddress : 0u;
     }
     auto surfaceState = ptrOffset(sshLocal.get(), descriptor->surfaceStateHeapOffset);
-    size_t dataBufferSize = alignUp(buffer->getBufferSize(), 4);
-    setSurfaceState(surfaceState, dataBufferSize, bufferObject->gpuAddress);
+    size_t dataBufferSize = buffer ? alignUp(buffer->getBufferSize(), 4) : 0u;
+    uint64_t gpuAddress = bufferObject ? bufferObject->gpuAddress : 0u;
+    setSurfaceState(surfaceState, dataBufferSize, gpuAddress);
 
-    execData.push_back(bufferObject);
+    if (bufferObject)
+        execData.push_back(bufferObject);
     descriptor->argIsSet = true;
 
     return SUCCESS;

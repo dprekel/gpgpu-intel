@@ -60,6 +60,7 @@ enum DATA_PARAMETER {
     DATA_PARAMETER_GLOBAL_WORK_SIZE = 3,
     DATA_PARAMETER_NUM_WORK_GROUPS = 4,
     DATA_PARAMETER_WORK_DIMENSIONS = 5,
+    DATA_PARAMETER_SUM_OF_LOCAL_MEMORY_OBJECT_ARGUMENT_SIZES = 8,
     DATA_PARAMETER_GLOBAL_WORK_OFFSET = 16,
     DATA_PARAMETER_ENQUEUED_LOCAL_WORK_SIZE = 28,
     DATA_PARAMETER_BUFFER_STATEFUL = 43,
@@ -160,6 +161,15 @@ struct PatchExecutionEnvironment : PatchItemHeader {
 //TODO: Do we need this?
 struct PatchKernelAttributesInfo : PatchItemHeader {
     uint32_t AttributesSize;
+};
+
+struct PatchKernelArgumentInfo : PatchItemHeader {
+    uint32_t ArgumentNumber;
+    uint32_t AddressQualifierSize;
+    uint32_t AccessQualifierSize;
+    uint32_t ArgumentNameSize;
+    uint32_t TypeNameSize;
+    uint32_t TypeQualifierSize;
 };
 
 struct PatchThreadPayload : PatchItemHeader {
@@ -282,6 +292,7 @@ struct ArgDescriptor {
 struct ArgDescPointer : ArgDescriptor {
     uint16_t surfaceStateHeapOffset = 0u;
     uint16_t crossThreadDataOffset = 0u;
+    uint16_t requiredSlmAlignment = 0u;
 };
 
 struct ArgDescValue : ArgDescriptor {
