@@ -91,7 +91,7 @@ int main() {
     params.vdw_switch.c5                  = 0.0;
     params.coulomb_tab_scale              = 7.71402799e+31;
 
-    int bCalcFshift                       = 2;  //TODO: Look this up
+    int bCalcFshift                       = 1;
 
     size_t paramsSize                     =       0;  // IN
     size_t atomCoordinatesAndChargesSize  =  804896;  // IN
@@ -171,13 +171,13 @@ int main() {
     printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 11, sizeof(pBuffer), static_cast<void*>(pairListIClusters));
     printf("[DEBUG] SetKernelArg: %d\n", err);
-    err = SetKernelArg(kernel, 12, sizeof(pBuffer), static_cast<void*>(pairListIClusters));
+    err = SetKernelArg(kernel, 12, sizeof(pBuffer), static_cast<void*>(pairListJClusters));
     printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 13, sizeof(pBuffer), static_cast<void*>(atomInteractionBits));
     printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 14, sizeof(int), static_cast<void*>(&bCalcFshift));
     printf("[DEBUG] SetKernelArg: %d\n", err);
-    err = SetKernelArg(kernel, 15, sizeof(int), static_cast<void*>(&bCalcFshift));
+    err = SetKernelArg(kernel, 15, 1000, nullptr);
     printf("[DEBUG] SetKernelArg: %d\n", err);
 
     const size_t local[3] = {4, 4, 1};
