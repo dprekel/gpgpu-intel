@@ -557,7 +557,8 @@ int Context::createDynamicStateHeap() {
     // provisorisch:
     uint32_t bindingTableOffset = sshAllocation->offset - MemoryConstants::cacheLineSize;
     interfaceDescriptor->Bitfield.BindingTablePointer = bindingTableOffset >> 0x5;
-    this->sharedLocalMemorySize = (kernelData->allocateLocalSurface) ? kernelData->allocateLocalSurface->TotalInlineLocalMemorySize : 0u;
+    //this->sharedLocalMemorySize = (kernelData->allocateLocalSurface) ? kernelData->allocateLocalSurface->TotalInlineLocalMemorySize : 0u;
+    this->sharedLocalMemorySize = alignUp(kernel->getSharedLocalMemorySize(), MemoryConstants::kiloByte);
     if (sharedLocalMemorySize)
         interfaceDescriptor->Bitfield.SharedLocalMemorySize = computeSharedLocalMemoryID(sharedLocalMemorySize);
     interfaceDescriptor->Bitfield.NumberOfThreadsInGpgpuThreadGroup = static_cast<uint32_t>(this->hwThreadsPerWorkGroup);
@@ -574,6 +575,7 @@ int Context::createDynamicStateHeap() {
 
 uint32_t Context::computeSharedLocalMemoryID(uint32_t slmSize) {
     uint32_t slmID;
+    //TODO: This doesn't work:
     switch (slmSize) {
     case 1024:  slmID = 0x1; break;
     case 2048:  slmID = 0x2; break;
@@ -904,12 +906,10 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
     execbuf.flags = I915_EXEC_RENDER | I915_EXEC_NO_RELOC;
     execbuf.rsvd1 = this->ctxId;
 
-    /*
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_EXECBUFFER2, &execbuf);
     if (ret) {
         return GEM_EXECBUFFER_FAILED;
     }
-    */
     return SUCCESS;
 }
 

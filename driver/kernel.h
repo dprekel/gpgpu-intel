@@ -295,10 +295,14 @@ struct ArgDescPointer : ArgDescriptor {
     uint16_t requiredSlmAlignment = 0u;
 };
 
-struct ArgDescValue : ArgDescriptor {
+struct Element {
     uint16_t crossThreadDataOffset = 0u;
     uint16_t size = 0u;
     uint16_t sourceOffset = 0u;
+};
+
+struct ArgDescValue : ArgDescriptor {
+    std::vector<Element> elements;
 };
 
 
@@ -320,6 +324,7 @@ class Kernel : public pKernel {
     KernelFromPatchtokens* getKernelData();
     BufferObject* getConstantSurface();
     BufferObject* getKernelAllocation();
+    uint32_t getSharedLocalMemorySize();
     IgcBuffer* loadProgramSource(const char* filename);
     int initialize();
     int build(const char* filename, const char* options);
@@ -381,6 +386,7 @@ class Kernel : public pKernel {
     std::unique_ptr<BufferObject> constantSurface;
     std::unique_ptr<BufferObject> kernelAllocation;
     std::vector<BufferObject*> execData;
+    uint32_t sharedLocalMemorySize = 0u;
 };
 
 

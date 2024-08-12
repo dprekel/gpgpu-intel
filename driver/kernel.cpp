@@ -58,6 +58,10 @@ BufferObject* Kernel::getKernelAllocation() {
     return kernelAllocation.get();
 }
 
+uint32_t Kernel::getSharedLocalMemorySize() {
+    return sharedLocalMemorySize;
+}
+
 int Kernel::loadCompiler(const char* libName, CIFMain** cifMain) {
     auto dlopenFlag = RTLD_LAZY | RTLD_DEEPBIND;
     void* handle = dlopen(libName, dlopenFlag);
@@ -522,12 +526,17 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
         DBG_LOG("DATA_PARAMETER_KERNEL_ARGUMENT: %u\n", token->ArgumentNumber);
         if (argDescriptor.size() < argNum + 1)
             argDescriptor.resize(argNum + 1);
-        auto valueDesc = std::make_unique<ArgDescValue>();
-        valueDesc->KernelArgHandler = &Kernel::setArgImmediate;
-        valueDesc->size = token->DataSize;
-        valueDesc->crossThreadDataOffset = token->Offset;
-        valueDesc->sourceOffset = token->SourceOffset;
-        argDescriptor[argNum] = std::move(valueDesc);
+        if (!argDescriptor[argNum]) {
+            auto valueDesc = std::make_unique<ArgDescValue>();
+            valueDesc->KernelArgHandler = &Kernel::setArgImmediate;
+            argDescriptor[argNum] = std::move(valueDesc);
+        }
+        Element elem;
+        elem.size = token->DataSize;
+        elem.crossThreadDataOffset = token->Offset;
+        elem.sourceOffset = token->SourceOffset;
+        auto argDescValue = static_cast<ArgDescValue*>(argDescriptor[argNum].get());
+        argDescValue->elements.push_back(elem);
         } break;
     /*
     case DATA_PARAMETER_LOCAL_MEMORY_STATELESS_WINDOW_SIZE:
@@ -540,8 +549,13 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
         break;
     case DATA_PARAMETER_LOCAL_WORK_SIZE: {
         uint32_t index = token->SourceOffset >> 2;
-        if (index <= 2)
-            kernelData.crossThreadPayload.localWorkSize[index] = token;
+        if (index <= 2) {
+            if (!kernelData.crossThreadPayload.localWorkSize[index]) {
+                kernelData.crossThreadPayload.localWorkSize[index] = token;
+            } else {
+                kernelData.crossThreadPayload.localWorkSize2[index] = token;
+            }
+        }
         } break;
     case DATA_PARAMETER_GLOBAL_WORK_OFFSET: {
         uint32_t index = token->SourceOffset >> 2;
@@ -739,12 +753,14 @@ int Kernel::setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue) {
     auto argDescValue = static_cast<ArgDescValue*>(argDescriptor[argIndex].get());
     if (!argDescValue)
         return INVALID_KERNEL_ARG;
-    auto pDest = ptrOffset(crossThreadData.get(), argDescValue->crossThreadDataOffset);
-    auto pSrc = ptrOffset(argValue, argDescValue->sourceOffset);
-    if (argDescValue->sourceOffset < argSize) {
-        size_t maxBytesToCopy = argSize - argDescValue->sourceOffset;
-        size_t bytesToCopy = std::min(static_cast<size_t>(argDescValue->size), maxBytesToCopy);
-        memcpy(pDest, pSrc, bytesToCopy);
+    for (auto &element : argDescValue->elements) {
+        auto pDest = ptrOffset(crossThreadData.get(), element.crossThreadDataOffset);
+        auto pSrc = ptrOffset(argValue, element.sourceOffset);
+        if (element.sourceOffset < argSize) {
+            size_t maxBytesToCopy = argSize - element.sourceOffset;
+            size_t bytesToCopy = std::min(static_cast<size_t>(element.size), maxBytesToCopy);
+            memcpy(pDest, pSrc, bytesToCopy);
+        }
     }
     argDescValue->argIsSet = true;
     return SUCCESS;
@@ -755,6 +771,7 @@ int Kernel::setArgLocal(uint32_t argIndex, size_t argSize, void* argValue) {
     uint32_t slmOffset = *ptrOffset(crossThreadData.get(), argDescPointer->crossThreadDataOffset);
     slmOffset += static_cast<uint32_t>(argSize);
     //TODO: Implement while loop
+    this->sharedLocalMemorySize += argSize;
     
     argDescPointer->argIsSet = true;
     return SUCCESS;
