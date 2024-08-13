@@ -287,6 +287,7 @@ struct KernelFromPatchtokens {
 struct ArgDescriptor {
     int (Kernel::*KernelArgHandler)(uint32_t argNum, size_t argSize, void* argVal);
     bool argIsSet = false;
+    bool isLocal = false;
 };
 
 struct ArgDescPointer : ArgDescriptor {

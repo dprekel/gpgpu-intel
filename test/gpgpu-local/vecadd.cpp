@@ -47,10 +47,11 @@ int main() {
     err = SetKernelArg(kernel, 0, sizeof(vector_A), static_cast<void*>(vector_A));
     err = SetKernelArg(kernel, 1, sizeof(vector_B), static_cast<void*>(vector_B));
     err = SetKernelArg(kernel, 2, sizeof(vector_C), static_cast<void*>(vector_C));
-    err = SetKernelArg(kernel, 3, vector_size, 0);
+    err = SetKernelArg(kernel, 3, vector_size, nullptr);
+    err = SetKernelArg(kernel, 4, vector_size, nullptr);
     printf("[DEBUG] SetKernelArg: %d\n", err);
     // number of work items per work group dimension
-    const size_t local[3] = {32, 1, 1};
+    const size_t local[3] = {256, 1, 1};
     // total number of work items in each dimension
     const size_t global[3] = {15745024, 1, 1};
 

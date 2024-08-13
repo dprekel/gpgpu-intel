@@ -1,14 +1,17 @@
 __kernel void vectorAdd(__global const float* a,
                         __global const float* b,
-                        __global float* result) {
-    int gid = get_global_id(0);
-    int lid = get_local_id(0);
-    int localSize = get_local_size(0);
+                        __global float* result,
+                        __local float* localMem1,
+                        __local float* localMem2) {
+    int global_id = get_global_id(0);
+    int local_id = get_local_id(0);
 
-    localBuffer[lid] = a[gid] + b[gid];
-    __local float localBuf[1000];
+    localMem1[local_id] = a[global_id];
+    localMem2[local_id] = b[global_id];
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    result[gid] = localBuffer[lid];
+    float sum = localMem1[local_id] + localMem2[local_id];
+
+    result[global_id] = sum;
 }

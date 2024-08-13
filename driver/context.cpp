@@ -557,7 +557,6 @@ int Context::createDynamicStateHeap() {
     // provisorisch:
     uint32_t bindingTableOffset = sshAllocation->offset - MemoryConstants::cacheLineSize;
     interfaceDescriptor->Bitfield.BindingTablePointer = bindingTableOffset >> 0x5;
-    //this->sharedLocalMemorySize = (kernelData->allocateLocalSurface) ? kernelData->allocateLocalSurface->TotalInlineLocalMemorySize : 0u;
     this->sharedLocalMemorySize = alignUp(kernel->getSharedLocalMemorySize(), MemoryConstants::kiloByte);
     if (sharedLocalMemorySize)
         interfaceDescriptor->Bitfield.SharedLocalMemorySize = computeSharedLocalMemoryID(sharedLocalMemorySize);

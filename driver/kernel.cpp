@@ -480,16 +480,6 @@ void Kernel::decodeToken(const PatchItemHeader* token) {
     }
 }
 
-/*
-void Kernel::decodeAddressSpaceQualifier(const PatchKernelArgumentInfo* token) {
-    const char* addressQualifier = reinterpret_cast<const char*>(token) + token->Size;
-    if (strcmp(addressQualifier, "__local") == 0) {
-        uint32_t argNum = token->ArgumentNumber;
-        auto pointerDesc = static_cast<ArgDescPointer*>(argDescriptor[argNum].get());
-        pointerDesc->KernelArgHandler = &Kernel::setArgLocal;
-    }
-}
-*/
 
 template <typename T>
 void Kernel::decodeMemoryObjectArg(T memObjectToken) {
@@ -520,6 +510,7 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
         pointerDesc->KernelArgHandler = &Kernel::setArgLocal;
         pointerDesc->crossThreadDataOffset = token->Offset;
         pointerDesc->requiredSlmAlignment = token->SourceOffset;
+        pointerDesc->isLocal = true;
         argDescriptor[argNum] = std::move(pointerDesc);
         } break;
     case DATA_PARAMETER_KERNEL_ARGUMENT: {
@@ -680,6 +671,7 @@ int Kernel::extractMetadata() {
         sshLocal = std::make_unique<char[]>(sshSize);
         memcpy(sshLocal.get(), kernelData.surfaceState, sshSize);
     }
+    this->sharedLocalMemorySize = (kernelData.allocateLocalSurface) ? kernelData.allocateLocalSurface->TotalInlineLocalMemorySize : 0u;
     // Allocate constant surface
     int ret = allocateConstantSurface();
     if (ret)
@@ -766,16 +758,31 @@ int Kernel::setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue) {
     return SUCCESS;
 }
 
+
 int Kernel::setArgLocal(uint32_t argIndex, size_t argSize, void* argValue) {
     auto argDescPointer = static_cast<ArgDescPointer*>(argDescriptor[argIndex].get());
     uint32_t slmOffset = *ptrOffset(crossThreadData.get(), argDescPointer->crossThreadDataOffset);
     slmOffset += static_cast<uint32_t>(argSize);
-    //TODO: Implement while loop
-    this->sharedLocalMemorySize += argSize;
-    
+
+    argIndex++;
+    while (argIndex < argDescriptor.size()) {
+        if (argDescriptor[argIndex].get()) {
+            if (!argDescriptor[argIndex]->isLocal) {
+                ++argIndex;
+                continue;
+            }
+        }
+        auto nextLocalArg = static_cast<ArgDescPointer*>(argDescriptor[argIndex].get());
+        slmOffset = alignUp(slmOffset, nextLocalArg->requiredSlmAlignment);
+        auto patchLocation = ptrOffset(crossThreadData.get(), nextLocalArg->crossThreadDataOffset);
+        *patchLocation = slmOffset;
+        ++argIndex;
+    }
+    this->sharedLocalMemorySize += alignUp(slmOffset, MemoryConstants::kiloByte);
     argDescPointer->argIsSet = true;
     return SUCCESS;
 }
+
 
 int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     Buffer* buffer = static_cast<Buffer*>(argValue);
