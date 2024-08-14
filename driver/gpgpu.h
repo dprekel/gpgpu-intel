@@ -10,10 +10,11 @@
 #define QUERY_FAILED                         -2
 #define SOFTPIN_NOT_SUPPORTED                -3
 #define UNSUPPORTED_HARDWARE                 -4
-#define CONTEXT_ALREADY_EXISTS               -6
-#define CONTEXT_CREATION_FAILED              -7
-#define BUFFER_ALLOCATION_FAILED             -8
-#define INVALID_WORK_GROUP_SIZE              -9
+#define CONTEXT_ALREADY_EXISTS               -5
+#define CONTEXT_CREATION_FAILED              -6
+#define BUFFER_ALLOCATION_FAILED             -7
+#define INVALID_WORK_GROUP_SIZE              -8
+#define INVALID_WORK_SIZE                    -9
 #define NO_DEVICE_ERROR                     -10
 #define NO_CONTEXT_ERROR                    -11
 #define NO_KERNEL_ERROR                     -12
@@ -22,13 +23,13 @@
 #define BACKEND_BUILD_ERROR                 -15
 #define SOURCE_LOAD_ERROR                   -16
 #define COMPILER_LOAD_ERROR                 -17
-#define INVALID_KERNEL                      -20
+#define INVALID_KERNEL                      -18
 #define INVALID_KERNEL_ARG                  -19
-#define UNSUPPORTED_PATCHTOKENS             -26
-#define KERNEL_DUMP_ERROR                   -24
-#define SIP_ERROR                           -21
-#define GEM_EXECBUFFER_FAILED               -22
-#define POST_SYNC_OPERATION_FAILED          -23
+#define UNSUPPORTED_PATCHTOKENS             -20
+#define KERNEL_DUMP_ERROR                   -21
+#define SIP_ERROR                           -22
+#define GEM_EXECBUFFER_FAILED               -23
+#define POST_SYNC_OPERATION_FAILED          -24
 
 
 class pDevice {

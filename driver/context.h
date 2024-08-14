@@ -116,7 +116,7 @@ class Context : public pContext {
     int createDynamicStateHeap();
     int createCommandStreamTask();
     int createCommandStreamReceiver();
-    uint32_t computeSharedLocalMemoryID(uint32_t slmSize);
+    uint32_t computeSharedLocalMemoryValue(uint32_t slmSize);
     void patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant);
     void alignToCacheLine(BufferObject* commandBuffer);
     void fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo);

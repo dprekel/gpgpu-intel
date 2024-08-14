@@ -264,10 +264,8 @@ int Kernel::build(const char* filename, const char* buildOptions) {
         return FRONTEND_BUILD_ERROR;
     }
     fclBuildOutput->Retain();
-#ifdef DEBUG
-    auto spirvIntermediateData = reinterpret_cast<const char*>(fclBuildOutput->GetMemoryRaw());
-    size_t spirvIntermediateLength = fclBuildOutput->GetSizeRaw();
-#endif
+    [[maybe_unused]] auto spirvIntermediateData = reinterpret_cast<const char*>(fclBuildOutput->GetMemoryRaw());
+    [[maybe_unused]] size_t spirvIntermediateLength = fclBuildOutput->GetSizeRaw();
     clearFclBuffers(fclDeviceCtx, fclTranslationCtx, fclResult);
 
     DBG_LOG("[DEBUG] FCL Success: %s (Size: %lu Bytes)\n", spirvIntermediateData, spirvIntermediateLength);
@@ -307,9 +305,7 @@ int Kernel::build(const char* filename, const char* buildOptions) {
     igcBuildOutput->Retain();
 
     this->deviceBinary = reinterpret_cast<const char*>(igcBuildOutput->GetMemoryRaw());
-#ifdef DEBUG
-    size_t deviceBinarySize = igcBuildOutput->GetSizeRaw();
-#endif
+    [[maybe_unused]] size_t deviceBinarySize = igcBuildOutput->GetSizeRaw();
     clearIgcBuffers(idsBuffer, valuesBuffer, igcTranslationCtx, igcResult);
 
     DBG_LOG("[DEBUG] IGC Success: %s (Size: %lu Bytes)\n", deviceBinary, deviceBinarySize);
@@ -438,10 +434,8 @@ void Kernel::decodeToken(const PatchItemHeader* token) {
     case PATCH_TOKEN_ALLOCATE_STATELESS_CONSTANT_MEMORY_SURFACE_WITH_INITIALIZATION: {
         kernelData.constantMemorySurface = reinterpret_cast<const PatchAllocateConstantMemorySurfaceWithInitialization*>(token);
         } break;
-    case PATCH_TOKEN_KERNEL_ARGUMENT_INFO: {
-        //auto tokenParam = reinterpret_cast<const PatchKernelArgumentInfo*>(token);
-        //decodeAddressSpaceQualifier(tokenParam);
-        } break;
+    case PATCH_TOKEN_KERNEL_ARGUMENT_INFO:
+        break;
     case PATCH_TOKEN_ALLOCATE_STATELESS_PRIVATE_MEMORY: //TODO: Check this
         break;
     case PATCH_TOKEN_STATE_SIP: // never needed
@@ -775,7 +769,7 @@ int Kernel::setArgLocal(uint32_t argIndex, size_t argSize, void* argValue) {
         auto nextLocalArg = static_cast<ArgDescPointer*>(argDescriptor[argIndex].get());
         slmOffset = alignUp(slmOffset, nextLocalArg->requiredSlmAlignment);
         auto patchLocation = ptrOffset(crossThreadData.get(), nextLocalArg->crossThreadDataOffset);
-        *patchLocation = slmOffset;
+        *reinterpret_cast<uint32_t*>(patchLocation) = slmOffset;
         ++argIndex;
     }
     this->sharedLocalMemorySize += alignUp(slmOffset, MemoryConstants::kiloByte);

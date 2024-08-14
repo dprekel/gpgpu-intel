@@ -150,7 +150,7 @@ API_CALL int ExecuteKernel(pContext* cont,
     return SUCCESS;
 }
 
-
+//TODO: Change to ReleaseDevices
 API_CALL int ReleaseDevice(std::vector<pDevice*>& dev, size_t devIndex) {
     if (devIndex >= dev.size())
         return NO_DEVICE_ERROR;

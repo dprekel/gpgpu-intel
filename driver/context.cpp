@@ -5,9 +5,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#ifdef DEBUG
 #include <chrono>
-#endif
 #include <memory>
 #include <vector>
 
@@ -75,8 +73,6 @@ void BufferObject::deleteHandle() {
 }
 
 
-//TODO: Make a GEN check before submitting a kernel to GPU!!!!
-//TODO: Return error if local or global size is nullptr
 //TODO: Check what happens if we execute two different kernels from the same host program
 void Context::setMaxWorkGroupSize() {
     uint32_t minSimdSize = 8u;
@@ -245,10 +241,18 @@ int Context::allocateReusableBufferObjects() {
 - Total number of work items must be specified, otherwise it alway returns INVALID_WORK_GROUP_SIZE
 - If local_work_size is nullptr, then workItemsPerWorkGroup[i] will always be 1, which leads to INVALID_WORK_GROUP_SIZE
 */
+//TODO: Make this function consistent
 int Context::validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size) {
     this->kernel = kernel;
     this->kernelData = kernel->getKernelData();
+    uint32_t gpuGen = hwInfo->platform->eRenderCoreFamily;
+    if (gpuGen != GFX_CORE_FAMILY::IGFX_GEN9_CORE && gpuGen != GFX_CORE_FAMILY::IGFX_GEN11_CORE)
+        return UNSUPPORTED_HARDWARE;
 
+    if (!global_work_size)
+        return INVALID_WORK_SIZE;
+    if (!local_work_size)
+        return INVALID_WORK_GROUP_SIZE;
     if (work_dim > 3) {
         return INVALID_WORK_GROUP_SIZE;
     }
@@ -559,7 +563,7 @@ int Context::createDynamicStateHeap() {
     interfaceDescriptor->Bitfield.BindingTablePointer = bindingTableOffset >> 0x5;
     this->sharedLocalMemorySize = alignUp(kernel->getSharedLocalMemorySize(), MemoryConstants::kiloByte);
     if (sharedLocalMemorySize)
-        interfaceDescriptor->Bitfield.SharedLocalMemorySize = computeSharedLocalMemoryID(sharedLocalMemorySize);
+        interfaceDescriptor->Bitfield.SharedLocalMemorySize = computeSharedLocalMemoryValue(sharedLocalMemorySize);
     interfaceDescriptor->Bitfield.NumberOfThreadsInGpgpuThreadGroup = static_cast<uint32_t>(this->hwThreadsPerWorkGroup);
     interfaceDescriptor->Bitfield.CrossThreadConstantDataReadLength = this->crossThreadDataSize / this->GRFSize;
     uint32_t numGrfPerThreadData = static_cast<uint32_t>(this->localIDSizePerThread / this->GRFSize);
@@ -572,20 +576,17 @@ int Context::createDynamicStateHeap() {
     return SUCCESS;
 }
 
-uint32_t Context::computeSharedLocalMemoryID(uint32_t slmSize) {
-    uint32_t slmID;
-    //TODO: This doesn't work:
-    switch (slmSize) {
-    case 1024:  slmID = 0x1; break;
-    case 2048:  slmID = 0x2; break;
-    case 4096:  slmID = 0x3; break;
-    case 8192:  slmID = 0x4; break;
-    case 16384: slmID = 0x5; break;
-    case 32768: slmID = 0x6; break;
-    case 65536: slmID = 0x7; break;
-    default:    slmID = 0x0; break;
+
+uint32_t Context::computeSharedLocalMemoryValue(uint32_t slmSize) {
+    const uint32_t maxSlmSize = 64 * MemoryConstants::kiloByte;
+    if (slmSize > maxSlmSize)
+        slmSize = maxSlmSize;
+    const uint32_t sizes[] = {1024, 2048, 4096, 8192, 16384, 32768, 65536};
+    for (uint32_t i = 0; i < 7; ++i) {
+        if (slmSize <= sizes[i])
+            return i + 1;
     }
-    return slmID;
+    return 0;
 }
 
 
@@ -761,7 +762,6 @@ int Context::createCommandStreamReceiver() {
     cmd9->Bitfield.TextureCacheInvalidationEnable = true;
     cmd9->Bitfield.DcFlushEnable = true;
 
-
     // Program State Base Address
     auto cmd10 = commandStreamCSR->ptrOffset<STATE_BASE_ADDRESS*>(sizeof(STATE_BASE_ADDRESS));
     *cmd10 = STATE_BASE_ADDRESS::init();
@@ -803,7 +803,6 @@ int Context::createCommandStreamReceiver() {
     cmd10->Bitfield.BindlessSurfaceStateBaseAddress = sshAllocation->gpuAddress >> 0xc;
     uint32_t bindlessSize = static_cast<uint32_t>((sshAllocation->size - MemoryConstants::pageSize) / 64) - 1;
     cmd10->Bitfield.BindlessSurfaceStateSize = bindlessSize;
-
 
     // Program System Instruction Pointer
     auto cmd11 = commandStreamCSR->ptrOffset<STATE_SIP*>(sizeof(STATE_SIP));
@@ -914,26 +913,23 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
 
 
 int Context::finishExecution() {
-#ifdef DEBUG
-    std::chrono::high_resolution_clock::time_point time1, time2;
+    [[maybe_unused]] std::chrono::high_resolution_clock::time_point time1, time2;
     time1 = std::chrono::high_resolution_clock::now();
-#endif
+
     drm_i915_gem_wait wait = {0};
     wait.bo_handle = commandStreamCSR->handle;
     wait.timeout_ns = -1;
     int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_WAIT, &wait);
     if (ret)
         return POST_SYNC_OPERATION_FAILED;
-#ifdef DEBUG
     time2 = std::chrono::high_resolution_clock::now();
-    int64_t elapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(time2 - time1).count();
-#endif
+    [[maybe_unused]] int64_t elapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(time2 - time1).count();
+
     uint32_t* pollAddress = static_cast<uint32_t*>(tagAllocation->cpuAddress);
     if (*pollAddress != this->completionTag)
         return POST_SYNC_OPERATION_FAILED;
 
-    DBG_LOG("[DEBUG] Batchbuffer finished! (Tag value: %u, Execution time: %.2f seconds)\n", *pollAddress, elapsedTime/1e9);
-
+    DBG_LOG("[DEBUG] Batchbuffer finished! (Tag value: %u, Execution time: %.3f seconds)\n", *pollAddress, elapsedTime/1e9);
     return SUCCESS;
 }
 
@@ -941,54 +937,6 @@ int Context::finishExecution() {
 
 
 
-
-// DrmCommandStreamReceiver::flush() in drm_command_stream.inl
-// DrmCommandStreamReceiver::flushInternal() in drm_command_stream_bdw_and_later.inl
-// DrmCommandStreamReceiver::exec() in drm_command_stream.inl
-// BufferObject::exec() in drm_buffer_object.cpp
-//
-// 0x7fffdd1ef000
-// 0x7fffd95dd000
-// 0x7fffd59cb000
-// 0x8001fffea000  32Bit    0x555555cb3000
-// 0x555556689000
-// 0x555555c54000
-// 0x8001fffda000  32Bit    0x555556207000
-// 0x5555561f5000
-// 0x5555556e4000
-// 0x7ffff59c0000 
-// 0x8001fffee000  32Bit    0x555555783000
-// 0x5555557e0000
-// 0x5555563f9000
-
-
-
-
-
-// Commands in CommandStreamCSR:
-// 1. PIPELINE_SELECT                    4
-// 2. MI_LOAD_REGISTER_IMM              12
-// 3. PIPE_CONTROL                      24
-// 4. MI_LOAD_REGISTER_IMM              12
-// 5. GPGPU_CSR_BASE_ADDRESS            12   64
-// 6. PIPE_CONTROL                      24
-// 7. MEDIA_VFE_STATE                   36  124
-// 8. MI_LOAD_REGISTER_IMM              12  136
-// 9. PIPE_CONTROL                      24  160
-//10. STATE_BASE_ADDRESS                76  236
-//11. STATE_SIP                         12  248
-//12. PIPE_CONTROL                      24  272
-//13. MI_BATCH_BUFFER_START             12  284
-//14. CacheLineAlignment                    320
-
-// Commands in CommandStreamTask:
-// 1. MEDIA_STATE_FLUSH                  8
-// 2. MEDIA_INTERFACE_DESCRIPTOR_LOAD   16
-// 3. GPGPU_WALKER                      60
-// 4. MEDIA_STATE_FLUSH                  8
-// 5. PIPE_CONTROL                      48
-// 6. MI_BATCH_BUFFER_END                4  144
-// 7. CacheLineAlignment                    192
 
 
 
