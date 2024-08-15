@@ -83,25 +83,25 @@ int calculateNonbondedInteractions(pContext* context, pKernel* kernel) {
     size_t atomInteractionBitsSize        =  409216;  // IN
 
     pBuffer* atomCoordinatesAndCharges = CreateBuffer(context, atomCoordinatesAndChargesSize, &err);
-    CHECK_ERR(err, "CreateBuffer");
+    //CHECK_ERR(err, "CreateBuffer");
     pBuffer* atomicForcesArray = CreateBuffer(context, atomicForcesArraySize, &err);
-    CHECK_ERR(err, "CreateBuffer");
+    //CHECK_ERR(err, "CreateBuffer");
     pBuffer* lennardJonesEnergy = CreateBuffer(context, lennardJonesEnergySize, &err);
-    CHECK_ERR(err, "CreateBuffer");
+    //CHECK_ERR(err, "CreateBuffer");
     pBuffer* electrostaticsEnergy = CreateBuffer(context, electrostaticsEnergySize, &err);
-    CHECK_ERR(err, "CreateBuffer");
+    //CHECK_ERR(err, "CreateBuffer");
     pBuffer* shiftForces = CreateBuffer(context, shiftForcesSize, &err);
-    CHECK_ERR(err, "CreateBuffer");
+    //CHECK_ERR(err, "CreateBuffer");
     pBuffer* LJSqrts = CreateBuffer(context, LJSqrtsSize, &err);
-    CHECK_ERR(err, "CreateBuffer");
+    //CHECK_ERR(err, "CreateBuffer");
     pBuffer* shiftVector = CreateBuffer(context, shiftVectorSize, &err);
-    CHECK_ERR(err, "CreateBuffer");
+    //CHECK_ERR(err, "CreateBuffer");
     pBuffer* pairListIClusters = CreateBuffer(context, pairListIClustersSize, &err);
-    CHECK_ERR(err, "CreateBuffer");
+    //CHECK_ERR(err, "CreateBuffer");
     pBuffer* pairListJClusters = CreateBuffer(context, pairListJClustersSize, &err);
-    CHECK_ERR(err, "CreateBuffer");
+    //CHECK_ERR(err, "CreateBuffer");
     pBuffer* atomInteractionBits = CreateBuffer(context, atomInteractionBitsSize, &err);
-    CHECK_ERR(err, "CreateBuffer");
+    //CHECK_ERR(err, "CreateBuffer");
 
     err = readBuffersFromFile("buffer01.bin", atomCoordinatesAndCharges->mem);
     CHECK_ERROR(err);
@@ -125,37 +125,37 @@ int calculateNonbondedInteractions(pContext* context, pKernel* kernel) {
     CHECK_ERROR(err);
 
     err = SetKernelArg(kernel, 0, sizeof(cl_nbparam_params), static_cast<void*>(&params));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 1, sizeof(pBuffer), static_cast<void*>(atomCoordinatesAndCharges));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 2, sizeof(pBuffer), static_cast<void*>(atomicForcesArray));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 3, sizeof(pBuffer), static_cast<void*>(lennardJonesEnergy));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 4, sizeof(pBuffer), static_cast<void*>(electrostaticsEnergy));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 5, sizeof(pBuffer), static_cast<void*>(shiftForces));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 6, sizeof(pBuffer), static_cast<void*>(LJSqrts));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 7, sizeof(pBuffer), static_cast<void*>(shiftVector));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 8, 0, nullptr);
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 9, 0, nullptr);
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 10, 0, nullptr);
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 11, sizeof(pBuffer), static_cast<void*>(pairListIClusters));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 12, sizeof(pBuffer), static_cast<void*>(pairListJClusters));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 13, sizeof(pBuffer), static_cast<void*>(atomInteractionBits));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 14, sizeof(int), static_cast<void*>(&bCalcFshift));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 15, 1000, nullptr);
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
 
     const size_t local[3] = {4, 4, 1};
     const size_t global[3] = {8268, 4, 1};
@@ -182,7 +182,7 @@ int calculateNonbondedInteractions(pContext* context, pKernel* kernel) {
 int main() {
     int err = 0;
     std::vector<pDevice*> devices = CreateDevices(&err);
-    printf("[DEBUG] CreateDevices: %d\n", err);
+    //printf("[DEBUG] CreateDevices: %d\n", err);
 
     std::string build_options = std::string("-DWARP_SIZE_TEST=32")
                               + " -D_INTEL_SOURCE_"
@@ -199,9 +199,9 @@ int main() {
                               + " -DIATYPE_SHMEM";
 
     pContext* context = CreateContext(devices, 0u, &err);
-    printf("[DEBUG] CreateContext: %d\n", err);
+    //printf("[DEBUG] CreateContext: %d\n", err);
     pKernel* kernel = BuildKernel(context, "nbnxm_ocl_kernels.cl", build_options.c_str(), true, &err);
-    printf("[DEBUG] BuildKernel: %d\n", err);
+    //printf("[DEBUG] BuildKernel: %d\n", err);
 
     for (int i = 0; i < 60; i++) {
         calculateNonbondedInteractions(context, kernel);

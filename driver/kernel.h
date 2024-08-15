@@ -330,6 +330,7 @@ class Kernel : public pKernel {
     int initialize();
     int build(const char* filename, const char* options);
     int setArgument(uint32_t argIndex, size_t argSize, void* argValue);
+    void resetArguments();
     int extractMetadata();
     int retrieveSystemRoutineInstructions();
     int dumpBinary();

@@ -73,7 +73,6 @@ void BufferObject::deleteHandle() {
 }
 
 
-//TODO: Check what happens if we execute two different kernels from the same host program
 void Context::setMaxWorkGroupSize() {
     uint32_t minSimdSize = 8u;
     uint32_t maxNumEUsPerSubSlice = (hwInfo->gtSystemInfo->EuCountPerPoolMin == 0 ||
@@ -237,6 +236,7 @@ int Context::allocateReusableBufferObjects() {
 }
 
 
+//TODO: Check what happens if we execute two different kernels from the same host program
 /*
 - Total number of work items must be specified, otherwise it alway returns INVALID_WORK_GROUP_SIZE
 - If local_work_size is nullptr, then workItemsPerWorkGroup[i] will always be 1, which leads to INVALID_WORK_GROUP_SIZE
@@ -343,6 +343,7 @@ int Context::createScratchAllocation() {
 }
 
 
+//TODO: Rewrite this function
 int Context::createSurfaceStateHeap() {
     size_t sshSize = static_cast<size_t>(kernelData->header->SurfaceStateHeapSize);
     if (!sshAllocation) {
@@ -369,8 +370,6 @@ int Context::createSurfaceStateHeap() {
         bti.Bitfield.SurfaceStatePointer = offsetedSurfaceStateOffset >> 0x6;
         dstBtiTableBase[i] = bti;
     }
-    //TODO: Change the following:
-    //improvised:
     sshAllocation->offset += numberOfBindingTableStates * sizeof(RENDER_SURFACE_STATE);
     sshAllocation->offset += numberOfBindingTableStates * sizeof(BINDING_TABLE_STATE);
     sshAllocation->offset = alignUp(sshAllocation->offset, MemoryConstants::cacheLineSize);
@@ -557,8 +556,6 @@ int Context::createDynamicStateHeap() {
     interfaceDescriptor->Bitfield.KernelStartPointer = static_cast<uint32_t>(kernelStartOffset) >> 0x6;
     interfaceDescriptor->Bitfield.DenormMode = INTERFACE_DESCRIPTOR_DATA::DENORM_MODE_SETBYKERNEL;
     interfaceDescriptor->Bitfield.BindingTableEntryCount = std::min(kernelData->bindingTableState->Count, 31u);
-    //uint32_t bindingTableOffset = kernelData->bindingTableState->Offset + sizeof(RENDER_SURFACE_STATE);
-    // provisorisch:
     uint32_t bindingTableOffset = sshAllocation->offset - MemoryConstants::cacheLineSize;
     interfaceDescriptor->Bitfield.BindingTablePointer = bindingTableOffset >> 0x5;
     this->sharedLocalMemorySize = alignUp(kernel->getSharedLocalMemorySize(), MemoryConstants::kiloByte);
@@ -845,7 +842,12 @@ void Context::alignToCacheLine(BufferObject* bo) {
 
 
 int Context::populateAndSubmitExecBuffer() {
-    execBuffer = kernel->getExecData();
+    std::vector<BufferObject*> execData = kernel->getExecData();
+    for (auto &data : execData) {
+        if (data)
+            execBuffer.push_back(data);
+    }
+    //execBuffer = kernel->getExecData();
     if (kernel->getConstantSurface())
         execBuffer.push_back(kernel->getConstantSurface());
     execBuffer.push_back(kernel->getKernelAllocation());
@@ -867,14 +869,16 @@ int Context::populateAndSubmitExecBuffer() {
     size_t boCount = execBuffer.size();
     execObjects.resize(boCount);
 
-    DBG_LOG("[DEBUG] Executing Batchbuffer ...  ");
+    printf("[DEBUG] Executing Batchbuffer ...  \n");
     fflush(stdout);
     int ret = exec(execObjects.data(), execBuffer.data(), boCount, batchSize, batchStartOffset);
     if (ret) {
         execBuffer.clear();
+        kernel->resetArguments();
         return GEM_EXECBUFFER_FAILED;
     }
     execBuffer.clear();
+    kernel->resetArguments();
 
     return SUCCESS;
 }
@@ -929,7 +933,7 @@ int Context::finishExecution() {
     if (*pollAddress != this->completionTag)
         return POST_SYNC_OPERATION_FAILED;
 
-    DBG_LOG("[DEBUG] Batchbuffer finished! (Tag value: %u, Execution time: %.3f seconds)\n", *pollAddress, elapsedTime/1e9);
+    printf("[DEBUG] Batchbuffer finished! (Tag value: %u, Execution time: %.3f seconds)\n", *pollAddress, elapsedTime/1e9);
     return SUCCESS;
 }
 

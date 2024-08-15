@@ -508,7 +508,6 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
         argDescriptor[argNum] = std::move(pointerDesc);
         } break;
     case DATA_PARAMETER_KERNEL_ARGUMENT: {
-        DBG_LOG("DATA_PARAMETER_KERNEL_ARGUMENT: %u\n", token->ArgumentNumber);
         if (argDescriptor.size() < argNum + 1)
             argDescriptor.resize(argNum + 1);
         if (!argDescriptor[argNum]) {
@@ -523,14 +522,7 @@ void Kernel::decodeKernelDataParameterToken(const PatchDataParameterBuffer* toke
         auto argDescValue = static_cast<ArgDescValue*>(argDescriptor[argNum].get());
         argDescValue->elements.push_back(elem);
         } break;
-    /*
-    case DATA_PARAMETER_LOCAL_MEMORY_STATELESS_WINDOW_SIZE:
-    case DATA_PARAMETER_LOCAL_MEMORY_STATELESS_WINDOW_START_ADDRESS:
-        DBG_LOG("Local data parameters\n");
-        break;
-    */
     case DATA_PARAMETER_BUFFER_STATEFUL:
-        DBG_LOG("DATA_PARAMETER_BUFFER_STATEFUL: %u\n", token->ArgumentNumber);
         break;
     case DATA_PARAMETER_LOCAL_WORK_SIZE: {
         uint32_t index = token->SourceOffset >> 2;
@@ -626,8 +618,8 @@ void Kernel::decodePatchtokensList2(const uint8_t* decodePos, const uint8_t* dec
 
 
 int Kernel::extractMetadata() {
-    // The following usage of reinterpret_cast could lead to undefined behaviour. Checking the header magic
-    // makes sure that the reinterpreted memory has the correct format
+    // The following usage of reinterpret_cast could lead to undefined behaviour. Checking the 
+    // header magic makes sure that the reinterpreted memory has the correct format
     const ProgramBinaryHeader* binHeader = reinterpret_cast<const ProgramBinaryHeader*>(deviceBinary);
     if (binHeader->Magic != 0x494E5443)
         return INVALID_KERNEL;
@@ -795,11 +787,22 @@ int Kernel::setArgBuffer(uint32_t argIndex, size_t argSize, void* argValue) {
     uint64_t gpuAddress = bufferObject ? bufferObject->gpuAddress : 0u;
     setSurfaceState(surfaceState, dataBufferSize, gpuAddress);
 
-    if (bufferObject)
-        execData.push_back(bufferObject);
+    if (bufferObject) {
+        if (execData.size() < argIndex + 1)
+            execData.resize(argIndex + 1);
+        execData[argIndex] = bufferObject;
+    }
     descriptor->argIsSet = true;
 
     return SUCCESS;
+}
+
+void Kernel::resetArguments() {
+    for (size_t i = 0; i < argDescriptor.size(); i++) {
+        if (argDescriptor[i]) {
+            argDescriptor[i]->argIsSet = false;
+        }
+    }
 }
 
 
