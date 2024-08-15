@@ -40,30 +40,8 @@ int readBuffersFromFile(const char* filename, void* buffer) {
     return SUCCESS;
 }
 
-
-int main() {
+int calculateNonbondedInteractions(pContext* context, pKernel* kernel) {
     int err = 0;
-    std::vector<pDevice*> devices = CreateDevices(&err);
-    printf("[DEBUG] CreateDevices: %d\n", err);
-
-    std::string build_options = std::string("-DWARP_SIZE_TEST=32")
-                              + " -D_INTEL_SOURCE_"
-                              + " -DGMX_OCL_FASTGEN_ADD_TWINCUT"
-                              + " -DEL_EWALD_ANA"
-                              + " -DEELNAME=_ElecEw"
-                              + " -DLJ_COMB_GEOM"
-                              + " -DVDWNAME=_VdwLJCombGeom"
-                              + " -Dc_nbnxnGpuClusterSize=4"
-                              + " -DNBNXM_MIN_DISTANCE_SQUARED_VALUE_FLOAT=3.82e-07"
-                              + " -Dc_nbnxnGpuNumClusterPerSupercluster=8"
-                              + " -Dc_nbnxnGpuJgroupSize=4"
-                              + " -Dc_centralShiftIndex=22"
-                              + " -DIATYPE_SHMEM";
-
-    pContext* context = CreateContext(devices, 0u, &err);
-    printf("[DEBUG] CreateContext: %d\n", err);
-    pKernel* kernel = BuildKernel(context, "nbnxm_ocl_kernels.cl", build_options.c_str(), true, &err);
-    printf("[DEBUG] BuildKernel: %d\n", err);
 
     cl_nbparam_params params;
     params.elecType                       = ElecType::EwaldAna;
@@ -93,7 +71,6 @@ int main() {
 
     int bCalcFshift                       = 1;
 
-    size_t paramsSize                     =       0;  // IN
     size_t atomCoordinatesAndChargesSize  =  804896;  // IN
     size_t atomicForcesArraySize          =  603672;  // OUT
     size_t lennardJonesEnergySize         =       4;  // OUT
@@ -197,6 +174,39 @@ int main() {
     err = ReleaseBuffer(pairListIClusters);
     err = ReleaseBuffer(pairListJClusters);
     err = ReleaseBuffer(atomInteractionBits);
+
+    return err;
+}
+
+
+int main() {
+    int err = 0;
+    std::vector<pDevice*> devices = CreateDevices(&err);
+    printf("[DEBUG] CreateDevices: %d\n", err);
+
+    std::string build_options = std::string("-DWARP_SIZE_TEST=32")
+                              + " -D_INTEL_SOURCE_"
+                              + " -DGMX_OCL_FASTGEN_ADD_TWINCUT"
+                              + " -DEL_EWALD_ANA"
+                              + " -DEELNAME=_ElecEw"
+                              + " -DLJ_COMB_GEOM"
+                              + " -DVDWNAME=_VdwLJCombGeom"
+                              + " -Dc_nbnxnGpuClusterSize=4"
+                              + " -DNBNXM_MIN_DISTANCE_SQUARED_VALUE_FLOAT=3.82e-07"
+                              + " -Dc_nbnxnGpuNumClusterPerSupercluster=8"
+                              + " -Dc_nbnxnGpuJgroupSize=4"
+                              + " -Dc_centralShiftIndex=22"
+                              + " -DIATYPE_SHMEM";
+
+    pContext* context = CreateContext(devices, 0u, &err);
+    printf("[DEBUG] CreateContext: %d\n", err);
+    pKernel* kernel = BuildKernel(context, "nbnxm_ocl_kernels.cl", build_options.c_str(), true, &err);
+    printf("[DEBUG] BuildKernel: %d\n", err);
+
+    for (int i = 0; i < 60; i++) {
+        calculateNonbondedInteractions(context, kernel);
+    }
+
     err = ReleaseKernel(kernel);
     err = ReleaseContext(context);
     err = ReleaseDevice(devices, 0u);
@@ -204,102 +214,6 @@ int main() {
 }
 
 
-
-/*
-Patchtokens:
-PATCH_TOKEN_ALLOCATE_CONSTANT_MEMORY_SURFACE_PROGRAM_BINARY_INFO
-PATCH_TOKEN_MEDIA_INTERFACE_DESCRIPTOR_LOAD
-PATCH_TOKEN_INTERFACE_DESCRIPTOR_DATA
-PATCH_TOKEN_BINDING_TABLE_STATE
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_GLOBAL_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_STATELESS_CONSTANT_MEMORY_OBJECT_KERNEL_ARGUMENT
-PATCH_TOKEN_ALLOCATE_STATELESS_CONSTANT_MEMORY_SURFACE_WITH_INITIALIZATION
-PATCH_TOKEN_ALLOCATE_STATELESS_PRIVATE_MEMORY
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_BUFFER
-PATCH_TOKEN_DATA_PARAMETER_STREAM
-PATCH_TOKEN_THREAD_PAYLOAD
-PATCH_TOKEN_EXECUTION_ENVIRONMENT
-PATCH_TOKEN_KERNEL_ATTRIBUTES_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-PATCH_TOKEN_KERNEL_ARGUMENT_INFO
-*/
 
 
 
