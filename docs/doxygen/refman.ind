@@ -1,0 +1,172 @@
+\begin{theindex}
+
+  \item {BACKEND\_BUILD\_ERROR}
+    \subitem {gpgpu.h}, \hyperpage{10}
+  \item {BUFFER\_ALLOCATION\_FAILED}
+    \subitem {gpgpu.h}, \hyperpage{10}
+  \item {BuildKernel}
+    \subitem {gpgpu.h}, \hyperpage{14}
+
+  \indexspace
+
+  \item {COMPILER\_LOAD\_ERROR}
+    \subitem {gpgpu.h}, \hyperpage{11}
+  \item {CONTEXT\_ALREADY\_EXISTS}
+    \subitem {gpgpu.h}, \hyperpage{11}
+  \item {CONTEXT\_CREATION\_FAILED}
+    \subitem {gpgpu.h}, \hyperpage{11}
+  \item {CreateBuffer}
+    \subitem {gpgpu.h}, \hyperpage{14}
+  \item {CreateContext}
+    \subitem {gpgpu.h}, \hyperpage{15}
+  \item {CreateDevices}
+    \subitem {gpgpu.h}, \hyperpage{15}
+
+  \indexspace
+
+  \item {devName}
+    \subitem {pDevice}, \hyperpage{6}
+  \item {driver/gpgpu.h}, \hyperpage{9}
+
+  \indexspace
+
+  \item {ExecuteKernel}
+    \subitem {gpgpu.h}, \hyperpage{16}
+
+  \indexspace
+
+  \item {FRONTEND\_BUILD\_ERROR}
+    \subitem {gpgpu.h}, \hyperpage{11}
+
+  \indexspace
+
+  \item {GEM\_EXECBUFFER\_FAILED}
+    \subitem {gpgpu.h}, \hyperpage{11}
+  \item {gpgpu.h}
+    \subitem {BACKEND\_BUILD\_ERROR}, \hyperpage{10}
+    \subitem {BUFFER\_ALLOCATION\_FAILED}, \hyperpage{10}
+    \subitem {BuildKernel}, \hyperpage{14}
+    \subitem {COMPILER\_LOAD\_ERROR}, \hyperpage{11}
+    \subitem {CONTEXT\_ALREADY\_EXISTS}, \hyperpage{11}
+    \subitem {CONTEXT\_CREATION\_FAILED}, \hyperpage{11}
+    \subitem {CreateBuffer}, \hyperpage{14}
+    \subitem {CreateContext}, \hyperpage{15}
+    \subitem {CreateDevices}, \hyperpage{15}
+    \subitem {ExecuteKernel}, \hyperpage{16}
+    \subitem {FRONTEND\_BUILD\_ERROR}, \hyperpage{11}
+    \subitem {GEM\_EXECBUFFER\_FAILED}, \hyperpage{11}
+    \subitem {INVALID\_KERNEL}, \hyperpage{11}
+    \subitem {INVALID\_KERNEL\_ARG}, \hyperpage{11}
+    \subitem {INVALID\_WORK\_GROUP\_SIZE}, \hyperpage{11}
+    \subitem {INVALID\_WORK\_SIZE}, \hyperpage{12}
+    \subitem {KERNEL\_DUMP\_ERROR}, \hyperpage{12}
+    \subitem {NO\_BUFFER\_ERROR}, \hyperpage{12}
+    \subitem {NO\_CONTEXT\_ERROR}, \hyperpage{12}
+    \subitem {NO\_DEVICE\_ERROR}, \hyperpage{12}
+    \subitem {NO\_KERNEL\_ERROR}, \hyperpage{12}
+    \subitem {POST\_SYNC\_OPERATION\_FAILED}, \hyperpage{12}
+    \subitem {QUERY\_FAILED}, \hyperpage{12}
+    \subitem {ReleaseBuffer}, \hyperpage{16}
+    \subitem {ReleaseContext}, \hyperpage{16}
+    \subitem {ReleaseDevice}, \hyperpage{16}
+    \subitem {ReleaseKernel}, \hyperpage{18}
+    \subitem {SetKernelArg}, \hyperpage{18}
+    \subitem {SIP\_ERROR}, \hyperpage{13}
+    \subitem {SOFTPIN\_NOT\_SUPPORTED}, \hyperpage{13}
+    \subitem {SOURCE\_LOAD\_ERROR}, \hyperpage{13}
+    \subitem {SUCCESS}, \hyperpage{13}
+    \subitem {UNSUPPORTED\_HARDWARE}, \hyperpage{13}
+    \subitem {UNSUPPORTED\_KERNEL\_DRIVER}, \hyperpage{13}
+    \subitem {UNSUPPORTED\_PATCHTOKENS}, \hyperpage{13}
+
+  \indexspace
+
+  \item {INVALID\_KERNEL}
+    \subitem {gpgpu.h}, \hyperpage{11}
+  \item {INVALID\_KERNEL\_ARG}
+    \subitem {gpgpu.h}, \hyperpage{11}
+  \item {INVALID\_WORK\_GROUP\_SIZE}
+    \subitem {gpgpu.h}, \hyperpage{11}
+  \item {INVALID\_WORK\_SIZE}
+    \subitem {gpgpu.h}, \hyperpage{12}
+
+  \indexspace
+
+  \item {KERNEL\_DUMP\_ERROR}
+    \subitem {gpgpu.h}, \hyperpage{12}
+
+  \indexspace
+
+  \item {magic}
+    \subitem {pBuffer}, \hyperpage{5}
+    \subitem {pContext}, \hyperpage{6}
+    \subitem {pDevice}, \hyperpage{6}
+    \subitem {pKernel}, \hyperpage{7}
+  \item {mem}
+    \subitem {pBuffer}, \hyperpage{5}
+
+  \indexspace
+
+  \item {NO\_BUFFER\_ERROR}
+    \subitem {gpgpu.h}, \hyperpage{12}
+  \item {NO\_CONTEXT\_ERROR}
+    \subitem {gpgpu.h}, \hyperpage{12}
+  \item {NO\_DEVICE\_ERROR}
+    \subitem {gpgpu.h}, \hyperpage{12}
+  \item {NO\_KERNEL\_ERROR}
+    \subitem {gpgpu.h}, \hyperpage{12}
+
+  \indexspace
+
+  \item {pBuffer}, \hyperpage{5}
+    \subitem {magic}, \hyperpage{5}
+    \subitem {mem}, \hyperpage{5}
+  \item {pContext}, \hyperpage{5}
+    \subitem {magic}, \hyperpage{6}
+  \item {pDevice}, \hyperpage{6}
+    \subitem {devName}, \hyperpage{6}
+    \subitem {magic}, \hyperpage{6}
+  \item {pKernel}, \hyperpage{7}
+    \subitem {magic}, \hyperpage{7}
+  \item {POST\_SYNC\_OPERATION\_FAILED}
+    \subitem {gpgpu.h}, \hyperpage{12}
+
+  \indexspace
+
+  \item {QUERY\_FAILED}
+    \subitem {gpgpu.h}, \hyperpage{12}
+
+  \indexspace
+
+  \item {ReleaseBuffer}
+    \subitem {gpgpu.h}, \hyperpage{16}
+  \item {ReleaseContext}
+    \subitem {gpgpu.h}, \hyperpage{16}
+  \item {ReleaseDevice}
+    \subitem {gpgpu.h}, \hyperpage{16}
+  \item {ReleaseKernel}
+    \subitem {gpgpu.h}, \hyperpage{18}
+
+  \indexspace
+
+  \item {SetKernelArg}
+    \subitem {gpgpu.h}, \hyperpage{18}
+  \item {SIP\_ERROR}
+    \subitem {gpgpu.h}, \hyperpage{13}
+  \item {SOFTPIN\_NOT\_SUPPORTED}
+    \subitem {gpgpu.h}, \hyperpage{13}
+  \item {SOURCE\_LOAD\_ERROR}
+    \subitem {gpgpu.h}, \hyperpage{13}
+  \item {SUCCESS}
+    \subitem {gpgpu.h}, \hyperpage{13}
+
+  \indexspace
+
+  \item {UNSUPPORTED\_HARDWARE}
+    \subitem {gpgpu.h}, \hyperpage{13}
+  \item {UNSUPPORTED\_KERNEL\_DRIVER}
+    \subitem {gpgpu.h}, \hyperpage{13}
+  \item {UNSUPPORTED\_PATCHTOKENS}
+    \subitem {gpgpu.h}, \hyperpage{13}
+
+\end{theindex}

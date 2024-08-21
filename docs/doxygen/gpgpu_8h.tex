@@ -1,0 +1,421 @@
+\hypertarget{gpgpu_8h}{}\doxysection{driver/gpgpu.h File Reference}
+\label{gpgpu_8h}\index{driver/gpgpu.h@{driver/gpgpu.h}}
+{\ttfamily \#include $<$stdint.\+h$>$}\newline
+{\ttfamily \#include $<$stdio.\+h$>$}\newline
+{\ttfamily \#include $<$vector$>$}\newline
+Include dependency graph for gpgpu.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=267pt]{gpgpu_8h__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+class \mbox{\hyperlink{classpDevice}{p\+Device}}
+\item 
+class \mbox{\hyperlink{classpContext}{p\+Context}}
+\item 
+class \mbox{\hyperlink{classpBuffer}{p\+Buffer}}
+\item 
+class \mbox{\hyperlink{classpKernel}{p\+Kernel}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_aa90cac659d18e8ef6294c7ae337f6b58}{SUCCESS}}~0
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a0d9ab0aede64fcfc763160ac54b54a22}{UNSUPPORTED\+\_\+\+KERNEL\+\_\+\+DRIVER}}~-\/1
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a8c95ecb6b291df363994a4342fac4c6c}{QUERY\+\_\+\+FAILED}}~-\/2
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a733ba24ee5f87ffa314d882fa4264fc2}{SOFTPIN\+\_\+\+NOT\+\_\+\+SUPPORTED}}~-\/3
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_aeadc71b66230f74c4c3b750144f00d9c}{UNSUPPORTED\+\_\+\+HARDWARE}}~-\/4
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_ad4fa140d1cac149fb5842a1cb634853f}{CONTEXT\+\_\+\+ALREADY\+\_\+\+EXISTS}}~-\/5
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a4def6958ff71ff90c3eaf6e457892910}{CONTEXT\+\_\+\+CREATION\+\_\+\+FAILED}}~-\/6
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a23d18172e0f92a12ecf51dea928f1e54}{BUFFER\+\_\+\+ALLOCATION\+\_\+\+FAILED}}~-\/7
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_ac555521969ac42f7f2c509b30f09a026}{INVALID\+\_\+\+WORK\+\_\+\+GROUP\+\_\+\+SIZE}}~-\/8
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_ad8653a46db210d0c61ff24c705b0adb9}{INVALID\+\_\+\+WORK\+\_\+\+SIZE}}~-\/9
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a98de03f70af34d15197889f10ff66da6}{NO\+\_\+\+DEVICE\+\_\+\+ERROR}}~-\/10
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a0f22da86947ecffed0f7d29bfc575733}{NO\+\_\+\+CONTEXT\+\_\+\+ERROR}}~-\/11
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_ac981d2a97859262d4e7c43525a0051d8}{NO\+\_\+\+KERNEL\+\_\+\+ERROR}}~-\/12
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a311282a53f96da2600b2954b9e51d032}{NO\+\_\+\+BUFFER\+\_\+\+ERROR}}~-\/13
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a9941f46ee9ee018b383287de589678d8}{FRONTEND\+\_\+\+BUILD\+\_\+\+ERROR}}~-\/14
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_aebcf0ed0d5eefaec28b71981a0e22404}{BACKEND\+\_\+\+BUILD\+\_\+\+ERROR}}~-\/15
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_aa820442cd260c83c32e7d7200d360ad2}{SOURCE\+\_\+\+LOAD\+\_\+\+ERROR}}~-\/16
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a8142980cea170d0b2fb621e4c4b88af9}{COMPILER\+\_\+\+LOAD\+\_\+\+ERROR}}~-\/17
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_addbefb3cf8b5152cd61a39176aaf443a}{INVALID\+\_\+\+KERNEL}}~-\/18
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_ab96e5166ba9aa4037e32837c34e264f0}{INVALID\+\_\+\+KERNEL\+\_\+\+ARG}}~-\/19
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a335f1c10f6f967265429d256c45c1abb}{UNSUPPORTED\+\_\+\+PATCHTOKENS}}~-\/20
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a69adf5f690f29386eecf39b4ebf71f5c}{KERNEL\+\_\+\+DUMP\+\_\+\+ERROR}}~-\/21
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_a00020ad876389ce944529a8c384597e1}{SIP\+\_\+\+ERROR}}~-\/22
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_abef82c6c42f3854392df621290fd6c66}{GEM\+\_\+\+EXECBUFFER\+\_\+\+FAILED}}~-\/23
+\item 
+\#define \mbox{\hyperlink{gpgpu_8h_ab4cf09aef4b243fb61bf9607b9a4b438}{POST\+\_\+\+SYNC\+\_\+\+OPERATION\+\_\+\+FAILED}}~-\/24
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+std\+::vector$<$ \mbox{\hyperlink{classpDevice}{p\+Device}} $\ast$ $>$ \mbox{\hyperlink{gpgpu_8h_a16a2a2a90dc7992fa5bbed7b3beee298}{Create\+Devices}} (int $\ast$err)
+\begin{DoxyCompactList}\small\item\em Initializes all GPU devices. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{classpContext}{p\+Context}} $\ast$ \mbox{\hyperlink{gpgpu_8h_a85214724b0c4e4d375d8fd7241cd1711}{Create\+Context}} (std\+::vector$<$ \mbox{\hyperlink{classpDevice}{p\+Device}} $\ast$ $>$ \&dev, size\+\_\+t dev\+Index, int $\ast$err)
+\begin{DoxyCompactList}\small\item\em Creates a DRM context for one GPU device. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{classpBuffer}{p\+Buffer}} $\ast$ \mbox{\hyperlink{gpgpu_8h_a048007c1c8f80f4f664f5eb466ea8a71}{Create\+Buffer}} (\mbox{\hyperlink{classpContext}{p\+Context}} $\ast$context, size\+\_\+t size, int $\ast$err)
+\begin{DoxyCompactList}\small\item\em Creates a buffer object. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{classpKernel}{p\+Kernel}} $\ast$ \mbox{\hyperlink{gpgpu_8h_a6f5ba7e77f6a299e071cd6250fd4b4be}{Build\+Kernel}} (\mbox{\hyperlink{classpContext}{p\+Context}} $\ast$context, const char $\ast$filename, const char $\ast$options, bool enable\+Kernel\+Dump, int $\ast$err)
+\begin{DoxyCompactList}\small\item\em Compiles a program written in Open\+CL C language into a GPU executable. \end{DoxyCompactList}\item 
+int \mbox{\hyperlink{gpgpu_8h_ae570d5df8a695400ec0125019c711d8e}{Set\+Kernel\+Arg}} (\mbox{\hyperlink{classpKernel}{p\+Kernel}} $\ast$kernel, uint32\+\_\+t arg\+\_\+index, size\+\_\+t arg\+\_\+size, void $\ast$arg\+\_\+value)
+\item 
+int \mbox{\hyperlink{gpgpu_8h_a7cf8e80bf8a8a98693fc48d2fb0aaca8}{Execute\+Kernel}} (\mbox{\hyperlink{classpContext}{p\+Context}} $\ast$context, \mbox{\hyperlink{classpKernel}{p\+Kernel}} $\ast$kernel, uint32\+\_\+t work\+\_\+dim, const size\+\_\+t $\ast$global\+\_\+work\+\_\+size, const size\+\_\+t $\ast$local\+\_\+work\+\_\+size)
+\item 
+int \mbox{\hyperlink{gpgpu_8h_ae7a01c53675cf4be3179423063d8953b}{Release\+Device}} (std\+::vector$<$ \mbox{\hyperlink{classpDevice}{p\+Device}} $\ast$ $>$ \&dev, size\+\_\+t dev\+Index)
+\item 
+int \mbox{\hyperlink{gpgpu_8h_ad2f5c292ec0c334317f8ba59f35d6829}{Release\+Context}} (\mbox{\hyperlink{classpContext}{p\+Context}} $\ast$context)
+\item 
+int \mbox{\hyperlink{gpgpu_8h_a9dec41ebfe94b9387f4b43e68b9afc84}{Release\+Kernel}} (\mbox{\hyperlink{classpKernel}{p\+Kernel}} $\ast$kernel)
+\item 
+int \mbox{\hyperlink{gpgpu_8h_a73362c9f7046989bfc51f93ca36efd32}{Release\+Buffer}} (\mbox{\hyperlink{classpBuffer}{p\+Buffer}} $\ast$buffer)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{gpgpu_8h_aebcf0ed0d5eefaec28b71981a0e22404}\label{gpgpu_8h_aebcf0ed0d5eefaec28b71981a0e22404}} 
+\index{gpgpu.h@{gpgpu.h}!BACKEND\_BUILD\_ERROR@{BACKEND\_BUILD\_ERROR}}
+\index{BACKEND\_BUILD\_ERROR@{BACKEND\_BUILD\_ERROR}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{BACKEND\_BUILD\_ERROR}{BACKEND\_BUILD\_ERROR}}
+{\footnotesize\ttfamily \#define BACKEND\+\_\+\+BUILD\+\_\+\+ERROR~-\/15}
+
+\mbox{\Hypertarget{gpgpu_8h_a23d18172e0f92a12ecf51dea928f1e54}\label{gpgpu_8h_a23d18172e0f92a12ecf51dea928f1e54}} 
+\index{gpgpu.h@{gpgpu.h}!BUFFER\_ALLOCATION\_FAILED@{BUFFER\_ALLOCATION\_FAILED}}
+\index{BUFFER\_ALLOCATION\_FAILED@{BUFFER\_ALLOCATION\_FAILED}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{BUFFER\_ALLOCATION\_FAILED}{BUFFER\_ALLOCATION\_FAILED}}
+{\footnotesize\ttfamily \#define BUFFER\+\_\+\+ALLOCATION\+\_\+\+FAILED~-\/7}
+
+\mbox{\Hypertarget{gpgpu_8h_a8142980cea170d0b2fb621e4c4b88af9}\label{gpgpu_8h_a8142980cea170d0b2fb621e4c4b88af9}} 
+\index{gpgpu.h@{gpgpu.h}!COMPILER\_LOAD\_ERROR@{COMPILER\_LOAD\_ERROR}}
+\index{COMPILER\_LOAD\_ERROR@{COMPILER\_LOAD\_ERROR}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{COMPILER\_LOAD\_ERROR}{COMPILER\_LOAD\_ERROR}}
+{\footnotesize\ttfamily \#define COMPILER\+\_\+\+LOAD\+\_\+\+ERROR~-\/17}
+
+\mbox{\Hypertarget{gpgpu_8h_ad4fa140d1cac149fb5842a1cb634853f}\label{gpgpu_8h_ad4fa140d1cac149fb5842a1cb634853f}} 
+\index{gpgpu.h@{gpgpu.h}!CONTEXT\_ALREADY\_EXISTS@{CONTEXT\_ALREADY\_EXISTS}}
+\index{CONTEXT\_ALREADY\_EXISTS@{CONTEXT\_ALREADY\_EXISTS}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{CONTEXT\_ALREADY\_EXISTS}{CONTEXT\_ALREADY\_EXISTS}}
+{\footnotesize\ttfamily \#define CONTEXT\+\_\+\+ALREADY\+\_\+\+EXISTS~-\/5}
+
+\mbox{\Hypertarget{gpgpu_8h_a4def6958ff71ff90c3eaf6e457892910}\label{gpgpu_8h_a4def6958ff71ff90c3eaf6e457892910}} 
+\index{gpgpu.h@{gpgpu.h}!CONTEXT\_CREATION\_FAILED@{CONTEXT\_CREATION\_FAILED}}
+\index{CONTEXT\_CREATION\_FAILED@{CONTEXT\_CREATION\_FAILED}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{CONTEXT\_CREATION\_FAILED}{CONTEXT\_CREATION\_FAILED}}
+{\footnotesize\ttfamily \#define CONTEXT\+\_\+\+CREATION\+\_\+\+FAILED~-\/6}
+
+\mbox{\Hypertarget{gpgpu_8h_a9941f46ee9ee018b383287de589678d8}\label{gpgpu_8h_a9941f46ee9ee018b383287de589678d8}} 
+\index{gpgpu.h@{gpgpu.h}!FRONTEND\_BUILD\_ERROR@{FRONTEND\_BUILD\_ERROR}}
+\index{FRONTEND\_BUILD\_ERROR@{FRONTEND\_BUILD\_ERROR}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{FRONTEND\_BUILD\_ERROR}{FRONTEND\_BUILD\_ERROR}}
+{\footnotesize\ttfamily \#define FRONTEND\+\_\+\+BUILD\+\_\+\+ERROR~-\/14}
+
+\mbox{\Hypertarget{gpgpu_8h_abef82c6c42f3854392df621290fd6c66}\label{gpgpu_8h_abef82c6c42f3854392df621290fd6c66}} 
+\index{gpgpu.h@{gpgpu.h}!GEM\_EXECBUFFER\_FAILED@{GEM\_EXECBUFFER\_FAILED}}
+\index{GEM\_EXECBUFFER\_FAILED@{GEM\_EXECBUFFER\_FAILED}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{GEM\_EXECBUFFER\_FAILED}{GEM\_EXECBUFFER\_FAILED}}
+{\footnotesize\ttfamily \#define GEM\+\_\+\+EXECBUFFER\+\_\+\+FAILED~-\/23}
+
+\mbox{\Hypertarget{gpgpu_8h_addbefb3cf8b5152cd61a39176aaf443a}\label{gpgpu_8h_addbefb3cf8b5152cd61a39176aaf443a}} 
+\index{gpgpu.h@{gpgpu.h}!INVALID\_KERNEL@{INVALID\_KERNEL}}
+\index{INVALID\_KERNEL@{INVALID\_KERNEL}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{INVALID\_KERNEL}{INVALID\_KERNEL}}
+{\footnotesize\ttfamily \#define INVALID\+\_\+\+KERNEL~-\/18}
+
+\mbox{\Hypertarget{gpgpu_8h_ab96e5166ba9aa4037e32837c34e264f0}\label{gpgpu_8h_ab96e5166ba9aa4037e32837c34e264f0}} 
+\index{gpgpu.h@{gpgpu.h}!INVALID\_KERNEL\_ARG@{INVALID\_KERNEL\_ARG}}
+\index{INVALID\_KERNEL\_ARG@{INVALID\_KERNEL\_ARG}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{INVALID\_KERNEL\_ARG}{INVALID\_KERNEL\_ARG}}
+{\footnotesize\ttfamily \#define INVALID\+\_\+\+KERNEL\+\_\+\+ARG~-\/19}
+
+\mbox{\Hypertarget{gpgpu_8h_ac555521969ac42f7f2c509b30f09a026}\label{gpgpu_8h_ac555521969ac42f7f2c509b30f09a026}} 
+\index{gpgpu.h@{gpgpu.h}!INVALID\_WORK\_GROUP\_SIZE@{INVALID\_WORK\_GROUP\_SIZE}}
+\index{INVALID\_WORK\_GROUP\_SIZE@{INVALID\_WORK\_GROUP\_SIZE}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{INVALID\_WORK\_GROUP\_SIZE}{INVALID\_WORK\_GROUP\_SIZE}}
+{\footnotesize\ttfamily \#define INVALID\+\_\+\+WORK\+\_\+\+GROUP\+\_\+\+SIZE~-\/8}
+
+\mbox{\Hypertarget{gpgpu_8h_ad8653a46db210d0c61ff24c705b0adb9}\label{gpgpu_8h_ad8653a46db210d0c61ff24c705b0adb9}} 
+\index{gpgpu.h@{gpgpu.h}!INVALID\_WORK\_SIZE@{INVALID\_WORK\_SIZE}}
+\index{INVALID\_WORK\_SIZE@{INVALID\_WORK\_SIZE}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{INVALID\_WORK\_SIZE}{INVALID\_WORK\_SIZE}}
+{\footnotesize\ttfamily \#define INVALID\+\_\+\+WORK\+\_\+\+SIZE~-\/9}
+
+\mbox{\Hypertarget{gpgpu_8h_a69adf5f690f29386eecf39b4ebf71f5c}\label{gpgpu_8h_a69adf5f690f29386eecf39b4ebf71f5c}} 
+\index{gpgpu.h@{gpgpu.h}!KERNEL\_DUMP\_ERROR@{KERNEL\_DUMP\_ERROR}}
+\index{KERNEL\_DUMP\_ERROR@{KERNEL\_DUMP\_ERROR}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{KERNEL\_DUMP\_ERROR}{KERNEL\_DUMP\_ERROR}}
+{\footnotesize\ttfamily \#define KERNEL\+\_\+\+DUMP\+\_\+\+ERROR~-\/21}
+
+\mbox{\Hypertarget{gpgpu_8h_a311282a53f96da2600b2954b9e51d032}\label{gpgpu_8h_a311282a53f96da2600b2954b9e51d032}} 
+\index{gpgpu.h@{gpgpu.h}!NO\_BUFFER\_ERROR@{NO\_BUFFER\_ERROR}}
+\index{NO\_BUFFER\_ERROR@{NO\_BUFFER\_ERROR}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{NO\_BUFFER\_ERROR}{NO\_BUFFER\_ERROR}}
+{\footnotesize\ttfamily \#define NO\+\_\+\+BUFFER\+\_\+\+ERROR~-\/13}
+
+\mbox{\Hypertarget{gpgpu_8h_a0f22da86947ecffed0f7d29bfc575733}\label{gpgpu_8h_a0f22da86947ecffed0f7d29bfc575733}} 
+\index{gpgpu.h@{gpgpu.h}!NO\_CONTEXT\_ERROR@{NO\_CONTEXT\_ERROR}}
+\index{NO\_CONTEXT\_ERROR@{NO\_CONTEXT\_ERROR}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{NO\_CONTEXT\_ERROR}{NO\_CONTEXT\_ERROR}}
+{\footnotesize\ttfamily \#define NO\+\_\+\+CONTEXT\+\_\+\+ERROR~-\/11}
+
+\mbox{\Hypertarget{gpgpu_8h_a98de03f70af34d15197889f10ff66da6}\label{gpgpu_8h_a98de03f70af34d15197889f10ff66da6}} 
+\index{gpgpu.h@{gpgpu.h}!NO\_DEVICE\_ERROR@{NO\_DEVICE\_ERROR}}
+\index{NO\_DEVICE\_ERROR@{NO\_DEVICE\_ERROR}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{NO\_DEVICE\_ERROR}{NO\_DEVICE\_ERROR}}
+{\footnotesize\ttfamily \#define NO\+\_\+\+DEVICE\+\_\+\+ERROR~-\/10}
+
+\mbox{\Hypertarget{gpgpu_8h_ac981d2a97859262d4e7c43525a0051d8}\label{gpgpu_8h_ac981d2a97859262d4e7c43525a0051d8}} 
+\index{gpgpu.h@{gpgpu.h}!NO\_KERNEL\_ERROR@{NO\_KERNEL\_ERROR}}
+\index{NO\_KERNEL\_ERROR@{NO\_KERNEL\_ERROR}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{NO\_KERNEL\_ERROR}{NO\_KERNEL\_ERROR}}
+{\footnotesize\ttfamily \#define NO\+\_\+\+KERNEL\+\_\+\+ERROR~-\/12}
+
+\mbox{\Hypertarget{gpgpu_8h_ab4cf09aef4b243fb61bf9607b9a4b438}\label{gpgpu_8h_ab4cf09aef4b243fb61bf9607b9a4b438}} 
+\index{gpgpu.h@{gpgpu.h}!POST\_SYNC\_OPERATION\_FAILED@{POST\_SYNC\_OPERATION\_FAILED}}
+\index{POST\_SYNC\_OPERATION\_FAILED@{POST\_SYNC\_OPERATION\_FAILED}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{POST\_SYNC\_OPERATION\_FAILED}{POST\_SYNC\_OPERATION\_FAILED}}
+{\footnotesize\ttfamily \#define POST\+\_\+\+SYNC\+\_\+\+OPERATION\+\_\+\+FAILED~-\/24}
+
+\mbox{\Hypertarget{gpgpu_8h_a8c95ecb6b291df363994a4342fac4c6c}\label{gpgpu_8h_a8c95ecb6b291df363994a4342fac4c6c}} 
+\index{gpgpu.h@{gpgpu.h}!QUERY\_FAILED@{QUERY\_FAILED}}
+\index{QUERY\_FAILED@{QUERY\_FAILED}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{QUERY\_FAILED}{QUERY\_FAILED}}
+{\footnotesize\ttfamily \#define QUERY\+\_\+\+FAILED~-\/2}
+
+\mbox{\Hypertarget{gpgpu_8h_a00020ad876389ce944529a8c384597e1}\label{gpgpu_8h_a00020ad876389ce944529a8c384597e1}} 
+\index{gpgpu.h@{gpgpu.h}!SIP\_ERROR@{SIP\_ERROR}}
+\index{SIP\_ERROR@{SIP\_ERROR}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{SIP\_ERROR}{SIP\_ERROR}}
+{\footnotesize\ttfamily \#define SIP\+\_\+\+ERROR~-\/22}
+
+\mbox{\Hypertarget{gpgpu_8h_a733ba24ee5f87ffa314d882fa4264fc2}\label{gpgpu_8h_a733ba24ee5f87ffa314d882fa4264fc2}} 
+\index{gpgpu.h@{gpgpu.h}!SOFTPIN\_NOT\_SUPPORTED@{SOFTPIN\_NOT\_SUPPORTED}}
+\index{SOFTPIN\_NOT\_SUPPORTED@{SOFTPIN\_NOT\_SUPPORTED}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{SOFTPIN\_NOT\_SUPPORTED}{SOFTPIN\_NOT\_SUPPORTED}}
+{\footnotesize\ttfamily \#define SOFTPIN\+\_\+\+NOT\+\_\+\+SUPPORTED~-\/3}
+
+\mbox{\Hypertarget{gpgpu_8h_aa820442cd260c83c32e7d7200d360ad2}\label{gpgpu_8h_aa820442cd260c83c32e7d7200d360ad2}} 
+\index{gpgpu.h@{gpgpu.h}!SOURCE\_LOAD\_ERROR@{SOURCE\_LOAD\_ERROR}}
+\index{SOURCE\_LOAD\_ERROR@{SOURCE\_LOAD\_ERROR}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{SOURCE\_LOAD\_ERROR}{SOURCE\_LOAD\_ERROR}}
+{\footnotesize\ttfamily \#define SOURCE\+\_\+\+LOAD\+\_\+\+ERROR~-\/16}
+
+\mbox{\Hypertarget{gpgpu_8h_aa90cac659d18e8ef6294c7ae337f6b58}\label{gpgpu_8h_aa90cac659d18e8ef6294c7ae337f6b58}} 
+\index{gpgpu.h@{gpgpu.h}!SUCCESS@{SUCCESS}}
+\index{SUCCESS@{SUCCESS}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{SUCCESS}{SUCCESS}}
+{\footnotesize\ttfamily \#define SUCCESS~0}
+
+\mbox{\Hypertarget{gpgpu_8h_aeadc71b66230f74c4c3b750144f00d9c}\label{gpgpu_8h_aeadc71b66230f74c4c3b750144f00d9c}} 
+\index{gpgpu.h@{gpgpu.h}!UNSUPPORTED\_HARDWARE@{UNSUPPORTED\_HARDWARE}}
+\index{UNSUPPORTED\_HARDWARE@{UNSUPPORTED\_HARDWARE}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{UNSUPPORTED\_HARDWARE}{UNSUPPORTED\_HARDWARE}}
+{\footnotesize\ttfamily \#define UNSUPPORTED\+\_\+\+HARDWARE~-\/4}
+
+\mbox{\Hypertarget{gpgpu_8h_a0d9ab0aede64fcfc763160ac54b54a22}\label{gpgpu_8h_a0d9ab0aede64fcfc763160ac54b54a22}} 
+\index{gpgpu.h@{gpgpu.h}!UNSUPPORTED\_KERNEL\_DRIVER@{UNSUPPORTED\_KERNEL\_DRIVER}}
+\index{UNSUPPORTED\_KERNEL\_DRIVER@{UNSUPPORTED\_KERNEL\_DRIVER}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{UNSUPPORTED\_KERNEL\_DRIVER}{UNSUPPORTED\_KERNEL\_DRIVER}}
+{\footnotesize\ttfamily \#define UNSUPPORTED\+\_\+\+KERNEL\+\_\+\+DRIVER~-\/1}
+
+\mbox{\Hypertarget{gpgpu_8h_a335f1c10f6f967265429d256c45c1abb}\label{gpgpu_8h_a335f1c10f6f967265429d256c45c1abb}} 
+\index{gpgpu.h@{gpgpu.h}!UNSUPPORTED\_PATCHTOKENS@{UNSUPPORTED\_PATCHTOKENS}}
+\index{UNSUPPORTED\_PATCHTOKENS@{UNSUPPORTED\_PATCHTOKENS}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{UNSUPPORTED\_PATCHTOKENS}{UNSUPPORTED\_PATCHTOKENS}}
+{\footnotesize\ttfamily \#define UNSUPPORTED\+\_\+\+PATCHTOKENS~-\/20}
+
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{gpgpu_8h_a6f5ba7e77f6a299e071cd6250fd4b4be}\label{gpgpu_8h_a6f5ba7e77f6a299e071cd6250fd4b4be}} 
+\index{gpgpu.h@{gpgpu.h}!BuildKernel@{BuildKernel}}
+\index{BuildKernel@{BuildKernel}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{BuildKernel()}{BuildKernel()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classpKernel}{p\+Kernel}}$\ast$ Build\+Kernel (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classpContext}{p\+Context}} $\ast$}]{context,  }\item[{const char $\ast$}]{filename,  }\item[{const char $\ast$}]{options,  }\item[{bool}]{enable\+Kernel\+Dump,  }\item[{int $\ast$}]{err }\end{DoxyParamCaption})}
+
+
+
+Compiles a program written in Open\+CL C language into a GPU executable. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em context} & A pointer to a \mbox{\hyperlink{classpContext}{p\+Context}} object. \\
+\hline
+{\em filename} & A pointer to a null-\/terminated character string containing the file name of the program. \\
+\hline
+{\em options} & A pointer to a null-\/terminated character string containing additional build options. If options is nullptr, it is ignored. \\
+\hline
+{\em enable\+Kernel\+Dump} & If set to true, a copy of the executable binary (filename.\+isabin) will be stored in the /tmp directory. \\
+\hline
+{\em err} & A pointer to an integer containing the returned error code\+:\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+p\+Kernel$\ast$ A pointer to a \mbox{\hyperlink{classpKernel}{p\+Kernel}} object. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{gpgpu_8h_a048007c1c8f80f4f664f5eb466ea8a71}\label{gpgpu_8h_a048007c1c8f80f4f664f5eb466ea8a71}} 
+\index{gpgpu.h@{gpgpu.h}!CreateBuffer@{CreateBuffer}}
+\index{CreateBuffer@{CreateBuffer}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{CreateBuffer()}{CreateBuffer()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classpBuffer}{p\+Buffer}}$\ast$ Create\+Buffer (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classpContext}{p\+Context}} $\ast$}]{context,  }\item[{size\+\_\+t}]{size,  }\item[{int $\ast$}]{err }\end{DoxyParamCaption})}
+
+
+
+Creates a buffer object. 
+
+This function allocates the specified amount of bytes on the heap. It will be page aligned. The allocated memory will be mapped into GPU address space so it can be accessed by the GPU. The pointer to the allocated memory is stored in the returned \mbox{\hyperlink{classpBuffer}{p\+Buffer}} object (mem variable). If err is not NULL, accessing this pointer leads to undefined behaviour.
+
+
+\begin{DoxyParams}{Parameters}
+{\em context} & A pointer to a \mbox{\hyperlink{classpContext}{p\+Context}} object. \\
+\hline
+{\em size} & The size in bytes of the buffer memory object to be allocated. \\
+\hline
+{\em err} & A pointer to an integer containing the returned error code\+:
+\begin{DoxyItemize}
+\item SUCCESS\+: the function executed successfully.
+\item BUFFER\+\_\+\+ALLOCATION\+\_\+\+FAILED\+: malloc failure or failure while passing the malloc pointer to the kernel driver.
+\item GEM\+\_\+\+EXECBUFFER\+\_\+\+FAILED\+: Failure while mapping the allocated memory into GPU address space.
+\end{DoxyItemize}\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+p\+Buffer$\ast$ A pointer to a \mbox{\hyperlink{classpBuffer}{p\+Buffer}} object. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{gpgpu_8h_a85214724b0c4e4d375d8fd7241cd1711}\label{gpgpu_8h_a85214724b0c4e4d375d8fd7241cd1711}} 
+\index{gpgpu.h@{gpgpu.h}!CreateContext@{CreateContext}}
+\index{CreateContext@{CreateContext}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{CreateContext()}{CreateContext()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classpContext}{p\+Context}}$\ast$ Create\+Context (\begin{DoxyParamCaption}\item[{std\+::vector$<$ \mbox{\hyperlink{classpDevice}{p\+Device}} $\ast$ $>$ \&}]{dev,  }\item[{size\+\_\+t}]{dev\+Index,  }\item[{int $\ast$}]{err }\end{DoxyParamCaption})}
+
+
+
+Creates a DRM context for one GPU device. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em dev} & The list of devices returned by \mbox{\hyperlink{gpgpu_8h_a16a2a2a90dc7992fa5bbed7b3beee298}{Create\+Devices()}}. \\
+\hline
+{\em dev\+Index} & Index within dev list to select the GPU for which the context will be created \\
+\hline
+{\em err} & A pointer to an integer containing the returned error code\+:\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+p\+Context$\ast$ A pointer to a \mbox{\hyperlink{classpContext}{p\+Context}} object. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{gpgpu_8h_a16a2a2a90dc7992fa5bbed7b3beee298}\label{gpgpu_8h_a16a2a2a90dc7992fa5bbed7b3beee298}} 
+\index{gpgpu.h@{gpgpu.h}!CreateDevices@{CreateDevices}}
+\index{CreateDevices@{CreateDevices}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{CreateDevices()}{CreateDevices()}}
+{\footnotesize\ttfamily std\+::vector$<$\mbox{\hyperlink{classpDevice}{p\+Device}}$\ast$$>$ Create\+Devices (\begin{DoxyParamCaption}\item[{int $\ast$}]{err }\end{DoxyParamCaption})}
+
+
+
+Initializes all GPU devices. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em err} & A pointer to an integer containing the returned error code\+:
+\begin{DoxyItemize}
+\item SUCCESS
+\item NO\+\_\+\+DEVICE\+\_\+\+ERROR\+: GPU device file could not be found.
+\item UNSUPPORTED\+\_\+\+HARDWARE\+: GPU is not in the list of supported device IDs.
+\item QUERY\+\_\+\+FAILED\+: IOCTL to query device information failed.
+\end{DoxyItemize}\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+std\+::vector$<$p\+Device$\ast$$>$ A vector of pointers to \mbox{\hyperlink{classpDevice}{p\+Device}} objects. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{gpgpu_8h_a7cf8e80bf8a8a98693fc48d2fb0aaca8}\label{gpgpu_8h_a7cf8e80bf8a8a98693fc48d2fb0aaca8}} 
+\index{gpgpu.h@{gpgpu.h}!ExecuteKernel@{ExecuteKernel}}
+\index{ExecuteKernel@{ExecuteKernel}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{ExecuteKernel()}{ExecuteKernel()}}
+{\footnotesize\ttfamily int Execute\+Kernel (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classpContext}{p\+Context}} $\ast$}]{context,  }\item[{\mbox{\hyperlink{classpKernel}{p\+Kernel}} $\ast$}]{kernel,  }\item[{uint32\+\_\+t}]{work\+\_\+dim,  }\item[{const size\+\_\+t $\ast$}]{global\+\_\+work\+\_\+size,  }\item[{const size\+\_\+t $\ast$}]{local\+\_\+work\+\_\+size }\end{DoxyParamCaption})}
+
+
+\begin{DoxyParams}{Parameters}
+{\em A} & pointer to a \mbox{\hyperlink{classpContext}{p\+Context}} object. \\
+\hline
+{\em A} & pointer to a \mbox{\hyperlink{classpKernel}{p\+Kernel}} object. \\
+\hline
+{\em } & \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{gpgpu_8h_a73362c9f7046989bfc51f93ca36efd32}\label{gpgpu_8h_a73362c9f7046989bfc51f93ca36efd32}} 
+\index{gpgpu.h@{gpgpu.h}!ReleaseBuffer@{ReleaseBuffer}}
+\index{ReleaseBuffer@{ReleaseBuffer}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{ReleaseBuffer()}{ReleaseBuffer()}}
+{\footnotesize\ttfamily int Release\+Buffer (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classpBuffer}{p\+Buffer}} $\ast$}]{buffer }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{gpgpu_8h_ad2f5c292ec0c334317f8ba59f35d6829}\label{gpgpu_8h_ad2f5c292ec0c334317f8ba59f35d6829}} 
+\index{gpgpu.h@{gpgpu.h}!ReleaseContext@{ReleaseContext}}
+\index{ReleaseContext@{ReleaseContext}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{ReleaseContext()}{ReleaseContext()}}
+{\footnotesize\ttfamily int Release\+Context (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classpContext}{p\+Context}} $\ast$}]{context }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{gpgpu_8h_ae7a01c53675cf4be3179423063d8953b}\label{gpgpu_8h_ae7a01c53675cf4be3179423063d8953b}} 
+\index{gpgpu.h@{gpgpu.h}!ReleaseDevice@{ReleaseDevice}}
+\index{ReleaseDevice@{ReleaseDevice}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{ReleaseDevice()}{ReleaseDevice()}}
+{\footnotesize\ttfamily int Release\+Device (\begin{DoxyParamCaption}\item[{std\+::vector$<$ \mbox{\hyperlink{classpDevice}{p\+Device}} $\ast$ $>$ \&}]{dev,  }\item[{size\+\_\+t}]{dev\+Index }\end{DoxyParamCaption})}
+
+
+\begin{DoxyParams}{Parameters}
+{\em } & \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{gpgpu_8h_a9dec41ebfe94b9387f4b43e68b9afc84}\label{gpgpu_8h_a9dec41ebfe94b9387f4b43e68b9afc84}} 
+\index{gpgpu.h@{gpgpu.h}!ReleaseKernel@{ReleaseKernel}}
+\index{ReleaseKernel@{ReleaseKernel}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{ReleaseKernel()}{ReleaseKernel()}}
+{\footnotesize\ttfamily int Release\+Kernel (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classpKernel}{p\+Kernel}} $\ast$}]{kernel }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{gpgpu_8h_ae570d5df8a695400ec0125019c711d8e}\label{gpgpu_8h_ae570d5df8a695400ec0125019c711d8e}} 
+\index{gpgpu.h@{gpgpu.h}!SetKernelArg@{SetKernelArg}}
+\index{SetKernelArg@{SetKernelArg}!gpgpu.h@{gpgpu.h}}
+\doxysubsubsection{\texorpdfstring{SetKernelArg()}{SetKernelArg()}}
+{\footnotesize\ttfamily int Set\+Kernel\+Arg (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classpKernel}{p\+Kernel}} $\ast$}]{kernel,  }\item[{uint32\+\_\+t}]{arg\+\_\+index,  }\item[{size\+\_\+t}]{arg\+\_\+size,  }\item[{void $\ast$}]{arg\+\_\+value }\end{DoxyParamCaption})}
+
+
+\begin{DoxyParams}{Parameters}
+{\em kernel} & A pointer to a \mbox{\hyperlink{classpKernel}{p\+Kernel}} object. \\
+\hline
+{\em arg\+\_\+index} & \\
+\hline
+{\em arg\+\_\+size} & \\
+\hline
+{\em arg\+\_\+value} & \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+int An integer containing the returned error code\+: 
+\end{DoxyReturn}
