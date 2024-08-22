@@ -22,7 +22,7 @@ sudo make install
 This creates a shared library `libigpgpu.so` and installs it in `/usr/local/lib`. `DEBUG=1` compiles with debug symbols and console logging, `INFO=1` will print device info to the console when running an application.
 
 ## Documentation
-The API documentation can be read [here](docs/html/gpgpu__api_8h.html).
+The API documentation can be read [here](https://dprekel.github.io/html/gpgpu__api_8h.html).
 
 
 ## Driver Internals
