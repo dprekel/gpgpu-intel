@@ -26,4 +26,4 @@ E_{\mathrm{tot}} =& \sum_{\mathrm{bonds}}\frac{1}{2}k_{\alpha}\big(d_{\alpha}-d_
 ```
 
 ## Test simulation
-The PME kernel along with the input data was extracted from the first timestep of a 100 ps simulation of a Lysozyme enzyme in aqueous solution (as described [here](test/gpgpu-particle-mesh-ewald/gromacs.md)).
+The PME kernel along with the input data was extracted from the first timestep of a 100 ps simulation of a Lysozyme enzyme in aqueous solution (as described [here](gromacs.md)).
