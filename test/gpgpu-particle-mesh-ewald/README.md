@@ -1,5 +1,18 @@
 # Particle Mesh Ewald (PME)
-This kernel was extracted from the GROMACS molecular simulation package for testing purposes.
+This PME kernel along with the input data was extracted from the [GROMACS](https://www.gromacs.org) molecular simulation package for testing purposes. 
+It calculates nonbonded interactions inside a simulation box containing a Lysozyme enzyme in aqueous solution (as described [here](gromacs.md)). 
+The idea behind this test is simple: If the compute kernel and all input buffers are identical to the GROMACS simulation, we just need to compare the output buffers after the calculation finished. 
+If they are identical too, my GPU driver behaves correctly in this test case.
+
+## Build instructions
+Provided that the gpgpu-intel driver is installed, the test example can be executed by doing the following:
+```shell
+make
+./pme
+```
+
+## Demonstration
+The above mentioned GROMACS simulation calculates the system behavior by computing forces, velocities and positions of all atoms 50000 times in 2 femtosecond time steps. This test example only calculates nonbonded interactions of the first time step in a loop. This is shown below:
 
 ## Molecular Dynamics Simulations
 Molecular Dynamics simulations are very common in the fields of chemistry and biochemistry.
@@ -25,5 +38,3 @@ E_{\mathrm{tot}} =& \sum_{\mathrm{bonds}}\frac{1}{2}k_{\alpha}\big(d_{\alpha}-d_
 \end{aligned}
 ```
 
-## Test simulation
-The PME kernel along with the input data was extracted from the first timestep of a 100 ps simulation of a Lysozyme enzyme in aqueous solution (as described [here](gromacs.md)).
