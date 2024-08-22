@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "device.h"
-#include "gpgpu.h"
+#include "gpgpu_api.h"
 #include "hwinfo.h"
 #include "igc_interface.h"
 

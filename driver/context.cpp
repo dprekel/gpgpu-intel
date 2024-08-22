@@ -11,7 +11,7 @@
 
 #include "commands_gen9.h"
 #include "context.h"
-#include "gpgpu.h"
+#include "gpgpu_api.h"
 #include "ioctl.h"
 #include "utils.h"
 

@@ -6,7 +6,7 @@
 #include <string>
 
 #include "context.h"
-#include "gpgpu.h"
+#include "gpgpu_api.h"
 #include "hwinfo.h"
 #include "ioctl.h"
 #include "kernel.h"

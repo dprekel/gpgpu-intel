@@ -10,7 +10,7 @@
 #include "buffer.h"
 #include "commands_gen9.h"
 #include "device.h"
-#include "gpgpu.h"
+#include "gpgpu_api.h"
 #include "hwinfo.h"
 #include "igc_interface.h"
 #include "kernel.h"

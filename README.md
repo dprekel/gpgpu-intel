@@ -22,20 +22,11 @@ sudo make install
 This creates a shared library `libigpgpu.so` and installs it in `/usr/local/lib`. `DEBUG=1` compiles with debug symbols and console logging, `INFO=1` will print device info to the console when running an application.
 
 ## Documentation
-### `std::vector<pDevice*> CreateDevices(int* err)`
-### `pContext* CreateContext(std::vector<pDevice*>& devices, size_t devIndex, int* err)`
-### `pBuffer* CreateBuffer(pContext* context, size_t size, int* err)`
-### `pKernel* BuildKernel(pContext* context, const char* filename, const char* options, bool enableKernelDump, int* err)`
-### `int SetKernelArg(pKernel* kernel, uint32_t argIndex, size_t arg_size, void* arg_value)`
-### `int ExecuteKernel(pContext* context, pKernel* kernel, uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size)`
-### `ReleaseDevice(std::vector<pDevice*>& device, size_t devIndex)`
-### `ReleaseContext(pContext* context)`
-### `ReleaseKernel(pKernel* kernel)`
-### `ReleaseDevice(pDevice* device)`
+The API documentation can be read [here](docs/html/gpgpu__api_8h.html).
 
 
 ## Driver Internals
-![](images/GPU_Driver_Flowchart.png?raw=true)
+![](docs/GPU_Driver_Flowchart.png?raw=true)
 The batchbuffer is then put into a ring buffer by the kernel driver so that the Command Streamer Engine of the GPU can directly access it by DMA. The Command Streamer then executes the commands one by one.
 
 ## Trash

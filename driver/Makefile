@@ -28,13 +28,13 @@ $(TARGET): $(OBJECTS)
 
 install:
 	install -m 557 $(TARGET) $(PREFIX)/lib/
-	install -m 644 gpgpu.h $(PREFIX)/include/
+	install -m 644 gpgpu_api.h $(PREFIX)/include/
 
 clean:
 	-rm -f *.o
 	-rm -f $(TARGET)
 	-rm -f $(PREFIX)/lib/$(TARGET)
-	-rm -f $(PREFIX)/include/gpgpu.h
+	-rm -f $(PREFIX)/include/gpgpu_api.h
 
 # $@ denotes the name of the target
 # $< denotes the first prerequisit

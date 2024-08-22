@@ -4,7 +4,7 @@
 #include "buffer.h"
 #include "commands_gen9.h"
 #include "context.h"
-#include "gpgpu.h"
+#include "gpgpu_api.h"
 
 
 Buffer::Buffer(Context* context)
