@@ -19,30 +19,30 @@ bool checkValidity(const float* A, const float* B, const float* C, size_t size, 
 int main() {
     int err = 0;
     std::vector<pDevice*> devices = CreateDevices(&err);
-    printf("[DEBUG] CreateDevices: %d\n", err);
+    //printf("[DEBUG] CreateDevices: %d\n", err);
 
     std::string build_options = "-DTILE_SIZE_M=" + std::to_string(TILE_SIZE_M)
                               + " -DTILE_GROUP_M=" + std::to_string(TILE_GROUP_M)
                               + " -DTILE_SIZE_N=" + std::to_string(TILE_SIZE_N)
                               + " -DTILE_GROUP_N=" + std::to_string(TILE_GROUP_N);
     pContext* context = CreateContext(devices, 0u, &err);
-    printf("[DEBUG] CreateContext: %d\n", err);
+    //printf("[DEBUG] CreateContext: %d\n", err);
     pKernel* kernel = BuildKernel(context, "matmul.cl", build_options.c_str(), true, &err);
-    printf("[DEBUG] BuildKernel: %d\n", err);
+    //printf("[DEBUG] BuildKernel: %d\n", err);
 
     size_t size = 3968;
     size_t matrix_memory_size = size*size*sizeof(float);
     
     pBuffer* matrix_A = CreateBuffer(context, matrix_memory_size, &err);
-    printf("[DEBUG] CreateBuffer: %d\n", err);
+    //printf("[DEBUG] CreateBuffer: %d\n", err);
     if (err)
         return -1;
     pBuffer* matrix_B = CreateBuffer(context, matrix_memory_size, &err);
-    printf("[DEBUG] CreateBuffer: %d\n", err);
+    //printf("[DEBUG] CreateBuffer: %d\n", err);
     if (err)
         return -1;
     pBuffer* matrix_C = CreateBuffer(context, matrix_memory_size, &err);
-    printf("[DEBUG] CreateBuffer: %d\n", err);
+    //printf("[DEBUG] CreateBuffer: %d\n", err);
     if (err)
         return -1;
     // Initialize matrices A and B with ones
@@ -56,36 +56,36 @@ int main() {
     }
 
     err = SetKernelArg(kernel, 0, sizeof(matrix_A), static_cast<void*>(matrix_A));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 1, sizeof(int),      static_cast<void*>(&size));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 2, sizeof(matrix_B), static_cast<void*>(matrix_B));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 3, sizeof(int),      static_cast<void*>(&size));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 4, sizeof(matrix_C), static_cast<void*>(matrix_C));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 5, sizeof(int),      static_cast<void*>(&size));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     err = SetKernelArg(kernel, 6, sizeof(int),      static_cast<void*>(&size));
-    printf("[DEBUG] SetKernelArg: %d\n", err);
+    //printf("[DEBUG] SetKernelArg: %d\n", err);
     // number of work items per work group dimension
     const size_t local[2] = {TILE_GROUP_M, TILE_GROUP_N};
     // total number of work items in each dimension
     const size_t global[2] = {size/TILE_SIZE_M, size/TILE_SIZE_N};
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 2; i++) {
         printf("\n");
         printf("[DEBUG] Starting Task %d\n", i+1);
         err = ExecuteKernel(context, kernel, 2, global, local);
         if (err) {
             printf("[DEBUG] Batchbuffer failed with %d\n", err);
         }
-        printf("  matCMem[0] = %f\n", matCMem[0]);
-        printf("  matCMem[size*100] = %f\n", matCMem[size *100]);
-        printf("  matCMem[7500000] = %f\n", matCMem[7500000]);
-        printf("  matCMem[matrix_size-10] = %f\n", matCMem[matrix_size - 10]);
-        printf("  matCMem[matrix_size] = %f\n", matCMem[matrix_size]);
+        printf("  matCMem[0] \t\t\t = %f\n", matCMem[0]);
+        printf("  matCMem[size*100] \t\t = %f\n", matCMem[size *100]);
+        printf("  matCMem[7500000] \t\t = %f\n", matCMem[7500000]);
+        printf("  matCMem[matrix_size-10] \t = %f\n", matCMem[matrix_size - 10]);
+        printf("  matCMem[matrix_size] \t\t = %f\n", matCMem[matrix_size]);
         /*
         printf("[DEBUG] Checking validity ...  ");
         fflush(stdout);

@@ -30,13 +30,18 @@ The API documentation can be found [here](https://dprekel.github.io/html/gpgpu__
 The batchbuffer is then put into a ring buffer by the kernel driver so that the Command Streamer Engine of the GPU can directly access it by DMA. The Command Streamer then executes the commands one by one.
 
 ## Examples
+<img src="docs/Particle_Mesh_Ewald.gif" width="510" height="600" />
 
 ## ToDo
 
 ## Links
 [Intel Graphics Hardware documentation](https://www.intel.com/content/www/us/en/docs/graphics-for-linux/developer-reference/1-0/overview.html)
-[Debug the GPU with gdb](https://www.intel.com/content/www/us/en/docs/distribution-for-gdb/get-started-guide-linux/2023-0/overview.html)
-[]()
+
+[WikiChip about GEN9 hardware](https://en.wikichip.org/wiki/intel/microarchitectures/gen9.5)
+
+[Debug a GPU kernel with gdb](https://www.intel.com/content/www/us/en/docs/distribution-for-gdb/get-started-guide-linux/2023-0/overview.html)
+
+[How to build a simple GPU in Verilog](https://github.com/adam-maj/tiny-gpu)
 
 ## Trash
 When using OpenCL, there is no way to dump your device kernel into a file to inspect/disassemble it. You have to run your OpenCL host program within the Intercept Layer for OpenCL. Here, you just specify the enableBinaryDump field of the BuildKernel API as true.

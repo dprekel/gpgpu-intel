@@ -1,4 +1,4 @@
-TARGET = gpgpu
+TARGET = matmul
 CC = g++
 CFLAGS = -g -Wall
 LDFLAGS = -ligpgpu -ldl -Wl,-rpath=/usr/local/lib
