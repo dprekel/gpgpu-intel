@@ -1,10 +1,20 @@
 # GPGPU-Intel
-When finished, this will be a very simple userspace driver for general purpose computation on Intel Integrated Graphics GPUs. It is based on reverse engineering Intels [NEO Compute Runtime](https://github.com/intel/compute-runtime) for OpenCL and extracts its core functionality. While Intels driver is about 200000 lines of C++, this will be around 6000 lines.
+## Overview
+gpgpu-intel is a minimal userspace driver for general purpose computation on Intel GPUs.
+It is based on reverse engineering Intels [NEO Compute Runtime](https://github.com/intel/compute-runtime) for OpenCL and extracts its core functionality. 
+While Intels driver is about 200000 lines of C++, this driver has 6500 lines. Its core features include:
+- Immediate execution of arbitrary compute kernels
+- Support for all address space qualifiers (global, constant, local, private)
+- Support for memory barriers
+- Save compiled kernel binaries into file
 
+Not included are:
+- Event-based kernel execution
+- doesn't support the following kernel argument specifiers: image, sampler, queue, ...
 
 ## Installation
 Building and running this driver requires
-- Intel Processor with integrated GEN8, GEN9 or GEN11 GPU (GEN12 and Xe/Xe2 not yet supported)
+- Intel Processor with integrated GEN8, GEN9 or GEN11 GPU (GEN12 and Xe not yet supported)
 - Linux distribution of your choice
 
 This driver links against the [Intel Graphics Compiler (IGC)](https://github.com/intel/intel-graphics-compiler). On Ubuntu it can be installed with
@@ -33,6 +43,8 @@ The batchbuffer is then put into a ring buffer by the kernel driver so that the 
 <img src="docs/Particle_Mesh_Ewald.gif" width="510" height="600" />
 
 ## ToDo
+- Add support for GEN12 and Xe Graphics
+- Once an application has issued a couple of dozen kernel executions (depends on kernel), some buffer objects will overflow, needs to be fixed
 
 ## Links
 [Intel Graphics Hardware documentation](https://www.intel.com/content/www/us/en/docs/graphics-for-linux/developer-reference/1-0/overview.html)
@@ -43,8 +55,5 @@ The batchbuffer is then put into a ring buffer by the kernel driver so that the 
 
 [How to build a simple GPU in Verilog](https://github.com/adam-maj/tiny-gpu)
 
-## Trash
-When using OpenCL, there is no way to dump your device kernel into a file to inspect/disassemble it. You have to run your OpenCL host program within the Intercept Layer for OpenCL. Here, you just specify the enableBinaryDump field of the BuildKernel API as true.
 
-Different to Intels NEO OpenCL driver, this driver doesn't need interface headers of the IGC to build successfully. This poises a risk of compatibility issues with specific IGC builds. 
 
