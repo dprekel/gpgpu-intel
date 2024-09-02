@@ -67,7 +67,10 @@ class pKernel {
  * @param err A pointer to an integer containing the returned error code:
  * - SUCCESS
  * - NO_DEVICE_ERROR: GPU device file could not be found.
+ * - COMPILER_LOAD_ERROR: 
+ * - UNSUPPORTED_KERNEL_DRIVER:
  * - UNSUPPORTED_HARDWARE: GPU is not in the list of supported device IDs.
+ * - SOFTPIN_NOT_SUPPORTED:
  * - QUERY_FAILED: IOCTL to query device information failed.
  *
  * @return std::vector<pDevice*> A vector of pointers to pDevice objects.
@@ -122,6 +125,16 @@ extern pBuffer* CreateBuffer(pContext* context,
  * @param options A pointer to a null-terminated character string containing additional build options. If options is nullptr, it is ignored.
  * @param enableKernelDump If set to true, a copy of the executable binary (filename.isabin) will be stored in the /tmp directory.
  * @param err A pointer to an integer containing the returned error code:
+ * - SUCCESS: the function executed successfully.
+ * - SOURCE_LOAD_ERROR: Error while loading the source code file.
+ * - UNSUPPORTED_HARDWARE:
+ * - FRONTEND_BUILD_ERROR:
+ * - BACKEND_BUILD_ERROR:
+ * - INVALID_KERNEL:
+ * - UNSUPPORTED_PATCHTOKENS:
+ * - BUFFER_ALLOCATION_FAILED:
+ * - SIP_ERROR:
+ * - KERNEL_DUMP_ERROR:
  *
  * @return pKernel* A pointer to a pKernel object.
  *
@@ -134,14 +147,19 @@ extern pKernel* BuildKernel(pContext* context,
 
 
 /**
- * @brief
+ * @brief Sets the argument value for a specific argument of a kernel.
+ *
+ *
  *
  * @param kernel A pointer to a pKernel object.
- * @param arg_index
+ * @param arg_index An argument index. Arguments to the kernel are referred by indices that go from 0 for the leftmost argument to n - 1, where n is the total number of arguments declared by a kernel.
  * @param arg_size
  * @param arg_value
  *
  * @return int An integer containing the returned error code:
+ * - SUCCESS: the function executed successfully.
+ * - INVALID_KERNEL:
+ * - INVALID_KERNEL_ARG:
  *
  */
 extern int SetKernelArg(pKernel* kernel,
@@ -155,11 +173,18 @@ extern int SetKernelArg(pKernel* kernel,
  *
  * @param context A pointer to a pContext object.
  * @param kernel A pointer to a pKernel object.
- * @param
- * @param
- * @param
+ * @param work_dim
+ * @param global_work_size The total number of work items.
+ * @param local_work_size The number of work items inside a work group.
  *
- * @return
+ * @return An integer containing the returned error code:
+ * - SUCCESS: the function executed successfully.
+ * - UNSUPPORTED_HARDWARE: 
+ * - INVALID_WORK_SIZE:
+ * - INVALID_WORK_GROUP_SIZE:
+ * - BUFFER_ALLOCATION_FAILED:
+ * - GEM_EXECBUFFER_FAILED:
+ * - POST_SYNC_OPERATION_FAILED:
  *
  */
 extern int ExecuteKernel(pContext* context,
@@ -172,22 +197,49 @@ extern int ExecuteKernel(pContext* context,
 /**
  * @brief
  *
- * @param
- * @param
+ * @param devices A pointer to a pDevice object.
  *
  * @return
+ * - SUCCESS: the function executed successfully.
+ * - NO_DEVICE_ERROR:
  *
  */
-extern int ReleaseDevice(std::vector<pDevice*>& dev,
-                        size_t devIndex);
+extern int ReleaseDevices(std::vector<pDevice*>& devices);
 
 
+/**
+ * @brief
+ *
+ * @param context A pointer to a pContext object.
+ *
+ * @return An integer containing the returned error code:
+ * - SUCCESS: the function executed successfully.
+ * - NO_CONTEXT_ERROR:
+ */
 extern int ReleaseContext(pContext* context);
 
 
+/**
+ * @brief 
+ *
+ * @param kernel A pointer to a pKernel object.
+ *
+ * @return An integer containing the returned error code:
+ * - SUCCESS: the function executed successfully.
+ * - NO_KERNEL_ERROR:
+ */
 extern int ReleaseKernel(pKernel* kernel);
 
 
+/**
+ * @brief
+ *
+ * @param buffer A pointer to a pBuffer object.
+ *
+ * @return An integer containing the returned error code:
+ * - SUCCESS: the function executed successfully.
+ * - NO_BUFFER_ERROR:
+ */
 extern int ReleaseBuffer(pBuffer* buffer);
 
 

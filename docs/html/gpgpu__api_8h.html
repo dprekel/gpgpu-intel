@@ -101,11 +101,12 @@ Functions</h2></td></tr>
 <tr class="memdesc:a6f5ba7e77f6a299e071cd6250fd4b4be"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compiles a program written in OpenCL C language into a GPU executable.  <a href="gpgpu__api_8h.html#a6f5ba7e77f6a299e071cd6250fd4b4be">More...</a><br /></td></tr>
 <tr class="separator:a6f5ba7e77f6a299e071cd6250fd4b4be"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae570d5df8a695400ec0125019c711d8e"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="gpgpu__api_8h.html#ae570d5df8a695400ec0125019c711d8e">SetKernelArg</a> (<a class="el" href="classpKernel.html">pKernel</a> *kernel, uint32_t arg_index, size_t arg_size, void *arg_value)</td></tr>
+<tr class="memdesc:ae570d5df8a695400ec0125019c711d8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the argument value for a specific argument of a kernel.  <a href="gpgpu__api_8h.html#ae570d5df8a695400ec0125019c711d8e">More...</a><br /></td></tr>
 <tr class="separator:ae570d5df8a695400ec0125019c711d8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7cf8e80bf8a8a98693fc48d2fb0aaca8"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="gpgpu__api_8h.html#a7cf8e80bf8a8a98693fc48d2fb0aaca8">ExecuteKernel</a> (<a class="el" href="classpContext.html">pContext</a> *context, <a class="el" href="classpKernel.html">pKernel</a> *kernel, uint32_t work_dim, const size_t *global_work_size, const size_t *local_work_size)</td></tr>
 <tr class="separator:a7cf8e80bf8a8a98693fc48d2fb0aaca8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae7a01c53675cf4be3179423063d8953b"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="gpgpu__api_8h.html#ae7a01c53675cf4be3179423063d8953b">ReleaseDevice</a> (std::vector&lt; <a class="el" href="classpDevice.html">pDevice</a> * &gt; &amp;dev, size_t devIndex)</td></tr>
-<tr class="separator:ae7a01c53675cf4be3179423063d8953b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af3b1ddef95b9fb0892caa6ad82ca512e"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="gpgpu__api_8h.html#af3b1ddef95b9fb0892caa6ad82ca512e">ReleaseDevices</a> (std::vector&lt; <a class="el" href="classpDevice.html">pDevice</a> * &gt; &amp;devices)</td></tr>
+<tr class="separator:af3b1ddef95b9fb0892caa6ad82ca512e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad2f5c292ec0c334317f8ba59f35d6829"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="gpgpu__api_8h.html#ad2f5c292ec0c334317f8ba59f35d6829">ReleaseContext</a> (<a class="el" href="classpContext.html">pContext</a> *context)</td></tr>
 <tr class="separator:ad2f5c292ec0c334317f8ba59f35d6829"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9dec41ebfe94b9387f4b43e68b9afc84"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="gpgpu__api_8h.html#a9dec41ebfe94b9387f4b43e68b9afc84">ReleaseKernel</a> (<a class="el" href="classpKernel.html">pKernel</a> *kernel)</td></tr>
@@ -165,7 +166,19 @@ Functions</h2></td></tr>
     <tr><td class="paramname">filename</td><td>A pointer to a null-terminated character string containing the file name of the program. </td></tr>
     <tr><td class="paramname">options</td><td>A pointer to a null-terminated character string containing additional build options. If options is nullptr, it is ignored. </td></tr>
     <tr><td class="paramname">enableKernelDump</td><td>If set to true, a copy of the executable binary (filename.isabin) will be stored in the /tmp directory. </td></tr>
-    <tr><td class="paramname">err</td><td>A pointer to an integer containing the returned error code:</td></tr>
+    <tr><td class="paramname">err</td><td>A pointer to an integer containing the returned error code:<ul>
+<li>SUCCESS: the function executed successfully.</li>
+<li>SOURCE_LOAD_ERROR: Error while loading the source code file.</li>
+<li>UNSUPPORTED_HARDWARE:</li>
+<li>FRONTEND_BUILD_ERROR:</li>
+<li>BACKEND_BUILD_ERROR:</li>
+<li>INVALID_KERNEL:</li>
+<li>UNSUPPORTED_PATCHTOKENS:</li>
+<li>BUFFER_ALLOCATION_FAILED:</li>
+<li>SIP_ERROR:</li>
+<li>KERNEL_DUMP_ERROR:</li>
+</ul>
+</td></tr>
   </table>
   </dd>
 </dl>
@@ -291,7 +304,10 @@ Functions</h2></td></tr>
     <tr><td class="paramname">err</td><td>A pointer to an integer containing the returned error code:<ul>
 <li>SUCCESS</li>
 <li>NO_DEVICE_ERROR: GPU device file could not be found.</li>
+<li>COMPILER_LOAD_ERROR:</li>
+<li>UNSUPPORTED_KERNEL_DRIVER:</li>
 <li>UNSUPPORTED_HARDWARE: GPU is not in the list of supported device IDs.</li>
+<li>SOFTPIN_NOT_SUPPORTED:</li>
 <li>QUERY_FAILED: IOCTL to query device information failed.</li>
 </ul>
 </td></tr>
@@ -349,10 +365,22 @@ Functions</h2></td></tr>
   <table class="params">
     <tr><td class="paramname">context</td><td>A pointer to a <a class="el" href="classpContext.html">pContext</a> object. </td></tr>
     <tr><td class="paramname">kernel</td><td>A pointer to a <a class="el" href="classpKernel.html">pKernel</a> object. </td></tr>
-    <tr><td class="paramname"></td><td></td></tr>
+    <tr><td class="paramname">work_dim</td><td></td></tr>
+    <tr><td class="paramname">global_work_size</td><td>The total number of work items. </td></tr>
+    <tr><td class="paramname">local_work_size</td><td>The number of work items inside a work group.</td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>An integer containing the returned error code:<ul>
+<li>SUCCESS: the function executed successfully.</li>
+<li>UNSUPPORTED_HARDWARE:</li>
+<li>INVALID_WORK_SIZE:</li>
+<li>INVALID_WORK_GROUP_SIZE:</li>
+<li>BUFFER_ALLOCATION_FAILED:</li>
+<li>GEM_EXECBUFFER_FAILED:</li>
+<li>POST_SYNC_OPERATION_FAILED: </li>
+</ul>
+</dd></dl>
 
 </div>
 </div>
@@ -371,6 +399,17 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">buffer</td><td>A pointer to a <a class="el" href="classpBuffer.html">pBuffer</a> object.</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>An integer containing the returned error code:<ul>
+<li>SUCCESS: the function executed successfully.</li>
+<li>NO_BUFFER_ERROR: </li>
+</ul>
+</dd></dl>
 
 </div>
 </div>
@@ -389,40 +428,46 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">context</td><td>A pointer to a <a class="el" href="classpContext.html">pContext</a> object.</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>An integer containing the returned error code:<ul>
+<li>SUCCESS: the function executed successfully.</li>
+<li>NO_CONTEXT_ERROR: </li>
+</ul>
+</dd></dl>
 
 </div>
 </div>
-<a id="ae7a01c53675cf4be3179423063d8953b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae7a01c53675cf4be3179423063d8953b">&#9670;&nbsp;</a></span>ReleaseDevice()</h2>
+<a id="af3b1ddef95b9fb0892caa6ad82ca512e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af3b1ddef95b9fb0892caa6ad82ca512e">&#9670;&nbsp;</a></span>ReleaseDevices()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">int ReleaseDevice </td>
+          <td class="memname">int ReleaseDevices </td>
           <td>(</td>
           <td class="paramtype">std::vector&lt; <a class="el" href="classpDevice.html">pDevice</a> * &gt; &amp;&#160;</td>
-          <td class="paramname"><em>dev</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
+          <td class="paramname"><em>devices</em></td><td>)</td>
           <td></td>
-          <td class="paramtype">size_t&#160;</td>
-          <td class="paramname"><em>devIndex</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname"></td><td></td></tr>
+    <tr><td class="paramname">devices</td><td>A pointer to a <a class="el" href="classpDevice.html">pDevice</a> object.</td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd><ul>
+<li>SUCCESS: the function executed successfully.</li>
+<li>NO_DEVICE_ERROR: </li>
+</ul>
+</dd></dl>
 
 </div>
 </div>
@@ -441,6 +486,17 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">kernel</td><td>A pointer to a <a class="el" href="classpKernel.html">pKernel</a> object.</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>An integer containing the returned error code:<ul>
+<li>SUCCESS: the function executed successfully.</li>
+<li>NO_KERNEL_ERROR: </li>
+</ul>
+</dd></dl>
 
 </div>
 </div>
@@ -481,16 +537,23 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Sets the argument value for a specific argument of a kernel. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">kernel</td><td>A pointer to a <a class="el" href="classpKernel.html">pKernel</a> object. </td></tr>
-    <tr><td class="paramname">arg_index</td><td></td></tr>
+    <tr><td class="paramname">arg_index</td><td>An argument index. Arguments to the kernel are referred by indices that go from 0 for the leftmost argument to n - 1, where n is the total number of arguments declared by a kernel. </td></tr>
     <tr><td class="paramname">arg_size</td><td></td></tr>
     <tr><td class="paramname">arg_value</td><td></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>int An integer containing the returned error code: </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>int An integer containing the returned error code:<ul>
+<li>SUCCESS: the function executed successfully.</li>
+<li>INVALID_KERNEL:</li>
+<li>INVALID_KERNEL_ARG: </li>
+</ul>
+</dd></dl>
 
 </div>
 </div>
