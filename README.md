@@ -37,14 +37,17 @@ The API documentation can be found [here](https://dprekel.github.io/html/gpgpu__
 
 ## Driver Internals
 The image below is a rather straightforward description about the GPU driver stack: Arbitrary applications call into the userspace GPU driver via an OpenCL-like API. The driver initializes the device, creates a DRM (Direct Rendering Manager) context and compiles the kernel code into GPU executable instructions. The compiler links against Clang/LLVM at runtime.
-![](docs/GPU_Driver_Stack.png?raw=true)
-The userspace driver then constructs a whole lot of buffer objects (kernel data, kernel instrucctions, GPU batchbuffers, scratch space, preemption, ...). 
+
+<img src="docs/GPU_Driver_Stack.png?raw=true" alt="GPU driver stack" width="350" />
+
+The userspace driver then constructs a whole lot of buffer objects (kernel data, kernel instructions, GPU batchbuffers, scratch space, preemption, ...). 
 Pointers to these objects are passed to the Linux kernelspace driver (i915) via the DRM\_IOCTL\_I915\_GEM\_EXECOBJECT2 IOCTL. 
 i915 pins all buffer objects into the per-process graphics translation table (ppGTT). 
 The batchbuffer is then copied into a ring buffer by i915 so that the Command Streamer Engine of the GPU can directly access it by direct memory access (DMA). 
 The command streamer then executes the commands one by one. 
 The pointers to the other buffer objects which are stored in the batchbuffer tell the command streamer where to find all needed data. 
 I created an image to show this in detail:
+
 ![](docs/GPU_Driver_Flowchart.png?raw=true)
 
 ## Examples
