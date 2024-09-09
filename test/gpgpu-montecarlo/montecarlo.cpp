@@ -1,4 +1,4 @@
-#include <gpgpu.h>
+#include <gpgpu_api.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,6 +113,6 @@ int main() {
     err = ReleaseBuffer(tHost);
     err = ReleaseBuffer(vcallHost);
     err = ReleaseBuffer(vputHost);
-    err = ReleaseDevice(devices, 0u);
+    err = ReleaseDevices(devices);
     return 0;
 }

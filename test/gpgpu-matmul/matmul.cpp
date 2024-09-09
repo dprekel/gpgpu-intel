@@ -1,4 +1,4 @@
-#include <gpgpu.h>
+#include <gpgpu_api.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,7 +111,7 @@ int main() {
     err = ReleaseBuffer(matrix_A);
     err = ReleaseBuffer(matrix_B);
     err = ReleaseBuffer(matrix_C);
-    err = ReleaseDevice(devices, 0u);
+    err = ReleaseDevices(devices);
     return 0;
 }
 

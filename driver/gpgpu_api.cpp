@@ -150,15 +150,18 @@ API_CALL int ExecuteKernel(pContext* cont,
     return SUCCESS;
 }
 
-//TODO: Change to ReleaseDevices
-API_CALL int ReleaseDevice(std::vector<pDevice*>& dev, size_t devIndex) {
-    if (devIndex >= dev.size())
+
+API_CALL int ReleaseDevices(std::vector<pDevice*>& dev) {
+    if (dev.size() == 0)
         return NO_DEVICE_ERROR;
-    if (!dev[devIndex])
-        return NO_DEVICE_ERROR;
-    Device* device = static_cast<Device*>(dev[devIndex]);
-    delete device;
-    device = nullptr;
+    for (auto &device : dev) {
+        if (!device)
+            continue;
+        Device* currDev = static_cast<Device*>(device);
+        delete currDev;
+        currDev = nullptr;
+    }
+    dev.resize(0);
     return SUCCESS;
 }
 
