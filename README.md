@@ -51,6 +51,9 @@ I created an image to show this in detail:
 ![](docs/GPU_Driver_Flowchart.png?raw=true)
 
 ## Examples
+Example applications that use the API can be found [here](test).
+The following example shows the [calculation of nonbonded interactions](test/gpgpu-particle-mesh-ewald) in molecular dynamics simulations:
+
 <img src="docs/Particle_Mesh_Ewald.gif" width="510" height="600" />
 
 ## ToDo

@@ -746,6 +746,7 @@ int Kernel::setArgImmediate(uint32_t argIndex, size_t argSize, void* argValue) {
 
 
 int Kernel::setArgLocal(uint32_t argIndex, size_t argSize, void* argValue) {
+    //TODO: There is an issue left with local memory when we run a kernel in a loop
     auto argDescPointer = static_cast<ArgDescPointer*>(argDescriptor[argIndex].get());
     uint32_t slmOffset = *ptrOffset(crossThreadData.get(), argDescPointer->crossThreadDataOffset);
     slmOffset += static_cast<uint32_t>(argSize);
