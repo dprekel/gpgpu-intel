@@ -10,7 +10,7 @@ While Intels driver is about 200000 lines of C++, this driver has 6500 lines. It
 
 Not included are:
 - Event-based kernel execution
-- doesn't support the following kernel argument specifiers: image, sampler, queue, ...
+- Kernel arguments of the following type: image, sampler, command queue
 
 ## Build Instructions
 Building and running this driver requires
@@ -32,7 +32,7 @@ sudo make install
 This creates a shared library `libigpgpu.so` and installs it in `/usr/local/lib`. `DEBUG=1` compiles with debug symbols and console logging, `INFO=1` will print device info to the console when running an application.
 
 ## Documentation
-The API documentation can be found [here](https://dprekel.github.io/html/gpgpu__api_8h.html).
+The API documentation can be found [here](https://dprekel.github.io/html/gpgpu__api_8h.html) (not complete yet).
 
 
 ## Driver Internals
@@ -46,7 +46,7 @@ i915 pins all buffer objects into the per-process graphics translation table (pp
 The batchbuffer is then copied into a ring buffer by i915 so that the Command Streamer Engine of the GPU can directly access it by direct memory access (DMA). 
 The command streamer then executes the commands one by one. 
 The pointers to the other buffer objects which are stored in the batchbuffer tell the command streamer where to find all needed data. 
-I created an image to show this in detail:
+I created an image to show this in detail (for a matmul example):
 
 ![](docs/GPU_Driver_Flowchart.png?raw=true)
 
