@@ -59,6 +59,8 @@ The following example shows the [calculation of nonbonded interactions](test/gpg
 ## ToDo
 - Add support for GEN12 and Xe Graphics
 - Once an application has issued a couple of dozen kernel executions (depends on kernel), some buffer objects will overflow, needs to be fixed
+- There is an issue with local memory when running kernels in a loop
+- For each batchbuffer submission, all GPU commands are executed (the first few commands are only needed once for GPU setup)
 
 ## Links
 [Intel Graphics Hardware documentation](https://www.intel.com/content/www/us/en/docs/graphics-for-linux/developer-reference/1-0/overview.html)

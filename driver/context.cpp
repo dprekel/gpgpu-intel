@@ -869,8 +869,10 @@ int Context::populateAndSubmitExecBuffer() {
     size_t boCount = execBuffer.size();
     execObjects.resize(boCount);
 
-    printf("[DEBUG] Executing Batchbuffer ...  \n");
+    DBG_LOG("[DEBUG] Executing Batchbuffer ...  \n");
+#ifdef DEBUG
     fflush(stdout);
+#endif
     int ret = exec(execObjects.data(), execBuffer.data(), boCount, batchSize, batchStartOffset);
     if (ret) {
         execBuffer.clear();
@@ -933,7 +935,7 @@ int Context::finishExecution() {
     if (*pollAddress != this->completionTag)
         return POST_SYNC_OPERATION_FAILED;
 
-    printf("[DEBUG] Batchbuffer finished! (Tag value: %u, Execution time: %.3f seconds)\n", *pollAddress, elapsedTime/1e9);
+    DBG_LOG("[DEBUG] Batchbuffer finished! (Tag value: %u, Execution time: %.3f seconds)\n", *pollAddress, elapsedTime/1e9);
     return SUCCESS;
 }
 
