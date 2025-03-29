@@ -18,26 +18,26 @@
 
 Context::Context(Device* device) 
         : device(device),
-          hwInfo(device->getDeviceDescriptor()->pHwInfo),
+          hwInfo(this->device->getDeviceDescriptor()->pHwInfo),
           workItemsPerWorkGroup{1, 1, 1},
           globalWorkItems{1, 1, 1},
           numWorkGroups{1, 1, 1},
-          isMidThreadLevelPreemptionSupported(device->getMidThreadPreemptionSupport()) {
-    setMaxWorkGroupSize();
-    setMaxThreadsForVfe();
+          isMidThreadLevelPreemptionSupported(this->device->getMidThreadPreemptionSupport()) {
+    this->setMaxWorkGroupSize();
+    this->setMaxThreadsForVfe();
 }
 
 Context::~Context() {
     DBG_LOG("[DEBUG] Context destructor called!\n");
     drm_i915_gem_context_destroy destroy = {0};
     destroy.ctx_id = this->ctxId;
-    int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_DESTROY, &destroy);
+    int ret = ioctl(this->device->fd, DRM_IOCTL_I915_GEM_CONTEXT_DESTROY, &destroy);
     if (ret)
         DBG_LOG("[DEBUG] ioctl(I915_GEM_CONTEXT_DESTROY) failed with error %d\n", ret);
 
     drm_i915_gem_vm_control vmCtrl = {0};
     vmCtrl.vm_id = this->vmId;
-    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_VM_DESTROY, &vmCtrl);
+    ret = ioctl(this->device->fd, DRM_IOCTL_I915_GEM_VM_DESTROY, &vmCtrl);
     if (ret)
         DBG_LOG("[DEBUG] ioctl(I915_GEM_VM_DESTROY) failed with error %d\n", ret);
 }
@@ -75,11 +75,11 @@ void BufferObject::deleteHandle() {
 
 void Context::setMaxWorkGroupSize() {
     uint32_t minSimdSize = 8u;
-    uint32_t maxNumEUsPerSubSlice = (hwInfo->gtSystemInfo->EuCountPerPoolMin == 0 ||
-                                    hwInfo->featureTable->flags.ftrPooledEuEnabled == 0)
-                                  ? (hwInfo->gtSystemInfo->EUCount / hwInfo->gtSystemInfo->SubSliceCount)
-                                  : hwInfo->gtSystemInfo->EuCountPerPoolMin;
-    uint32_t numThreadsPerEU = hwInfo->gtSystemInfo->ThreadCount / hwInfo->gtSystemInfo->EUCount;
+    uint32_t maxNumEUsPerSubSlice = (this->hwInfo->gtSystemInfo->EuCountPerPoolMin == 0 ||
+                                    this->hwInfo->featureTable->flags.ftrPooledEuEnabled == 0)
+                                  ? (this->hwInfo->gtSystemInfo->EUCount / this->hwInfo->gtSystemInfo->SubSliceCount)
+                                  : this->hwInfo->gtSystemInfo->EuCountPerPoolMin;
+    uint32_t numThreadsPerEU = this->hwInfo->gtSystemInfo->ThreadCount / this->hwInfo->gtSystemInfo->EUCount;
     uint32_t maxThreadsPerWorkGroup = maxNumEUsPerSubSlice * numThreadsPerEU * minSimdSize;
     maxThreadsPerWorkGroup = prevPowerOfTwo(maxThreadsPerWorkGroup);
     this->maxWorkItemsPerWorkGroup = std::min(maxThreadsPerWorkGroup, 1024u);
@@ -87,16 +87,16 @@ void Context::setMaxWorkGroupSize() {
 
 void Context::setMaxThreadsForVfe() {
     // For GEN11 and GEN12, there is another term (extraQuantityThreadsPerEU) that must be added to numThreadsPerEU
-    uint32_t numThreadsPerEU = hwInfo->gtSystemInfo->ThreadCount / hwInfo->gtSystemInfo->EUCount;
-    maxVfeThreads = hwInfo->gtSystemInfo->EUCount * numThreadsPerEU;
+    uint32_t numThreadsPerEU = this->hwInfo->gtSystemInfo->ThreadCount / this->hwInfo->gtSystemInfo->EUCount;
+    maxVfeThreads = this->hwInfo->gtSystemInfo->EUCount * numThreadsPerEU;
 }
 
 BufferObject* Context::getBatchBuffer() const {
-    return dataBatchBuffer.get();
+    return this->dataBatchBuffer.get();
 }
 
 bool Context::isSIPKernelAllocated() const {
-    return isSipKernelAllocated;
+    return this->isSipKernelAllocated;
 }
 
 bool Context::isGraphicsBaseAddressRequired(int bufferType) const {
@@ -127,14 +127,14 @@ std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size, int buf
     userptr.user_ptr = pAlignedMemory;
     userptr.user_size = size;
     userptr.flags = 0;
-    int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr);
+    int ret = ioctl(this->device->fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr);
     if (ret) {
         alignedFree(pAlignedMemoryPtr);
         return nullptr;
     }
-    auto bo = std::make_unique<BufferObject>(device->fd, bufferType, pAlignedMemoryPtr, userptr.handle, size);
-    if (isGraphicsBaseAddressRequired(bufferType)) {
-        ret = device->allocateHeapMemoryForSoftpinning(bo.get());
+    auto bo = std::make_unique<BufferObject>(this->device->fd, bufferType, pAlignedMemoryPtr, userptr.handle, size);
+    if (this->isGraphicsBaseAddressRequired(bufferType)) {
+        ret = this->device->allocateHeapMemoryForSoftpinning(bo.get());
         if (ret) {
             alignedFree(pAlignedMemoryPtr);
             bo->deleteHandle();
@@ -152,15 +152,15 @@ int Context::createDRMContext() {
     // Create a per-process Graphics Translation Table (ppGTT). This is a process-assigned
     // page table that the IOMMU uses to translate virtual GPU addresses.
     drm_i915_gem_vm_control vmCtrl = {0};
-    int ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_VM_CREATE, &vmCtrl);
-    vmId = vmCtrl.vm_id;
+    int ret = ioctl(this->device->fd, DRM_IOCTL_I915_GEM_VM_CREATE, &vmCtrl);
+    this->vmId = vmCtrl.vm_id;
     if (ret || vmCtrl.vm_id == 0)
         return CONTEXT_CREATION_FAILED;
     
     // Create a DRM context.
     drm_i915_gem_context_create_ext drmCtx = {0};
-    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT, &drmCtx);
-    ctxId = drmCtx.ctx_id;
+    ret = ioctl(this->device->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE_EXT, &drmCtx);
+    this->ctxId = drmCtx.ctx_id;
     if (ret)
         return CONTEXT_CREATION_FAILED;
 
@@ -169,7 +169,7 @@ int Context::createDRMContext() {
     paramVm.ctx_id = drmCtx.ctx_id;
     paramVm.value = vmCtrl.vm_id;
     paramVm.param = I915_CONTEXT_PARAM_VM;
-    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &paramVm);
+    ret = ioctl(this->device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &paramVm);
     if (ret)
         return CONTEXT_CREATION_FAILED;
 
@@ -179,13 +179,13 @@ int Context::createDRMContext() {
     // closure of the underlying CPU process.
     drm_i915_gem_context_param paramPers = {0};
     paramPers.param = I915_CONTEXT_PARAM_PERSISTENCE;
-    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &paramPers);
+    ret = ioctl(this->device->fd, DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM, &paramPers);
     if (ret == 0 && paramPers.value == 1) {
         // Makes the context non-persistent
         drm_i915_gem_context_param paramSetPers = {0};
         paramSetPers.ctx_id = drmCtx.ctx_id;
         paramSetPers.param = I915_CONTEXT_PARAM_PERSISTENCE;
-        ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &paramSetPers);
+        ioctl(this->device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &paramSetPers);
     }
 
     // Even though my test machine (Skylake) has Turbo Boost 2.0, this does not work. 
@@ -194,7 +194,7 @@ int Context::createDRMContext() {
     paramBoost.ctx_id = drmCtx.ctx_id;
     paramBoost.param = I915_CONTEXT_PRIVATE_PARAM_BOOST;
     paramBoost.value = 1;
-    ret = ioctl(device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &paramBoost);
+    ret = ioctl(this->device->fd, DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM, &paramBoost);
 
     return SUCCESS;
 }
@@ -203,33 +203,33 @@ int Context::createDRMContext() {
 int Context::allocateReusableBufferObjects() {
     // Before a GPU context switch, the current state of the GPU (registers, instruction
     // pointer, etc.) is being copied into the preemption buffer.
-    size_t preemptionSize = hwInfo->gtSystemInfo->CsrSizeInMb * MemoryConstants::megaByte;
-    preemptionAllocation = allocateBufferObject(preemptionSize, BufferType::PREEMPTION);
-    if (!preemptionAllocation)
+    size_t preemptionSize = this->hwInfo->gtSystemInfo->CsrSizeInMb * MemoryConstants::megaByte;
+    this->preemptionAllocation = allocateBufferObject(preemptionSize, BufferType::PREEMPTION);
+    if (!this->preemptionAllocation)
         return BUFFER_ALLOCATION_FAILED;
 
     // When kernel execution has finished, the hardware (or kernel driver, I'm not sure)
     // notifies this to userspace by placing a tag value into this tag buffer.
-    tagAllocation = allocateBufferObject(MemoryConstants::pageSize, BufferType::TAG_BUFFER);
-    if (!tagAllocation)
+    this->tagAllocation = allocateBufferObject(MemoryConstants::pageSize, BufferType::TAG_BUFFER);
+    if (!this->tagAllocation)
         return BUFFER_ALLOCATION_FAILED;
-    uint32_t* tagAddress = reinterpret_cast<uint32_t*>(tagAllocation->cpuAddress);
+    uint32_t* tagAddress = reinterpret_cast<uint32_t*>(this->tagAllocation->cpuAddress);
     uint32_t initialHardwareTag = 0u;
     *tagAddress = initialHardwareTag;
-    uint8_t* tagAdd = reinterpret_cast<uint8_t*>(tagAllocation->cpuAddress);
+    uint8_t* tagAdd = reinterpret_cast<uint8_t*>(this->tagAllocation->cpuAddress);
     DebugPauseState* debugPauseStateAddress = reinterpret_cast<DebugPauseState*>(tagAdd + MemoryConstants::cacheLineSize);
     *debugPauseStateAddress = DebugPauseState::waitingForFirstSemaphore;
 
     // CreateBuffer API pins data buffer objects directly into GPU address space. This
     // will be the batch buffer for this operation.
-    dataBatchBuffer = allocateBufferObject(MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
-    if (!dataBatchBuffer)
+    this->dataBatchBuffer = allocateBufferObject(MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
+    if (!this->dataBatchBuffer)
         return BUFFER_ALLOCATION_FAILED;
     // Program MI_BATCH_BUFFER_END
-    auto cmd1 = dataBatchBuffer->ptrOffset<MI_BATCH_BUFFER_END*>(sizeof(MI_BATCH_BUFFER_END));
+    auto cmd1 = this->dataBatchBuffer->ptrOffset<MI_BATCH_BUFFER_END*>(sizeof(MI_BATCH_BUFFER_END));
     *cmd1 = MI_BATCH_BUFFER_END::init();
     // Program NOOP
-    auto cmd2 = dataBatchBuffer->ptrOffset<uint32_t*>(sizeof(uint32_t));
+    auto cmd2 = this->dataBatchBuffer->ptrOffset<uint32_t*>(sizeof(uint32_t));
     *cmd2 = 0u;
 
     return SUCCESS;
@@ -244,8 +244,8 @@ int Context::allocateReusableBufferObjects() {
 //TODO: Make this function consistent
 int Context::validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size) {
     this->kernel = kernel;
-    this->kernelData = kernel->getKernelData();
-    uint32_t gpuGen = hwInfo->platform->eRenderCoreFamily;
+    this->kernelData = this->kernel->getKernelData();
+    uint32_t gpuGen = this->hwInfo->platform->eRenderCoreFamily;
     if (gpuGen != GFX_CORE_FAMILY::IGFX_GEN9_CORE && gpuGen != GFX_CORE_FAMILY::IGFX_GEN11_CORE)
         return UNSUPPORTED_HARDWARE;
 
@@ -256,9 +256,9 @@ int Context::validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t*
     if (work_dim > 3) {
         return INVALID_WORK_GROUP_SIZE;
     }
-    size_t requiredWorkGroupSize[3] = {kernelData->executionEnvironment->RequiredWorkGroupSizeX,
-                                       kernelData->executionEnvironment->RequiredWorkGroupSizeY,
-                                       kernelData->executionEnvironment->RequiredWorkGroupSizeZ};
+    size_t requiredWorkGroupSize[3] = {this->kernelData->executionEnvironment->RequiredWorkGroupSizeX,
+                                       this->kernelData->executionEnvironment->RequiredWorkGroupSizeY,
+                                       this->kernelData->executionEnvironment->RequiredWorkGroupSizeZ};
     size_t totalWorkItems = 1u;
     size_t remainder = 0;
     bool haveRequiredWorkGroupSize = false;
@@ -266,7 +266,7 @@ int Context::validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t*
         haveRequiredWorkGroupSize = true;
     }
     for (uint32_t i = 0u; i < work_dim; i++) {
-        globalWorkItems[i] = global_work_size ? global_work_size[i] : 0;
+        this->globalWorkItems[i] = global_work_size ? global_work_size[i] : 0;
         if (local_work_size) {
             if (haveRequiredWorkGroupSize) {
                 if (requiredWorkGroupSize[i] != local_work_size[i]) {
@@ -276,41 +276,41 @@ int Context::validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t*
             if (local_work_size[i] == 0) {
                 return INVALID_WORK_GROUP_SIZE;
             }
-            workItemsPerWorkGroup[i] = local_work_size[i];
+            this->workItemsPerWorkGroup[i] = local_work_size[i];
             totalWorkItems *= local_work_size[i];
         }
-        remainder += globalWorkItems[i] % workItemsPerWorkGroup[i];
+        remainder += this->globalWorkItems[i] % this->workItemsPerWorkGroup[i];
     }
     if (remainder != 0) {
         return INVALID_WORK_GROUP_SIZE;
     }
-    if (totalWorkItems > maxWorkItemsPerWorkGroup) {
+    if (totalWorkItems > this->maxWorkItemsPerWorkGroup) {
         return INVALID_WORK_GROUP_SIZE;
     }
     for (uint32_t i = 0u; i < work_dim; i++) {
-        numWorkGroups[i] = globalWorkItems[i] / workItemsPerWorkGroup[i];
+        this->numWorkGroups[i] = this->globalWorkItems[i] / this->workItemsPerWorkGroup[i];
     }
     return SUCCESS;
 }
 
 
 int Context::constructBufferObjects() {
-    int ret = createScratchAllocation();
+    int ret = this->createScratchAllocation();
     if (ret)
         return ret;
-    ret = createSurfaceStateHeap();
+    ret = this->createSurfaceStateHeap();
     if (ret)
         return ret;
-    ret = createIndirectObjectHeap();
+    ret = this->createIndirectObjectHeap();
     if (ret)
         return ret;
-    ret = createDynamicStateHeap();
+    ret = this->createDynamicStateHeap();
     if (ret)
         return ret;
-    ret = createCommandStreamTask();
+    ret = this->createCommandStreamTask();
     if (ret)
         return ret;
-    ret = createCommandStreamReceiver();
+    ret = this->createCommandStreamReceiver();
     if (ret)
         return ret;
     return SUCCESS;
@@ -318,25 +318,25 @@ int Context::constructBufferObjects() {
 
 
 int Context::createScratchAllocation() {
-    if (!kernelData->mediaVfeState)
+    if (!this->kernelData->mediaVfeState)
         return SUCCESS;
-    uint32_t computeUnitsUsedForScratch = hwInfo->gtSystemInfo->MaxSubSlicesSupported
-                                        * hwInfo->gtSystemInfo->MaxEuPerSubSlice
-                                        * hwInfo->gtSystemInfo->ThreadCount
-                                        / hwInfo->gtSystemInfo->EUCount;
-    uint32_t requiredScratchSpace = kernelData->mediaVfeState->PerThreadScratchSpace;
+    uint32_t computeUnitsUsedForScratch = this->hwInfo->gtSystemInfo->MaxSubSlicesSupported
+                                        * this->hwInfo->gtSystemInfo->MaxEuPerSubSlice
+                                        * this->hwInfo->gtSystemInfo->ThreadCount
+                                        / this->hwInfo->gtSystemInfo->EUCount;
+    uint32_t requiredScratchSpace = this->kernelData->mediaVfeState->PerThreadScratchSpace;
     size_t requiredScratchSizeInBytes = requiredScratchSpace * computeUnitsUsedForScratch;
     size_t alignedAllocationSize = alignUp(requiredScratchSizeInBytes, MemoryConstants::pageSize);
-    if (alignedAllocationSize > currentScratchSpaceTotal) {
-        scratchAllocation.reset();
-        scratchAllocation = allocateBufferObject(alignedAllocationSize, BufferType::SCRATCH_SURFACE);
-        if (!scratchAllocation)
+    if (alignedAllocationSize > this->currentScratchSpaceTotal) {
+        this->scratchAllocation.reset();
+        this->scratchAllocation = this->allocateBufferObject(alignedAllocationSize, BufferType::SCRATCH_SURFACE);
+        if (!this->scratchAllocation)
             return BUFFER_ALLOCATION_FAILED;
-        currentScratchSpaceTotal = alignedAllocationSize;
+        this->currentScratchSpaceTotal = alignedAllocationSize;
 
         requiredScratchSpace >>= static_cast<uint32_t>(MemoryConstants::kiloByteShiftSize);
         while (requiredScratchSpace >>= 1) {
-            perThreadScratchSpace++;
+            this->perThreadScratchSpace++;
         }
     }
     return SUCCESS;
@@ -345,22 +345,22 @@ int Context::createScratchAllocation() {
 
 //TODO: Rewrite this function
 int Context::createSurfaceStateHeap() {
-    size_t sshSize = static_cast<size_t>(kernelData->header->SurfaceStateHeapSize);
-    if (!sshAllocation) {
-        sshAllocation = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::LINEAR_STREAM);
+    size_t sshSize = static_cast<size_t>(this->kernelData->header->SurfaceStateHeapSize);
+    if (!this->sshAllocation) {
+        this->sshAllocation = this->allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::LINEAR_STREAM);
         if (!sshAllocation)
             return BUFFER_ALLOCATION_FAILED;
-        sshAllocation->offset += sizeof(RENDER_SURFACE_STATE);
+        this->sshAllocation->offset += sizeof(RENDER_SURFACE_STATE);
     }
-    uint32_t numberOfBindingTableStates = kernelData->bindingTableState->Count;
+    uint32_t numberOfBindingTableStates = this->kernelData->bindingTableState->Count;
     if (numberOfBindingTableStates == 0)
         return SUCCESS;
-    char* srcSsh = kernel->getSurfaceStatePtr();
-    uint32_t surfaceStatesOffset = sshAllocation->offset;
-    void* dstSurfaceState = ptrOffset(sshAllocation->cpuAddress, surfaceStatesOffset);
+    char* srcSsh = this->kernel->getSurfaceStatePtr();
+    uint32_t surfaceStatesOffset = this->sshAllocation->offset;
+    void* dstSurfaceState = ptrOffset(this->sshAllocation->cpuAddress, surfaceStatesOffset);
     memcpy(dstSurfaceState, srcSsh, sshSize);
 
-    uint32_t offsetOfBindingTable = kernelData->bindingTableState->Offset;
+    uint32_t offsetOfBindingTable = this->kernelData->bindingTableState->Offset;
     auto srcBtiTableBase = reinterpret_cast<BINDING_TABLE_STATE*>(ptrOffset(srcSsh, offsetOfBindingTable));
     auto dstBtiTableBase = reinterpret_cast<BINDING_TABLE_STATE*>(ptrOffset(dstSurfaceState, offsetOfBindingTable));
     BINDING_TABLE_STATE bti = BINDING_TABLE_STATE::init();
@@ -370,66 +370,66 @@ int Context::createSurfaceStateHeap() {
         bti.Bitfield.SurfaceStatePointer = offsetedSurfaceStateOffset >> 0x6;
         dstBtiTableBase[i] = bti;
     }
-    sshAllocation->offset += numberOfBindingTableStates * sizeof(RENDER_SURFACE_STATE);
-    sshAllocation->offset += numberOfBindingTableStates * sizeof(BINDING_TABLE_STATE);
-    sshAllocation->offset = alignUp(sshAllocation->offset, MemoryConstants::cacheLineSize);
+    this->sshAllocation->offset += numberOfBindingTableStates * sizeof(RENDER_SURFACE_STATE);
+    this->sshAllocation->offset += numberOfBindingTableStates * sizeof(BINDING_TABLE_STATE);
+    this->sshAllocation->offset = alignUp(this->sshAllocation->offset, MemoryConstants::cacheLineSize);
 
     return SUCCESS;
 }
 
 
 int Context::createIndirectObjectHeap() {
-    if (!iohAllocation) {
-        iohAllocation = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::INTERNAL_HEAP);
-        if (!iohAllocation)
+    if (!this->iohAllocation) {
+        this->iohAllocation = this->allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::INTERNAL_HEAP);
+        if (!this->iohAllocation)
             return BUFFER_ALLOCATION_FAILED;
     }
     //TODO: Check why address is different
     //iohAllocation->gpuAddress = canonize(0x8001fffd6000);
     // Patch CrossThreadData
-    char* crossThreadData = kernel->getCrossThreadData();
+    char* crossThreadData = this->kernel->getCrossThreadData();
     for (uint32_t i = 0; i < 3; i++) {
-        patchKernelConstant(kernelData->crossThreadPayload.localWorkSize[i], crossThreadData, workItemsPerWorkGroup[i]);
-        patchKernelConstant(kernelData->crossThreadPayload.localWorkSize2[i], crossThreadData, workItemsPerWorkGroup[i]);
+        this->patchKernelConstant(this->kernelData->crossThreadPayload.localWorkSize[i], crossThreadData, this->workItemsPerWorkGroup[i]);
+        this->patchKernelConstant(this->kernelData->crossThreadPayload.localWorkSize2[i], crossThreadData, this->workItemsPerWorkGroup[i]);
         //TODO: enqueuedLocalWorkSize might not be identical to localWorkSize
-        patchKernelConstant(kernelData->crossThreadPayload.enqueuedLocalWorkSize[i], crossThreadData, workItemsPerWorkGroup[i]);
-        patchKernelConstant(kernelData->crossThreadPayload.globalWorkSize[i], crossThreadData, globalWorkItems[i]);
-        patchKernelConstant(kernelData->crossThreadPayload.numWorkGroups[i], crossThreadData, numWorkGroups[i]);
+        this->patchKernelConstant(this->kernelData->crossThreadPayload.enqueuedLocalWorkSize[i], crossThreadData, this->workItemsPerWorkGroup[i]);
+        this->patchKernelConstant(this->kernelData->crossThreadPayload.globalWorkSize[i], crossThreadData, this->globalWorkItems[i]);
+        this->patchKernelConstant(this->kernelData->crossThreadPayload.numWorkGroups[i], crossThreadData, this->numWorkGroups[i]);
     }
-    patchKernelConstant(kernelData->crossThreadPayload.workDimensions, crossThreadData, workDim);
-    this->crossThreadDataSize = kernelData->dataParameterStream->DataParameterStreamSize;
-    void* crossThreadDataAddress = ptrOffset(iohAllocation->cpuAddress, iohAllocation->offset);
-    memcpy(crossThreadDataAddress, crossThreadData, crossThreadDataSize);
+    this->patchKernelConstant(this->kernelData->crossThreadPayload.workDimensions, crossThreadData, this->workDim);
+    this->crossThreadDataSize = this->kernelData->dataParameterStream->DataParameterStreamSize;
+    void* crossThreadDataAddress = ptrOffset(this->iohAllocation->cpuAddress, this->iohAllocation->offset);
+    memcpy(crossThreadDataAddress, crossThreadData, this->crossThreadDataSize);
 
     // Calculate number of hardware threads needed for one work group
-    size_t localWorkSize = workItemsPerWorkGroup[0] * workItemsPerWorkGroup[1] * workItemsPerWorkGroup[2];
-    uint32_t simdSize = kernelData->executionEnvironment->LargestCompiledSIMDSize;
+    size_t localWorkSize = this->workItemsPerWorkGroup[0] * this->workItemsPerWorkGroup[1] * this->workItemsPerWorkGroup[2];
+    uint32_t simdSize = this->kernelData->executionEnvironment->LargestCompiledSIMDSize;
     uint64_t threadsPerWG = simdSize + localWorkSize - 1;
     threadsPerWG >>= simdSize == 32 ? 5 : simdSize == 16 ? 4 : simdSize == 8 ? 3 : 0;
     this->hwThreadsPerWorkGroup = threadsPerWG;
 
-    iohAllocation->offset += static_cast<size_t>(crossThreadDataSize);
+    this->iohAllocation->offset += static_cast<size_t>(this->crossThreadDataSize);
     this->GRFSize = 32; // one general purpose register file (GRF) has 32 bytes on GEN9
-    void* perThreadDataOffset = ptrOffset(iohAllocation->cpuAddress, iohAllocation->offset);
+    void* perThreadDataOffset = ptrOffset(this->iohAllocation->cpuAddress, this->iohAllocation->offset);
     if (simdSize == 16 || simdSize == 32) {
-        generateLocalIDsSimd<__m256i>(perThreadDataOffset, threadsPerWG, simdSize, 16u);
+        this->generateLocalIDsSimd<__m256i>(perThreadDataOffset, threadsPerWG, simdSize, 16u);
     } else if (simdSize == 8) {
-        generateLocalIDsSimd<__m128i>(perThreadDataOffset, threadsPerWG, simdSize, 8u);
+        this->generateLocalIDsSimd<__m128i>(perThreadDataOffset, threadsPerWG, simdSize, 8u);
     } else {
-        generateLocalIDsForSimdOne(perThreadDataOffset);
+        this->generateLocalIDsForSimdOne(perThreadDataOffset);
     }
     // Calculate total size of PerThreadData
-    uint32_t numLocalIdChannels = kernelData->threadPayload->LocalIDXPresent
-                                + kernelData->threadPayload->LocalIDYPresent
-                                + kernelData->threadPayload->LocalIDZPresent;
-    uint32_t numGRFsPerThread = (simdSize == 32 && GRFSize == 32) ? 2 : 1;
-    uint32_t localIDSizePerThread = numGRFsPerThread * GRFSize * (simdSize == 1 ? 1u : numLocalIdChannels);
-    this->localIDSizePerThread = std::max(localIDSizePerThread, GRFSize);
+    uint32_t numLocalIdChannels = this->kernelData->threadPayload->LocalIDXPresent
+                                + this->kernelData->threadPayload->LocalIDYPresent
+                                + this->kernelData->threadPayload->LocalIDZPresent;
+    uint32_t numGRFsPerThread = (simdSize == 32 && this->GRFSize == 32) ? 2 : 1;
+    uint32_t localIDSizePerThread = numGRFsPerThread * this->GRFSize * (simdSize == 1 ? 1u : numLocalIdChannels);
+    this->localIDSizePerThread = std::max(localIDSizePerThread, this->GRFSize);
     this->perThreadDataSize = this->hwThreadsPerWorkGroup * localIDSizePerThread;
 
     // Align to cache line
-    iohAllocation->offset += perThreadDataSize;
-    iohAllocation->offset = alignUp(iohAllocation->offset, MemoryConstants::cacheLineSize);
+    this->iohAllocation->offset += this->perThreadDataSize;
+    this->iohAllocation->offset = alignUp(this->iohAllocation->offset, MemoryConstants::cacheLineSize);
 
     return SUCCESS;
 }
