@@ -674,6 +674,35 @@ int Context::createCommandStreamTask() {
     return SUCCESS;
 }
 
+int Context::createCommandStreamReceiverXe2() {
+    if (!this->commandStreamCSR) {
+        this->commandStreamCSR = this->allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
+        if (this->commandStreamCSR)
+            return BUFFER_ALLOCATION_FAILED;
+    }
+    this->commandStreamCSR->currentTaskOffset = 0u;
+
+    // Program Memory Fences
+    if (this->globalFenceAllocation) {
+        auto cmd1 = this->commandStreamCSR->ptrOffset<STATE_SYSTEM_MEM_FENCE_ADDRESS*>(sizeof(STATE_SYSTEM_MEM_FENCE_ADDRESS));
+        *cmd1 = STATE_SYSTEM_MEM_FENCE_ADDRESS::init();
+        cmd1->Bitfield.SystemMemoryFenceAddress = this->globalFenceAllocation->gpuAddress >> 0xc;
+    }
+
+    // Program EU Thread policy
+    auto cmd2 = this->commandStreamCSR->ptrOffset<STATE_COMPUTE_MODE*>(sizeof(STATE_COMPUTE_MODE));
+    *cmd2 = STATE_COMPUTE_MODE::init();
+    cmd2->Bitfield.MemoryAllocationForScratchAndMidthreadPreemptionBuffers = true;
+    cmd2->Bitfield.
+
+    // Program Preemption
+    auto cmd3 = this->commandStreamCSR->ptrOffset<STATE_CONTEXT_DATA_BASE_ADDRESS*>(sizeof(STATE_CONTEXT_DATA_BASE_ADDRESS));
+    *cmd3 = STATE_CONTEXT_DATA_BASE_ADDRESS::init();
+    cmd3->Bitfield.ContextDataBaseAddress = this->preemptionAllocation->gpuAddress >> 0xc;
+
+    // Program VFE State
+}
+
 
 int Context::createCommandStreamReceiver() {
     if (!commandStreamCSR) {
