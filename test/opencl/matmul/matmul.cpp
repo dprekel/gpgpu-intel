@@ -184,6 +184,7 @@ int main() {
 
         // Execute Kernel 1:
         uint64_t start = nanos();
+        printf("Start clEnqueueNDRangeKernel\n");
         err = clEnqueueNDRangeKernel(queue, kernel1, 2, NULL, global, local, 0, 0, 0);
         printf("clEnqueueNDRangeKernel: %d\n", err);
         err = clFinish(queue);
