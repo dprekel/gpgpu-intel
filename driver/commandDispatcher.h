@@ -85,23 +85,23 @@ struct BufferObject {
 };
 
 
-class Context : public pContext {
+class CommandDispatcher : public pContext {
   public:
-    Context(Device* device);
-    ~Context();
-    BufferObject* getBatchBuffer() const;
-    bool isSIPKernelAllocated() const;
-    void setMaxWorkGroupSize();
-    void setMaxThreadsForVfe();
-    std::unique_ptr<BufferObject> allocateBufferObject(size_t size, int bufferType);
-    int createDRMContext();
-    int allocateReusableBufferObjects();
-    int createSipAllocation(size_t sipSize, const char* sipBinaryRaw);
-    int validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
-    int constructBufferObjects();
-    int populateAndSubmitExecBuffer();
-    int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t boCount, size_t batchSize, size_t batchStartOffset);
-    int finishExecution();
+    CommandDispatcher(Device* device);
+    virtual ~CommandDispatcher();
+    virtual BufferObject* getBatchBuffer() const;
+    virtual bool isSIPKernelAllocated() const;
+    virtual void setMaxWorkGroupSize();
+    virtual void setMaxThreadsForVfe();
+    virtual std::unique_ptr<BufferObject> allocateBufferObject(size_t size, int bufferType);
+    virtual int createDRMContext();
+    virtual int allocateReusableBufferObjects();
+    virtual int createSipAllocation(size_t sipSize, const char* sipBinaryRaw);
+    virtual int validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size);
+    virtual int constructBufferObjects();
+    virtual int populateAndSubmitExecBuffer();
+    virtual int exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtrs, size_t boCount, size_t batchSize, size_t batchStartOffset);
+    virtual int finishExecution();
 
     Device* device;
     Kernel* kernel = nullptr;

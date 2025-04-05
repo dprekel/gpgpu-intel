@@ -9,14 +9,14 @@
 #include <memory>
 #include <vector>
 
-#include "commands_gen9.h"
+#include "commandsGen9.h"
 #include "context.h"
 #include "gpgpu_api.h"
 #include "ioctl.h"
 #include "utils.h"
 
 
-Context::Context(Device* device) 
+CommandDispatcherGen9::CommandDispatcherGen9(Device* device) 
         : device(device),
           hwInfo(device->getDeviceDescriptor()->pHwInfo),
           workItemsPerWorkGroup{1, 1, 1},
@@ -27,7 +27,7 @@ Context::Context(Device* device)
     setMaxThreadsForVfe();
 }
 
-Context::~Context() {
+CommandDispatcherGen9::~CommandDispatcherGen9() {
     DBG_LOG("[DEBUG] Context destructor called!\n");
     drm_i915_gem_context_destroy destroy = {0};
     destroy.ctx_id = this->ctxId;
@@ -73,7 +73,7 @@ void BufferObject::deleteHandle() {
 }
 
 
-void Context::setMaxWorkGroupSize() {
+void CommandDispatcherGen9::setMaxWorkGroupSize() {
     uint32_t minSimdSize = 8u;
     uint32_t maxNumEUsPerSubSlice = (hwInfo->gtSystemInfo->EuCountPerPoolMin == 0 ||
                                     hwInfo->featureTable->flags.ftrPooledEuEnabled == 0)
@@ -85,28 +85,28 @@ void Context::setMaxWorkGroupSize() {
     this->maxWorkItemsPerWorkGroup = std::min(maxThreadsPerWorkGroup, 1024u);
 }
 
-void Context::setMaxThreadsForVfe() {
+void CommandDispatcherGen9::setMaxThreadsForVfe() {
     // For GEN11 and GEN12, there is another term (extraQuantityThreadsPerEU) that must be added to numThreadsPerEU
     uint32_t numThreadsPerEU = hwInfo->gtSystemInfo->ThreadCount / hwInfo->gtSystemInfo->EUCount;
     maxVfeThreads = hwInfo->gtSystemInfo->EUCount * numThreadsPerEU;
 }
 
-BufferObject* Context::getBatchBuffer() const {
+BufferObject* CommandDispatcherGen9::getBatchBuffer() const {
     return dataBatchBuffer.get();
 }
 
-bool Context::isSIPKernelAllocated() const {
+bool CommandDispatcherGen9::isSIPKernelAllocated() const {
     return isSipKernelAllocated;
 }
 
-bool Context::isGraphicsBaseAddressRequired(int bufferType) const {
+bool CommandDispatcherGen9::isGraphicsBaseAddressRequired(int bufferType) const {
     return bufferType == BufferType::INTERNAL_HEAP ||
            bufferType == BufferType::KERNEL_ISA ||
            bufferType == BufferType::KERNEL_ISA_INTERNAL;
 }
 
 
-std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size, int bufferType) {
+std::unique_ptr<BufferObject> CommandDispatcherGen9::allocateBufferObject(size_t size, int bufferType) {
     size_t alignment = MemoryConstants::pageSize;
     size_t sizeToAlloc = size + alignment;
     char* pOriginalMemory = new (std::nothrow)char[sizeToAlloc];
@@ -148,7 +148,7 @@ std::unique_ptr<BufferObject> Context::allocateBufferObject(size_t size, int buf
 
 
 
-int Context::createDRMContext() {
+int CommandDispatcherGen9::createDRMContext() {
     // Create a per-process Graphics Translation Table (ppGTT). This is a process-assigned
     // page table that the IOMMU uses to translate virtual GPU addresses.
     drm_i915_gem_vm_control vmCtrl = {0};
@@ -200,7 +200,7 @@ int Context::createDRMContext() {
 }
 
 
-int Context::allocateReusableBufferObjects() {
+int CommandDispatcherGen9::allocateReusableBufferObjects() {
     // Before a GPU context switch, the current state of the GPU (registers, instruction
     // pointer, etc.) is being copied into the preemption buffer.
     size_t preemptionSize = hwInfo->gtSystemInfo->CsrSizeInMb * MemoryConstants::megaByte;
@@ -242,7 +242,7 @@ int Context::allocateReusableBufferObjects() {
 - If local_work_size is nullptr, then workItemsPerWorkGroup[i] will always be 1, which leads to INVALID_WORK_GROUP_SIZE
 */
 //TODO: Make this function consistent
-int Context::validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size) {
+int CommandDispatcherGen9::validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t* global_work_size, const size_t* local_work_size) {
     this->kernel = kernel;
     this->kernelData = kernel->getKernelData();
     uint32_t gpuGen = hwInfo->platform->eRenderCoreFamily;
@@ -294,7 +294,7 @@ int Context::validateWorkGroups(Kernel* kernel, uint32_t work_dim, const size_t*
 }
 
 
-int Context::constructBufferObjects() {
+int CommandDispatcherGen9::constructBufferObjects() {
     int ret = createScratchAllocation();
     if (ret)
         return ret;
@@ -317,7 +317,7 @@ int Context::constructBufferObjects() {
 }
 
 
-int Context::createScratchAllocation() {
+int CommandDispatcherGen9::createScratchAllocation() {
     if (!kernelData->mediaVfeState)
         return SUCCESS;
     uint32_t computeUnitsUsedForScratch = hwInfo->gtSystemInfo->MaxSubSlicesSupported
@@ -344,7 +344,7 @@ int Context::createScratchAllocation() {
 
 
 //TODO: Rewrite this function
-int Context::createSurfaceStateHeap() {
+int CommandDispatcherGen9::createSurfaceStateHeap() {
     size_t sshSize = static_cast<size_t>(kernelData->header->SurfaceStateHeapSize);
     if (!sshAllocation) {
         sshAllocation = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::LINEAR_STREAM);
@@ -378,7 +378,7 @@ int Context::createSurfaceStateHeap() {
 }
 
 
-int Context::createIndirectObjectHeap() {
+int CommandDispatcherGen9::createIndirectObjectHeap() {
     if (!iohAllocation) {
         iohAllocation = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::INTERNAL_HEAP);
         if (!iohAllocation)
@@ -434,7 +434,7 @@ int Context::createIndirectObjectHeap() {
     return SUCCESS;
 }
 
-void Context::patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant) {
+void CommandDispatcherGen9::patchKernelConstant(const PatchDataParameterBuffer* info, char* crossThreadData, size_t kernelConstant) {
     if (info) {
         uint32_t patchOffset = info->Offset;
         uint32_t* patchPtr = reinterpret_cast<uint32_t*>(ptrOffset(crossThreadData, patchOffset));
@@ -449,7 +449,7 @@ const uint16_t initialLocalID[] = {
     16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
 
 template <typename Vec>
-void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize, uint32_t numChannels) {
+void CommandDispatcherGen9::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint32_t simdSize, uint32_t numChannels) {
     const int passes = simdSize / numChannels;
     int pass = 0;
     uint32_t dimNum[3] = {0, 1, 2};
@@ -527,7 +527,7 @@ void Context::generateLocalIDsSimd(void* ioh, uint16_t threadsPerWorkGroup, uint
 }
 
 
-void Context::generateLocalIDsForSimdOne(void* ioh) {
+void CommandDispatcherGen9::generateLocalIDsForSimdOne(void* ioh) {
     uint32_t dimNum[3] = {0, 1, 2};
     for (size_t i = 0; i < workItemsPerWorkGroup[dimNum[0]]; i++) {
         for (size_t j = 0; j < workItemsPerWorkGroup[dimNum[1]]; j++) {
@@ -542,7 +542,7 @@ void Context::generateLocalIDsForSimdOne(void* ioh) {
 }
 
 
-int Context::createDynamicStateHeap() {
+int CommandDispatcherGen9::createDynamicStateHeap() {
     if (!dshAllocation) {
         dshAllocation = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::LINEAR_STREAM);
         if (!dshAllocation)
@@ -574,7 +574,7 @@ int Context::createDynamicStateHeap() {
 }
 
 
-uint32_t Context::computeSharedLocalMemoryValue(uint32_t slmSize) {
+uint32_t CommandDispatcherGen9::computeSharedLocalMemoryValue(uint32_t slmSize) {
     const uint32_t maxSlmSize = 64 * MemoryConstants::kiloByte;
     if (slmSize > maxSlmSize)
         slmSize = maxSlmSize;
@@ -587,7 +587,7 @@ uint32_t Context::computeSharedLocalMemoryValue(uint32_t slmSize) {
 }
 
 
-int Context::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
+int CommandDispatcherGen9::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
     size_t sipAllocSize = alignUp(sipSize, MemoryConstants::pageSize);
     sipAllocation = allocateBufferObject(sipAllocSize, BufferType::KERNEL_ISA_INTERNAL);
     if (!sipAllocation)
@@ -597,7 +597,7 @@ int Context::createSipAllocation(size_t sipSize, const char* sipBinaryRaw) {
     return SUCCESS;
 }
 
-int Context::createCommandStreamTask() {
+int CommandDispatcherGen9::createCommandStreamTask() {
     if (!commandStreamTask) {
         commandStreamTask = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
         if (!commandStreamTask)
@@ -674,61 +674,8 @@ int Context::createCommandStreamTask() {
     return SUCCESS;
 }
 
-int Context::createCommandStreamReceiverXe2() {
-    if (!this->commandStreamCSR) {
-        this->commandStreamCSR = this->allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
-        if (this->commandStreamCSR)
-            return BUFFER_ALLOCATION_FAILED;
-    }
-    this->commandStreamCSR->currentTaskOffset = 0u;
 
-    // Program Memory Fences
-    if (this->globalFenceAllocation) {
-        auto cmd1 = this->commandStreamCSR->ptrOffset<STATE_SYSTEM_MEM_FENCE_ADDRESS*>(sizeof(STATE_SYSTEM_MEM_FENCE_ADDRESS));
-        *cmd1 = STATE_SYSTEM_MEM_FENCE_ADDRESS::init();
-        cmd1->Bitfield.SystemMemoryFenceAddress = this->globalFenceAllocation->gpuAddress >> 0xc;
-    }
-
-    // Program EU Thread policy
-    auto cmd2 = this->commandStreamCSR->ptrOffset<STATE_COMPUTE_MODE*>(sizeof(STATE_COMPUTE_MODE));
-    *cmd2 = STATE_COMPUTE_MODE::init();
-    cmd2->Bitfield.MemoryAllocationForScratchAndMidthreadPreemptionBuffers = true;
-    cmd2->Bitfield.
-
-    // Program Preemption
-    auto cmd3 = this->commandStreamCSR->ptrOffset<STATE_CONTEXT_DATA_BASE_ADDRESS*>(sizeof(STATE_CONTEXT_DATA_BASE_ADDRESS));
-    *cmd3 = STATE_CONTEXT_DATA_BASE_ADDRESS::init();
-    cmd3->Bitfield.ContextDataBaseAddress = this->preemptionAllocation->gpuAddress >> 0xc;
-
-    // Program VFE State
-}
-
-/* Buffers in Xe2 matmul execbuffer:
-
-COMMAND_BUFFER
-INTERNAL_HEAP
-COMMAND_BUFFER
-COMMAND_BUFFER
-TIMESTAMP_PACKET_TAG_BUFFER
-CONSTANT_SURFACE
-KERNEL_ISA
-BUFFER
-BUFFER
-BUFFER
-KERNEL_ISA
-SCRATCH_SURFACE
-LINEAR_STREAM
-LINEAR_STREAM
-INTERNAL_HEAP
-GLOBAL_FENCE
-PREEMPTION
-KERNEL_ISA_INTERNAL
-COMMAND_BUFFER
-COMMAND_BUFFER
-*/
-
-
-int Context::createCommandStreamReceiver() {
+int CommandDispatcherGen9::createCommandStreamReceiver() {
     if (!commandStreamCSR) {
         commandStreamCSR = allocateBufferObject(16 * MemoryConstants::pageSize, BufferType::COMMAND_BUFFER);
         if (!commandStreamCSR)
@@ -880,7 +827,7 @@ int Context::createCommandStreamReceiver() {
 }
 
 
-void Context::alignToCacheLine(BufferObject* bo) {
+void CommandDispatcherGen9::alignToCacheLine(BufferObject* bo) {
     size_t used = bo->offset;
     void* pCmd = ptrOffset(bo->cpuAddress, used);
     size_t alignment = MemoryConstants::cacheLineSize;
@@ -894,7 +841,7 @@ void Context::alignToCacheLine(BufferObject* bo) {
 }
 
 
-int Context::populateAndSubmitExecBuffer() {
+int CommandDispatcherGen9::populateAndSubmitExecBuffer() {
     std::vector<BufferObject*> execData = kernel->getExecData();
     for (auto &data : execData) {
         if (data)
@@ -939,7 +886,7 @@ int Context::populateAndSubmitExecBuffer() {
 }
 
 
-void Context::fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo) {
+void CommandDispatcherGen9::fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject* bo) {
     execObject.handle = bo->handle;
     execObject.relocation_count = 0u;
     execObject.relocs_ptr = 0ul;
@@ -951,7 +898,7 @@ void Context::fillExecObject(drm_i915_gem_exec_object2& execObject, BufferObject
 }
 
 
-int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtr, size_t boCount, size_t batchSize, size_t batchStartOffset) {
+int CommandDispatcherGen9::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBufferPtr, size_t boCount, size_t batchSize, size_t batchStartOffset) {
     for (size_t i = 0; i < boCount; i++) {
         fillExecObject(execObjects[i], execBufferPtr[i]);
     }
@@ -971,7 +918,7 @@ int Context::exec(drm_i915_gem_exec_object2* execObjects, BufferObject** execBuf
 }
 
 
-int Context::finishExecution() {
+int CommandDispatcherGen9::finishExecution() {
     [[maybe_unused]] std::chrono::high_resolution_clock::time_point time1, time2;
     time1 = std::chrono::high_resolution_clock::now();
 

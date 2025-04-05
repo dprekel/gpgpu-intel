@@ -109,6 +109,38 @@ struct STATE_BASE_ADDRESS {
     }
 };
 
+struct STATE_COMPUTE_MODE {
+    struct TheStructure {
+        //DW0
+    } Bitfield;
+    enum {
+        //
+    };
+    static STATE_COMPUTE_MODE init() {
+        STATE_COMPUTE_MODE state;
+        memset(&state, 0, sizeof(state));
+        return state;
+    }
+}
+
+struct STATE_CONTEXT_DATA_BASE_ADDRESS {
+    struct TheStructure {
+        //DW0
+    } Bitfield;
+    enum {
+        //
+    };
+    static STATE_CONTEXT_DATA_BASE_ADDRESS init() {
+        STATE_CONTEXT_DATA_BASE_ADDRESS state;
+        memset(&state, 0, sizeof(state));
+        return state;
+    }
+}
+
+struct STATE_CONTEXT_DATA_BASE_ADDRESS init() {
+    struct 
+}
+
 struct STATE_SIP {
     struct TheStructure {
         //DW0
